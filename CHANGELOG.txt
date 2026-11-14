@@ -22,6 +22,25 @@ previous docs/CHANGELOG.md on 2026-11-14. Exact tests for past branches were
 reported by their authors; no retroactive browser validation is claimed.
 
 ========================================================================
+UI v0.2.1 — LEVEL 2 INTERFACE DESIGNATION — 2026-11-14
+Branch: ui/v0.2-adaptive-spatial | Draft PR #13
+Type: Interface naming only; no engineering or solver changes
+========================================================================
+- Officially designated the current immersive Spatial Engineering
+  interface as "Level 2" (LEVEL 02) in the web application title and
+  visible interface brand.
+- Clarified the interface hierarchy in the README: "Level 2" is the
+  product interface tier, not a software version identifier.
+- Kept the independent UI version at v0.2.1 and the engineering backend
+  version at v0.8; no new UI version has been created.
+- Did not introduce or rename any Level 1 interface.
+- Preserved all spatial interaction, CAD, modal analysis, FEA,
+  optimization, industry and machine-learning functionality.
+- Appended this English-only naming record to the single root
+  CHANGELOG.txt without deleting or rewriting earlier history.
+- Safari visual review is still required before merging the Draft PR.
+
+========================================================================
 UI VERSION 0.2.1 — 2026-11-14
 Branch: ui/v0.2-adaptive-spatial | Draft PR #13
 Engineering foundation: v0.8, unchanged
