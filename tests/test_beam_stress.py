@@ -63,3 +63,30 @@ def test_surface_actual_fe_stress_and_color_range():
     assert len(fig.data)==2
     assert len(fig.data[1].intensity)>100
     assert max(fig.data[1].intensity)==pytest.approx(r.stress_max_mpa,rel=.03)
+
+
+def test_redesign_comparison_uses_a_shared_megapascal_color_scale_and_framing():
+    from forceforge.beam_stress import plotly_surface
+    original=solve_static(StaticCase(force_n=.26,thickness_ratio=1.10))
+    changed=solve_static(StaticCase(force_n=.26,thickness_ratio=1.30))
+    common_peak=max(original.stress_max_mpa,changed.stress_max_mpa)*1.001
+    common_x=125.0
+    fig1=plotly_surface(original,exaggeration=30,
+                        shared_stress_max_mpa=common_peak,view_x_limit_mm=common_x)
+    fig2=plotly_surface(changed,exaggeration=30,
+                        shared_stress_max_mpa=common_peak,view_x_limit_mm=common_x)
+    assert fig1.data[1].cmax==pytest.approx(fig2.data[1].cmax)
+    assert fig1.data[1].cmin==fig2.data[1].cmin==0
+    assert fig1.layout.scene.aspectmode=="manual"
+    assert fig1.layout.scene.xaxis.range==fig2.layout.scene.xaxis.range
+    assert fig1.layout.scene.zaxis.range==fig2.layout.scene.zaxis.range
+    assert fig1.layout.scene.camera==fig2.layout.scene.camera
+    assert fig1.layout.scene.zaxis.range[1]>1000*LENGTH_M
+    assert fig1.layout.paper_bgcolor=="#ffffff"
+
+
+def test_shared_stress_range_rejects_clipped_exaggerated_stress():
+    from forceforge.beam_stress import plotly_surface
+    result=solve_static(StaticCase(force_n=.16))
+    with pytest.raises(ValueError,match="Shared stress scale"):
+        plotly_surface(result,shared_stress_max_mpa=result.stress_max_mpa/2)
