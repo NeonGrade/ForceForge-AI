@@ -106,7 +106,50 @@ class Renderer{
   }
  }
 }
-const view=new Renderer($("model-canvas"));
+let view,usingGPU=false;
+try{
+ view=new window.ForgeViewport($("model-canvas"));usingGPU=true;
+}catch(error){
+ console.warn("WebGL unavailable, using interactive canvas fallback",error);
+ view=new Renderer($("model-canvas"));
+}
+window.forceForgeViz="stress";window.forceForgeSensors=true;
+text("render-mode-status",usingGPU?"WEBGL2 / LIVE FE GEOMETRY":"CANVAS COMPATIBILITY MODE");
+function setSceneSelection(selection){
+ const d=state.data;if(!d)return;
+ const sensor=selection&&selection.type==="sensor";
+ const lab=state.workspace==="lab";
+ text("intel-index",sensor?"EXPERIMENT / "+selection.id:lab?"SOURCE / MEASURED SPECIMEN":"SOLVER / VOLUMETRIC GEOMETRY");
+ text("intel-title",sensor?selection.id+" · MEASUREMENT POINT":lab?"PHYSICAL STEEL SPECIMEN":"TETRA10 · SOLID MESH");
+ text("intel-body",sensor?fmt(selection.height_mm,0)+" mm above the clamp · "+(selection.id==="MP4"||selection.id==="MP5"?"strain gauge":"motion measurement"):
+  lab?"1,524 mm free length · published experimental modal reference · 5 measurement locations.":"120 × 30 mm computational solid · parameterized thickness · actual 3D FEA.");
+ if(sensor){text("intel-action","VIEW MEASUREMENT DETAILS ↗");}
+ else text("intel-action",lab?"REVIEW PUBLISHED EVIDENCE ↗":"EXPLORE MODEL PARAMETERS ↗");
+}
+if(usingGPU){
+ view.onSelect=selection=>{
+  setSceneSelection(selection);
+  document.querySelectorAll(".tree-node").forEach(el=>el.classList.remove("selected"));
+  $("tree-model").classList.add("selected");
+  if(selection&&selection.type==="sensor"){
+   text("inspector-intro",selection.id+" · "+fmt(selection.height_mm,0)+" mm above the base");
+  }
+ };
+}
+function updateSceneControls(){
+ const lab=state.workspace==="lab";
+ visible("true-scale",lab);
+ visible("toggle-sensors",lab);
+ document.querySelectorAll('[data-viz="stress"]').forEach(el=>el.hidden=lab);
+ text("form-viz-label",lab?"Mode shape":"Material");
+ text("mesh-viz-label",lab?"Geometry":"FE mesh");
+ window.forceForgeViz=state.viz;
+ text("tree-model-label",lab?"Hannover steel beam":"Solid cantilever");
+ text("scene-index",lab?"EXP-002 / REAL LAB DATA":"CAE-001 / VOLUME ELEMENTS");
+ $("tree-solver").innerHTML=lab?'<span class="tree-icon">▥</span> Reduced-order beam FEM':'<span class="tree-icon">▥</span> Tetra10 volume mesh';
+ $("tree-measurements").innerHTML=lab?'<span class="tree-icon">◎</span> Measured sensors':'<span class="tree-icon">◎</span> Calculated fields';
+ setSceneSelection(null);
+}
 function updateLabels(){
  const p=state.params.solid,l=state.params.lab;
  text("solid-force-value",p.force_n+" N");text("solid-thickness-value",p.thickness_mm+" mm");
@@ -117,7 +160,7 @@ function updateLabels(){
 }
 function selectWorkspace(workspace){
  state.workspace=workspace;state.viz=workspace==="solid"?"stress":"form";state.data=null;state.redesign=null;state.calibration=null;
- state.requestId++;visible("module-menu",false);
+ state.requestId++;visible("module-menu",false);updateSceneControls();
  document.querySelectorAll("[data-workspace]").forEach(el=>el.classList.toggle("is-active",el.dataset.workspace===workspace));
  document.querySelectorAll("[data-viz]").forEach(el=>el.classList.toggle("selected",el.dataset.viz===state.viz));
  visible("solid-controls",workspace==="solid");visible("lab-controls",workspace==="lab");
@@ -144,7 +187,7 @@ async function solve(){
  try{
   const d=await api("/api/solve",payload);
   if(req!==state.requestId)return;
-  state.data=d;view.load(d);renderInspector();renderDrawer();renderLegend();
+  state.data=d;view.load(d);renderInspector();renderDrawer();renderLegend();setSceneSelection(null);
   status("SOLVED");visible("viewport-placeholder",false);
  }catch(e){if(req!==state.requestId)return;status("SOLVER ERROR");visible("viewport-placeholder",false);notify("Solver error: "+e.message);}
  finally{if(req===state.requestId)$("primary-action").disabled=false;}
@@ -260,12 +303,46 @@ function init(){
  $("drawer-toggle").onclick=()=>setDrawer(!$("bottom-drawer").classList.contains("open"));
  document.querySelectorAll("[data-drawer-tab]").forEach(el=>el.onclick=()=>{drawerTab(el.dataset.drawerTab);setDrawer(true);});
  document.querySelectorAll("[data-viz]").forEach(el=>el.onclick=()=>{
-  state.viz=el.dataset.viz;document.querySelectorAll("[data-viz]").forEach(a=>a.classList.toggle("selected",a===el));
+  state.viz=el.dataset.viz;window.forceForgeViz=state.viz;document.querySelectorAll("[data-viz]").forEach(a=>a.classList.toggle("selected",a===el));
   view.draw();if(state.data)renderLegend();
  });
- $("toggle-sensors").onclick=()=>{state.sensors=!state.sensors;$("toggle-sensors").classList.toggle("is-on",state.sensors);view.draw();};
+ $("toggle-sensors").onclick=()=>{state.sensors=!state.sensors;window.forceForgeSensors=state.sensors;$("toggle-sensors").classList.toggle("is-on",state.sensors);view.draw();};
  ["reset-camera","view-reset-top"].forEach(id=>$(id).onclick=()=>view.reset());
  $("primary-action").onclick=primaryAction;
+ let focus=false,standardView=0;
+ $("explore-toggle").onclick=()=>{
+   focus=!focus;$("app").classList.toggle("focus-mode",focus);
+   $("explore-toggle").setAttribute("aria-pressed",String(focus));
+   text("explore-toggle-text",focus?"ENGINEERING":"IMMERSIVE");
+   setTimeout(()=>view.resize(),350);
+ };
+ $("camera-view").onclick=()=>{
+   const sequence=["iso","front","right","top"];
+   if(typeof view.setView==="function")view.setView(sequence[standardView%4]);
+   else view.reset();
+   text("camera-view",["ISO","FRONT","RIGHT","TOP"][standardView%4]);
+   standardView++;
+ };
+ $("true-scale").onclick=()=>{
+   if(typeof view.setTrueScale!=="function")return;
+   const exact=$("true-scale").getAttribute("aria-pressed")!=="true";
+   $("true-scale").setAttribute("aria-pressed",String(exact));
+   text("true-scale",exact?"DETAIL":"1:1");
+   view.setTrueScale(exact);
+   notify(exact?"Actual beam section aspect ratio enabled.":"Section enlarged for inspection only; physical dimensions unchanged.");
+ };
+ $("intel-action").onclick=()=>{
+   if(state.workspace==="lab"){drawerTab("evidence");setDrawer(true);}
+   else {setControls(true);$("solid-force").focus();}
+ };
+ $("tree-model").onclick=()=>{setSceneSelection(null);view.reset();};
+ $("tree-geometry").onclick=()=>{setSceneSelection(null);state.viz="form";window.forceForgeViz="form";document.querySelectorAll("[data-viz]").forEach(b=>b.classList.toggle("selected",b.dataset.viz==="form"));view.draw();};
+ $("tree-solver").onclick=()=>{state.viz="wire";window.forceForgeViz="wire";document.querySelectorAll("[data-viz]").forEach(b=>b.classList.toggle("selected",b.dataset.viz==="wire"));view.draw();};
+ $("tree-measurements").onclick=()=>{
+    if(state.workspace==="lab"){state.sensors=true;window.forceForgeSensors=true;view.draw();setSceneSelection(null);}
+    drawerTab("results");setDrawer(true);
+ };
+
  $("help-btn").onclick=guide;$("rail-guide").onclick=guide;
  $("stage-info").onclick=()=>dialog("Model fidelity and limitations.",
   "<p>"+esc(state.data?.validation||"Model is not loaded.")+"</p><p>Visualization: "+esc(state.data?.visual_deformation||"not available")+"</p><p>See the Evidence drawer for sources and scope boundaries.</p>");
@@ -282,7 +359,13 @@ function init(){
   const el=$(id),callback=()=>{state.params[w][key]=el.type==="checkbox"?el.checked:el.tagName==="SELECT"&&id==="solid-resolution"||id==="lab-view"?el.value:Number(el.value);changed();};
   el.addEventListener(el.type==="range"?"input":"change",callback);
  }
- window.addEventListener("keydown",e=>{if(e.key==="r"&&!["INPUT","SELECT"].includes(document.activeElement.tagName))view.reset();});
+ window.addEventListener("keydown",e=>{
+  if(["INPUT","SELECT","TEXTAREA"].includes(document.activeElement.tagName))return;
+  if(e.key==="r")view.reset();
+  if(e.key==="f")$("explore-toggle").click();
+  if(e.key==="1")selectWorkspace("solid");
+  if(e.key==="2")selectWorkspace("lab");
+ });
  updateLabels();view.resize();selectWorkspace("solid");
 }
 document.addEventListener("DOMContentLoaded",init);
