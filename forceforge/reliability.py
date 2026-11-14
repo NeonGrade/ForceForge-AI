@@ -99,7 +99,12 @@ def search_robust(case: StaticCase, box: UncertaintyBox=UncertaintyBox(),
                   ratios: tuple[float,...]=DEFAULT_THICKNESS_RATIOS) -> RobustSearch:
     original=evaluate_robust(case,box,check_all=True)
     feasible=[]
+    tested=0
     for ratio in ratios:
+        # The underlying beam solver is validated only for thickness_ratio >= .65.
+        if ratio*(1.-box.thickness_reduction)<.65:
+            continue
+        tested+=1
         c=replace(case,thickness_ratio=float(ratio))
         # Constant-section ratio and statically determinate beam ensure the
         # worst corner captures max stress and deflection over this box.
@@ -109,10 +114,10 @@ def search_robust(case: StaticCase, box: UncertaintyBox=UncertaintyBox(),
             feasible.append((nominal.mass_kg,ratio,nominal,worst))
     feasible.sort(key=lambda x:(x[0],x[1]))
     if not feasible:
-        return RobustSearch(original,None,None,len(ratios),0)
+        return RobustSearch(original,None,None,tested,0)
     _,_,best_nominal,best_worst=feasible[0]
     # Always independently recompute all 8 corners of the selected candidate.
     independent=evaluate_robust(best_nominal.case,box,check_all=True)
     if not independent.passes:
         raise AssertionError("Selected robust design was not confirmed by all corners")
-    return RobustSearch(original,best_nominal,best_worst,len(ratios),len(feasible))
+    return RobustSearch(original,best_nominal,best_worst,tested,len(feasible))
