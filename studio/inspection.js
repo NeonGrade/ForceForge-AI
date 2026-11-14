@@ -220,6 +220,8 @@ function install(){
   grid.build();showHover(null);
   this.draw();
  };
+ const originalScale=v.setTrueScale.bind(v);
+ v.setTrueScale=function(value){originalScale(value);grid.build();this.draw();};
  const originalFrame=v._frame.bind(v);
  v._frame=function(){
   originalFrame();
@@ -230,7 +232,9 @@ function install(){
   }
  };
  canvas.addEventListener("pointermove",e=>{
-  if(v.active){showHover(null);return;}
+  if(v.active||document.getElementById("solver-status-text")?.textContent!=="SOLVED"){
+   showHover(null);return;
+  }
   mouse={x:e.offsetX,y:e.offsetY};
   const now=performance.now();
   if(now-lastProbe<38)return;
