@@ -15,7 +15,7 @@ def _radio(app, key):
 
 
 def test_new_landing_explains_a_real_eng_problem_without_exposing_solver_first():
-    app=AppTest.from_file("../app.py",default_timeout=90).run()
+    app=AppTest.from_file("../pages/9_Industry_Explorer.py",default_timeout=90).run()
     assert not app.exception
     assert _button(app,"Analyze the current design")
     assert _radio(app,"ff_sector")
@@ -23,7 +23,7 @@ def test_new_landing_explains_a_real_eng_problem_without_exposing_solver_first()
 
 
 def test_judge_scenario_and_redesign_survive_industry_switch():
-    app=AppTest.from_file("../app.py",default_timeout=90).run()
+    app=AppTest.from_file("../pages/9_Industry_Explorer.py",default_timeout=90).run()
     assert not app.exception
 
     _radio(app,"ff_sector").set_value("Industrial").run()

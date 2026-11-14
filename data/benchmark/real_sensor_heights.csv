@@ -1,0 +1,6 @@
+measurement_point,height_m,measurement_type
+MP1,1.462,accelerometer_and_laser
+MP2,1.098,accelerometer
+MP3,0.829,accelerometer_and_laser
+MP4,0.798,strain_gauge
+MP5,0.393,strain_gauge

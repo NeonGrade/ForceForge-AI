@@ -1,5 +1,14 @@
 # ForceForge X — Change Log and Non-Regression Policy
 
+## v0.4 (draft feature/real-lab-benchmark-v4, 2026-11-14)
+- Primary landing is now a physical laboratory steel beam with published CC-BY measurements and downloadable STEP/STL reconstruction.
+- Real specimen: L=1.524 m; 30×5.2 mm section with reduced 5.0 mm regions; exact reported MP1..MP5 sensor elevations.
+- New custom 2D modal beam FEA, support stiffness slider, 3D mode animation/deformation viewer, experimental frequency comparison, first-mode calibration and held-out mode 2/3 checks.
+- Original Abaqus .inp and measurement .mat can be uploaded; parsed output is descriptive only until measurement channels and unit conventions are confirmed.
+- Cross-industry v0.3 mission flow preserved in Industry Explorer, old FEA/ML workbench retained; no false claims about real 3D bracket or automotive validation.
+- Added source/license attribution and regression tests. The Mac must still test the deployed UI and downloaded CAD files.
+
+
 ## v0.3 (draft branch feature/decision-studio-v3, November 14, 2026)
 - A coherent **3-step** product landing: Choose the engineering problem -> Challenge the load -> Compare solver-verified improvement.
 - Uniform cross-industry candidate interface with physically consistent member radius scaling; connection-spring alternatives explicitly labeled as assumed and unpriced.

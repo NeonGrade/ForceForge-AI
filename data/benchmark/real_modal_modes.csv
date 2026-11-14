@@ -1,0 +1,4 @@
+mode,measured_frequency_hz,published_updated_abaqus_frequency_hz,published_modal_assurance_criterion
+B1x,1.569,1.698,0.9989
+B2x,10.389,10.775,0.9999
+B3x,29.619,30.590,0.9999

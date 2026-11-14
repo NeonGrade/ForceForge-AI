@@ -27,5 +27,6 @@ def test_ui_sources_still_parse():
     root=Path(__file__).resolve().parents[1]
     for candidate in ["app.py","pages/5_Advanced_Structural_Lab.py",
                       "pages/6_Cross_Industry_Platform.py",
-                      "pages/7_Engineering_Workbench.py"]:
+                      "pages/7_Engineering_Workbench.py",
+                      "pages/9_Industry_Explorer.py"]:
         ast.parse((root/candidate).read_text())

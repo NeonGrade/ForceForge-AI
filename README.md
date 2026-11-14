@@ -1,3 +1,46 @@
+# ForceForge X v0.4 — Real Laboratory Benchmark + Interactive CAD
+
+**Current working focus: real physical data, a documented 3D specimen, and a reproducible FEA/experiment comparison.** The previous simulated-only three-industry scenarios remain available as the **Industry Explorer**; none has been misrepresented as experimentally validated.
+
+## Launch on the team Mac
+
+Stop any running Streamlit with Ctrl+C. Then:
+
+```bash
+cd ~/ForceForge-AI
+git fetch origin
+git switch --track origin/feature/real-lab-benchmark-v4
+python -m pip install -r requirements.txt
+python -m pytest -q
+python -m streamlit run app.py
+```
+
+If this branch is already present locally, run `git switch feature/real-lab-benchmark-v4` instead.
+
+### 90-second demonstration
+
+1. Open the homepage. **Rotate the real-dimension reconstructed steel beam** and inspect published sensor locations at 0.393–1.462 m.
+2. Change the base rotational stiffness slider: the 2D finite-element generalized eigenvalue solution updates all 3 natural frequencies and the rendered 3D mode shape.
+3. Compare against **real measured laboratory frequencies** (1.569, 10.389, 29.619 Hz) and published Abaqus FE results (1.698, 10.775, 30.590 Hz).
+4. Click **Calibrate using measured Mode 1**. One equivalent support stiffness parameter is fitted using only 1 physical reference; Modes 2 and 3 are evaluated as independent holdout measurements.
+5. Download the **STEP/STL** reconstruction; open the traceability panel to access the actual institutional original Abaqus `.inp`/`.cae` and raw `.mat` data.
+6. Open **Industry Explorer** to show how the same platform's FEA workflows can extend to buildings, industrial brackets and automotive suspension. These three scenarios remain *simulation-only*.
+
+### Model/measurement pedigree
+
+- Physical source: J. Thurn et al., *Wind Energy Science*, 11, 3359–3376 (2026), DOI **10.5194/wes-11-3359-2026**, CC BY 4.0.
+- Raw physical data and original Abaqus model: Thurn, Jonscher & Rolfes (2025), DOI **10.25835/lyav246d**, CC BY 3.0.
+- `assets/benchmark/*.step` and `*.stl` are **our simplified reconstructed geometry**, made from published 1524×30×5.2 mm physical beam dimensions and 5.0 mm gauge regions. We do **not** claim they are the author's original mesh, sensor assembly or measured geometry survey.
+- `data/benchmark/*.csv` contains only the published numerical reference values, not simulated measurements.
+- `forceforge/modal_benchmark.py` is our own 2D consistent-mass Euler–Bernoulli FE solver; it does not implement the author's Timoshenko or sensor/magnet mass assumptions.
+- User-adjustable E and density are engineering assumptions, *not* certified test properties. A first-mode fitted stiffness is a model parameter, not a measured joint property.
+
+**The validated comparison is modal frequency correlation on a specific laboratory beam—not fatigue-life qualification or structural safety certification.** Time-domain comparison requires original `.mat` signal channel mapping and properly matched units.
+
+For implementation, reproduction and licensing, see [Real Lab Benchmark Guide](docs/REAL_LAB_BENCHMARK.md) and [Geometry/Data Provenance](docs/BENCHMARK_CAD_PROVENANCE.md).
+
+---
+
 # ForceForge X — Engineering Decision Studio (v0.3)
 
 **One product problem, three industry examples:** What happens when a structure faces a higher load, and which design changes improve its modeled performance?
