@@ -22,6 +22,62 @@ previous docs/CHANGELOG.md on 2026-11-14. Exact tests for past branches were
 reported by their authors; no retroactive browser validation is claimed.
 
 ========================================================================
+UI VERSION 0.1.0 — SPATIAL ENGINEERING REBUILD — 2026-11-14
+PR: #11 | Branch: ui/v8-forge-studio
+Engineering foundation: 3D tetra10 solid FEA (engineering v0.7) and
+published Hannover modal beam benchmark (engineering v0.4)
+Type: Full UI v0.1 redesign, draft; not merged into main
+========================================================================
+Product direction
+- Replaced permanent left controls, right inspector, dashboard cards and
+  bottom drawer with a full-viewport spatial engineering workspace.
+- The actual computed model is the visual center. Minimal floating header,
+  contextual scene selector and a narrow camera/footer strip remain.
+- On-model callouts are anchored in physical 3D coordinates and projected
+  into screen space as the user rotates and zooms the model.
+- Callouts indicate applied tip force, section thickness or support
+  stiffness, selected vibration mode, and the principal calculated result.
+- Added direct pointer-drag adjustment on parameter markers as well as
+  a compact contextual numeric/slider editor with explicit engineering
+  units and mode-specific controls.
+- Replaced persistent result summaries with a single in-scene value;
+  clicking that value opens a compact result overlay. Full numerical
+  evidence is available only in an on-demand details sheet.
+- Advanced numerical mesh/material assumptions and calibration or redesign
+  actions are behind one optional settings sheet.
+- Added model scene selector and brief dismissible first-use gesture hints;
+  no lengthy explanatory dashboard copy is required for core operations.
+- Added responsive viewport camera presets and a coherent original spatial
+  visual language with strong contrast, minimal elements and restrained HUD.
+Physics and provenance
+- Retained the actual existing Python solver API: tetra10 3D elasticity,
+  user-selected volumetric meshes, physical Hannover modal observations,
+  mode-1-only support calibration and independent mode-2/3 holdouts.
+- Retained engineering candidate redesign via independently solved 3D meshes.
+- Measured modal frequencies and simulated results remain explicitly
+  distinguished. No unsupported structural certification is claimed.
+- Model deformation and any lab-section display enlargement are visual
+  aids, never modifications to the underlying solver geometry or sources.
+- Did not add unimplemented arbitrary CAD editing, collision, nonlinear
+  contact, manufacturing certification or experimental static validation.
+Files
+- studio/index.html: rewritten spatial workspace and on-demand sheets.
+- studio/styles.css: fully rebuilt original spatial HUD and responsive rules.
+- studio/app.js: on-model projection, contextual manipulation, numeric
+  controls, concise results, asynchronous solver updates and evidence.
+- studio/viewport3d.js: existing WebGL2 FEM mesh renderer retained.
+- tests/test_studio.py: UI contract adjusted to validate spatial controls.
+- CHANGELOG.txt: this is the sole English changelog, with all prior
+  version records preserved and this entry appended at the top.
+Review gates
+- GitHub Actions full Python regression suite and JS syntax checks.
+- macOS Safari: first impression, visibility, field control manipulation,
+  no body scrolling, model viewport fit and responsive layout.
+- Verify case switching, actual FEA response, physical mode selection,
+  measured-vs-simulated comparison and source provenance.
+- This release remains a draft until visual browser acceptance.
+
+========================================================================
 UI VERSION 0.1.0 — SCIENTIFIC DISPLAY CLARITY ADDENDUM — 2026-11-14
 PR: #11 | Branch: ui/v8-forge-studio
 Type: Non-breaking follow-up to the UI v0.1 redesign
