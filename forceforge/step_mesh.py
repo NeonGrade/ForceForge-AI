@@ -35,6 +35,37 @@ NIST_PINNED_SHA256 = '623ee615d015bb231accdff3594592c3c7c563d98c463bd21680da2c00
 NIST_DATASET_DOI = '10.18434/mds2-2607'
 MAX_CAD_BYTES=32*1024*1024
 
+def _require_gmsh():
+    """Import Gmsh without hiding the actual macOS/venv failure.
+
+    Streamlit can run in a different Python environment from the user's
+    Terminal. A present gmsh.py can also fail to load its native libgmsh
+    or dependencies: ImportError does NOT necessarily mean gmsh is absent.
+    """
+    import sys
+    try:
+        import gmsh
+    except ModuleNotFoundError as exc:
+        if exc.name == "gmsh":
+            raise RuntimeError(
+                "Gmsh is not installed in the Python running ForceForge "
+                f"({sys.executable}). Stop Streamlit; activate .venv; run "
+                "python -m pip install 'gmsh>=4.12,<5'; restart Streamlit. "
+                f"Original error: {exc}"
+            ) from exc
+        raise RuntimeError(
+            f"Gmsh import depends on another missing Python module: {exc}. "
+            f"Python: {sys.executable}"
+        ) from exc
+    except (ImportError, OSError) as exc:
+        raise RuntimeError(
+            "Gmsh Python files were found but the native library or a "
+            "dependency could not be loaded. This may be a macOS dynamic "
+            "library or architecture mismatch. "
+            f"Python: {sys.executable}. Original error: {exc!r}"
+        ) from exc
+    return gmsh
+
 @dataclass
 class CadMesh:
     nodes_m: np.ndarray
@@ -104,10 +135,7 @@ def mesh_step_bytes(data:bytes, *, source_label='STEP',mesh_size_mm=5.,unit='mm'
         raise ValueError('Units must be mm or m')
     if not .2<=mesh_size_mm<=30:
         raise ValueError('Mesh size must be between 0.2 and 30 mm')
-    try:
-        import gmsh
-    except ImportError as exc:
-        raise RuntimeError('Install optional Gmsh: python -m pip install gmsh') from exc
+    gmsh = _require_gmsh()
     with tempfile.TemporaryDirectory(prefix='ffstep_') as folder:
         src=Path(folder)/'source.step'
         src.write_bytes(data)
@@ -135,10 +163,7 @@ def generated_bracket_step(*,web_mm=8.):
     """New editable L bracket with 3 drilled holes; NOT a measured NIST specimen."""
     if web_mm not in (8.,10.,12.,14.):
         raise ValueError('Bracket web thickness must be 8, 10, 12 or 14 mm')
-    try:
-        import gmsh
-    except ImportError as exc:
-        raise RuntimeError('Install optional Gmsh first') from exc
+    gmsh = _require_gmsh()
     with tempfile.TemporaryDirectory(prefix='ffbracket_') as folder:
         path=Path(folder)/'bracket.step'
         with _gmsh_session(gmsh):
