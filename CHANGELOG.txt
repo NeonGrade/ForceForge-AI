@@ -22,6 +22,25 @@ previous docs/CHANGELOG.md on 2026-11-14. Exact tests for past branches were
 reported by their authors; no retroactive browser validation is claimed.
 
 ========================================================================
+UI VERSION 0.1.0 — SCIENTIFIC DISPLAY CLARITY ADDENDUM — 2026-11-14
+PR: #11 | Branch: ui/v8-forge-studio
+Type: Non-breaking follow-up to the UI v0.1 redesign
+========================================================================
+- Corrected the experimental workspace's lateral static-load presentation:
+  the primary inspector now reports independently calculated 1D beam static
+  tip displacement in millimetres for the user-assumed force in newtons.
+- The static model is explicitly marked SIMULATED / NOT MEASURED, not
+  published measured modal evidence.
+- The static action returns to the measured modal analysis before Mode 1
+  experimental calibration is offered.
+- Visual toggle text changes from Mode Shape to Deflection in static view.
+- Added a numerical regression test that verifies static FE tip movement
+  scales linearly when applied load is doubled.
+- Published modal frequencies, independent calculated frequencies, original
+  solver modules and historical change records remain unchanged.
+- No Safari browser visual acceptance is claimed by this addendum.
+
+========================================================================
 UI VERSION 0.1.0 — FULL INTERFACE REBUILD REVISION — 2026-11-14
 PR: #11 | Branch: ui/v8-forge-studio
 Engineering foundation: v0.7 tetra10 FEA + v0.4 measured modal study
