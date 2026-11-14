@@ -29,6 +29,7 @@ st.markdown('''<style>
 with st.sidebar:
     st.markdown('### ForceForge X / Simulation Studio')
     st.markdown('[← Back to measured benchmark](/)')
+    st.markdown('[Continue to a genuine 3D SOLID FEA solver](/True_3D_Solid_FEA)')
     st.caption('Model: documented 1.524 m laboratory steel beam')
     st.header('1. Apply the challenge')
     tip_load=st.slider('Tip side load (N)',.02,.40,.15,.01,
