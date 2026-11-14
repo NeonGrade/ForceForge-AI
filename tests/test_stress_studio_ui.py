@@ -44,3 +44,19 @@ def test_changed_load_never_displays_outdated_redesign_as_current():
     assert not app.exception
     assert app.session_state["static_redesign"]["inputs"] == previous
     assert not any(x.label == "Redesigned thickness / reference" for x in app.metric)
+
+
+def test_robust_what_if_rejects_nonrobust_nominal_solution():
+    app=AppTest.from_file("../pages/10_3D_CAD_Simulation.py",default_timeout=90).run()
+    assert not app.exception
+    next(sl for sl in app.sidebar.slider if sl.label=="Tip side load (N)").set_value(.26).run()
+    next(sl for sl in app.sidebar.slider if sl.label=="Thickness design factor").set_value(1.10).run()
+    next(sl for sl in app.sidebar.slider if sl.label=="Allowable tip movement (mm)").set_value(3.25).run()
+    assert not app.exception
+    next(b for b in app.button
+         if b.label=="Check worst-case margin and find a robust design").click().run()
+    assert not app.exception
+    robust=app.session_state["beam_robust"]["output"]
+    assert not robust.check.passes
+    assert robust.best is not None
+    assert robust.best_worst.governing_utilization <= 1.0

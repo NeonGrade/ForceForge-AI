@@ -11,6 +11,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from forceforge.reliability import UncertaintyBox, evaluate_robust, search_robust
+
 from forceforge.beam_stress import (
     LENGTH_M, WIDTH_M, StaticCase, solve_static,
     displacement_at, axial_stress_at, thickness_at,
@@ -140,6 +142,85 @@ if result is not None:
         st.download_button('Export before / after FE calculation (JSON)',
                            json.dumps(payload,indent=2),file_name='forceforge_static_redesign.json',
                            mime='application/json')
+
+st.divider()
+st.subheader('3. Test reliability before accepting the lightest design')
+st.write(
+    'A nominally feasible design can have almost no spare capacity. '
+    'Challenge load, material stiffness and manufacturing thickness together; '
+    'every limit below is recomputed using the beam FEM.'
+)
+r1,r2,r3=st.columns(3)
+with r1:
+    load_extra=st.slider('Possible additional load (%)',0,30,10,5,key='robust_load')
+with r2:
+    e_loss=st.slider('Possible stiffness reduction (%)',0,30,10,5,key='robust_modulus')
+with r3:
+    t_loss=st.slider('Possible thickness reduction (%)',0,10,5,1,key='robust_thickness')
+box=UncertaintyBox(load_extra/100,e_loss/100,t_loss/100)
+inputs_key=(asdict(case),asdict(box))
+
+if st.button('Check worst-case margin and find a robust design',
+             type='primary',width='stretch'):
+    with st.spinner('Re-solving FEM at uncertainty corners and checking candidate sections...'):
+        st.session_state['beam_robust']={
+            'inputs':inputs_key,'output':search_robust(case,box)
+        }
+robust=st.session_state.get('beam_robust')
+if robust is not None and robust['inputs']!=inputs_key:
+    st.warning('These uncertainty or load inputs changed. Re-run the robust calculation before using the previous results.')
+    robust=None
+if robust is not None:
+    search_result=robust['output']
+    initial=search_result.check
+    a1,a2,a3=st.columns(3)
+    a1.metric('Current displacement · nominal',
+              f'{initial.nominal.tip_mm:.3f} mm')
+    a2.metric('Current displacement · worst case',
+              f'{initial.worst.tip_mm:.3f} mm')
+    a3.metric('Current worst-case limit usage',
+              f'{initial.worst_utilization*100:.1f}%')
+    if initial.passes:
+        st.success('The current design passes all 8 sampled corners of this stated uncertainty box.')
+    else:
+        st.error(
+            'The current design fails the modeled uncertainty envelope. '
+            'A nominal pass is not enough to guarantee the chosen margin.'
+        )
+    if search_result.best is None:
+        st.warning('No robustly feasible candidate exists within the selected section grid.')
+    else:
+        best=search_result.best
+        wc=search_result.best_worst
+        st.markdown('#### Robust redesign — FEA verified')
+        b1,b2,b3=st.columns(3)
+        b1.metric('Selected reference thickness',f'{best.case.thickness_ratio:.2f}×')
+        b2.metric('Redesign · worst tip movement',f'{wc.tip_mm:.3f} mm')
+        b3.metric('Redesign · worst limit usage',f'{wc.governing_utilization*100:.1f}%')
+        st.caption(
+            f'The nominal section mass changes by '
+            f'{(best.mass_kg/current.mass_kg-1)*100:+.1f}% versus current design. '
+            f'{search_result.feasible} of {search_result.tested} sampled sections '
+            'satisfy all eight modeled uncertainty corners.'
+        )
+        fig=go.Figure()
+        fig.add_bar(
+            x=['Current · nominal','Current · worst','Robust redesign · worst'],
+            y=[current.tip_mm,initial.worst.tip_mm,wc.tip_mm],
+            marker_color=['#2d819f','#d36d57','#25866f']
+        )
+        fig.add_hline(y=deflection_limit,line_dash='dash',
+                      line_color='#c24d4d',annotation_text='Chosen displacement limit')
+        fig.update_layout(height=340,showlegend=False,
+                          yaxis_title='FEA tip displacement (mm)',
+                          margin=dict(l=4,r=4,t=10,b=20))
+        st.plotly_chart(fig,width='stretch',key='robust_disp_comparison')
+    st.caption(
+        'Uncertainty values are user-assumed bounds, not measured distributions '
+        'or calibrated reliability probabilities. The eight corners are exhaustive '
+        'for this monotonic linear-elastic cantilever model only; manufacturing '
+        'and joint uncertainty outside these parameters is not included.'
+    )
 
 with st.expander('Engineering verification, experimental attribution and model limitations'):
     st.write('1.524 m × 30 mm × 5.2 mm nominal steel beam (5.0 mm at two reduced regions).')
