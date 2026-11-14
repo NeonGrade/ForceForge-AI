@@ -5,7 +5,7 @@ import json
 import urllib.request
 import streamlit as st
 import numpy as np
-from forceforge.step_mesh import mesh_step_bytes, generated_bracket_step, NIST_BRIDGE_URL, NIST_DATASET_DOI, MAX_CAD_BYTES
+from forceforge.step_mesh import mesh_step_bytes, generated_bracket_step, NIST_BRIDGE_URL, NIST_DATASET_DOI, MAX_CAD_BYTES, NIST_PINNED_SHA256
 from forceforge.cad_solid import CadLoad, solve_cad_mesh
 from forceforge.solid3d import surface_figure
 
@@ -54,6 +54,8 @@ if selection=='NIST original bridge STEP':
                     raw=answer.read(MAX_CAD_BYTES+1)
                 if len(raw)>MAX_CAD_BYTES:
                     raise ValueError('NIST CAD file exceeds 32 MiB upload limit')
+                if sha256(raw).hexdigest()!=NIST_PINNED_SHA256:
+                    raise ValueError('NIST original STEP SHA-256 differs from the independently verified source; do not silently replace geometry')
                 st.session_state['nist_step_blob']=raw
         except Exception as exc:
             st.error(f'NIST download unsuccessful: {exc}. Download manually from NIST and choose Upload your STEP.')
@@ -77,6 +79,8 @@ if source is None:
 
 sha=sha256(source).hexdigest()
 st.caption(f'Source SHA-256: {sha} · {name}. Every FE result is associated with exact CAD hash and inputs.')
+if selection=='NIST original bridge STEP':
+    st.caption('Original NIST STEP hash pinned to the published data source; modified versions must be uploaded and reviewed separately.')
 if selection=='Editable 3D L-bracket':
     st.download_button('Download current parametric STEP',data=source,
         file_name=f'forceforge_L_bracket_web_{web}mm.step',mime='application/step')
