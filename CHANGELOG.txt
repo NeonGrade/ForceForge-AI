@@ -22,6 +22,28 @@ previous docs/CHANGELOG.md on 2026-11-14. Exact tests for past branches were
 reported by their authors; no retroactive browser validation is claimed.
 
 ========================================================================
+UI VERSION 0.1.0 — 2026-11-14
+PR: #11 | Branch: ui/v8-forge-studio (historical branch name)
+Based on engineering version: 0.7
+Type: Independent UI version reset and product experience review
+========================================================================
+- Adopted a separate UI-only version sequence starting with v0.1.0;
+  engineering releases continue using independent engineering numbering.
+- Updated the Studio header, server metadata, startup text, README and PR
+  naming to display UI v0.1 rather than engineering-style UI v0.8.
+- Preserved earlier UI v0.4, v0.5 and v0.5.1 draft labels below as historical
+  prototype identifiers, not releases in the new independent UI sequence.
+- Retained all earlier engineering and UI version records without deletion.
+- Mac Safari screenshot review found that the large canvas did not give the
+  slender laboratory beam visual dominance, some global visualization tools
+  did not respect the active physics mode, and navigation felt dashboard-like.
+- Next design direction: object-centered engineering interactions and
+  analysis-specific tools; no second redesign is asserted by this update.
+- Existing solver implementations and scientific measurements are unchanged.
+- This change was committed to the draft UI branch and requires normal
+  visual review before merge.
+
+========================================================================
 VERSION 0.8.0 — 2026-11-14
 Branch: ui/v8-forge-studio
 Base: feature/3d-solid-tet10-v7 (engineering v0.7)
