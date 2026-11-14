@@ -54,6 +54,7 @@ function changeWorkspace(space){
    window.cadUI.activate();return;
  }
  if(space!=="lab"&&space!=="solid")return;
+ if(ui.workspace==="cad")window.cadUI?.deactivate();
  ui.workspace=space;ui.selected=null;ui.redesign=null;ui.calibration=null;ui.data=null;
  ui.request++;closePanels();closeEditor();closeQuick();$("project-chooser").hidden=true;
  const lab=space==="lab";
@@ -75,7 +76,7 @@ function changeWorkspace(space){
  $("pin-result").hidden=false;
  $("mode-view").firstChild.textContent="MATERIAL ";
  $("settings-panel").hidden=true;
- syncSettings();refreshPinText();solve();
+ syncSettings();refreshPinText();window.adaptiveUI?.onWorkspaceChange();solve();
 }
 function refreshPinText(){
  if(ui.workspace==="cad"){window.cadUI?.refreshPinText();return;}
