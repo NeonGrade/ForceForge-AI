@@ -55,10 +55,17 @@ def choice(payload: dict, name: str, options: tuple, default):
     return value
 
 
-def _as_mesh(points_m, faces, values=None):
+def _as_mesh(points_m, faces, values=None, *, reference_points_m=None,
+             displacements_m=None):
+    """Serialize rendered mesh plus undeformed coordinates for accurate probing.
+
+    The displayed positions may have greatly exaggerated deformations.
+    Reference coordinates and actual FEA displacement remain separate.
+    Surface scalar is a per-face stress sample, not a point-exact value.
+    """
     pts = np.asarray(points_m, dtype=float)
     indices = np.asarray(faces, dtype=int)
-    if not np.all(np.isfinite(pts)):
+    if pts.ndim != 2 or pts.shape[1] != 3 or not np.all(np.isfinite(pts)):
         raise ValueError("Invalid mesh coordinates")
     data = {
         "vertices": np.round(pts * 1000, 6).tolist(),
@@ -66,8 +73,21 @@ def _as_mesh(points_m, faces, values=None):
         "scalar": None,
         "unit": "mm",
     }
+    if reference_points_m is not None:
+        reference = np.asarray(reference_points_m, dtype=float)
+        if reference.shape != pts.shape or not np.all(np.isfinite(reference)):
+            raise ValueError("Reference geometry must match display vertices")
+        data["reference_vertices"] = np.round(reference * 1000, 6).tolist()
+    if displacements_m is not None:
+        displacements = np.asarray(displacements_m, dtype=float)
+        if displacements.shape != pts.shape or not np.all(np.isfinite(displacements)):
+            raise ValueError("Displacement array must match display vertices")
+        data["displacements_mm"] = np.round(displacements * 1000, 8).tolist()
     if values is not None:
-        data["scalar"] = np.round(np.asarray(values, dtype=float), 5).tolist()
+        scalars = np.asarray(values, dtype=float)
+        if scalars.shape != (len(indices),) or not np.all(np.isfinite(scalars)):
+            raise ValueError("Per-face scalar values must match surface faces")
+        data["scalar"] = np.round(scalars, 5).tolist()
     return data
 
 
@@ -115,6 +135,15 @@ def lab_analysis(p: dict) -> dict:
         result.heights_m, offset,
         include_gauge_areas=a["gauges"],
     )
+    reference, reference_faces, _ = prism_surface(
+        result.heights_m, np.zeros_like(offset),
+        include_gauge_areas=a["gauges"],
+    )
+    if reference.shape != verts.shape or not np.array_equal(faces, reference_faces):
+        raise ValueError("Reference modal mesh topology differs from displayed mesh")
+    # Static displacements are genuine FEM values; mode-shape amplitudes
+    # are visualization choices and must never be labeled actual movement.
+    actual_u = (verts - reference) / a["static_scale"] if a["view"] == "static" else None
     sensors = [
         {
             "id": name,
@@ -139,7 +168,8 @@ def lab_analysis(p: dict) -> dict:
         "model_title": "Hannover steel beam",
         "analysis_label": "Measured modal reference / simplified FEM",
         "model_type": "Published geometry reconstructed; original Abaqus mesh not bundled",
-        "mesh": _as_mesh(verts, faces),
+        "mesh": _as_mesh(verts, faces, reference_points_m=reference,
+                         displacements_m=actual_u),
         "sensors": sensors,
         "frequencies_hz": frequencies,
         "measured_hz": MEASURED_HZ.tolist(),
@@ -246,7 +276,9 @@ def solid_analysis(p: dict) -> dict:
         "model_title": "3D tetra10 solid specimen",
         "analysis_label": "Genuine quadratic tetrahedral volume FEA",
         "model_type": "Parametric computational specimen; NOT a tested physical bracket",
-        "mesh": _as_mesh(deformed, result.surface_faces, vm),
+        "mesh": _as_mesh(deformed, result.surface_faces, vm,
+                         reference_points_m=result.nodes_m,
+                         displacements_m=result.displacements_m),
         "stress_cmax_mpa": round(result.max_mises_mpa, 6),
         "dimensions_mm": [120, 30, round(case.thickness_m * 1000, 2)],
         "mesh_resolution": [case.nx, case.ny, case.nz],
@@ -303,7 +335,7 @@ def solid_redesign(p: dict) -> dict:
 
 CATALOG = {
     "product": "ForceForge X Studio",
-    "ui_version": "0.2.0",
+    "ui_version": "0.2.1",
     "modules": [
         {
             "id": "solid", "name": "Solid mechanics",
@@ -463,7 +495,7 @@ def main():
         parser.error("Choose a port from 1024 to 65535")
     server = ThreadingHTTPServer(("127.0.0.1", args.port), StudioHandler)
     address = f"http://127.0.0.1:{args.port}"
-    print(f"ForceForge X Studio UI v0.2 / Engineering v0.8 — {address}")
+    print(f"ForceForge X Studio UI v0.2.1 / Engineering v0.8 — {address}")
     print("Press Control+C to stop. Real CAD requires the optional gmsh Python package.")
     if not args.no_open:
         webbrowser.open(address)
