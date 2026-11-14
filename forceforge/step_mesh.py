@@ -7,8 +7,26 @@ from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
+from contextlib import contextmanager
+from threading import RLock
 import tempfile
 import numpy as np
+
+# The Gmsh Python API changes process-wide state; serialize CAD/mesh calls
+# across concurrent Streamlit sessions. Calling initialize() with the default
+# interruptible=True changes SIGINT handlers, which Python forbids in
+# Streamlit's non-main ScriptRunner thread (especially on macOS/Python 3.13).
+_GMSH_LOCK = RLock()
+
+@contextmanager
+def _gmsh_session(gmsh):
+    with _GMSH_LOCK:
+        gmsh.initialize(interruptible=False)
+        try:
+            yield gmsh
+        finally:
+            gmsh.finalize()
+
 
 NIST_BRIDGE_URL = 'https://data.nist.gov/od/ds/ark:/88434/mds2-2607/CAD_Geometry/AMB2022-01-AMMT-PartCAD.STEP'
 NIST_BRIDGE_HASH_URL = NIST_BRIDGE_URL + '.sha256'
@@ -93,8 +111,7 @@ def mesh_step_bytes(data:bytes, *, source_label='STEP',mesh_size_mm=5.,unit='mm'
     with tempfile.TemporaryDirectory(prefix='ffstep_') as folder:
         src=Path(folder)/'source.step'
         src.write_bytes(data)
-        gmsh.initialize()
-        try:
+        with _gmsh_session(gmsh):
             gmsh.option.setNumber('General.Terminal',0)
             gmsh.model.add('STEP imported CAD')
             gmsh.model.occ.importShapes(str(src))
@@ -112,8 +129,6 @@ def mesh_step_bytes(data:bytes, *, source_label='STEP',mesh_size_mm=5.,unit='mm'
             gmsh.model.mesh.generate(3)
             return _extract_tets(gmsh,scale,sha256(data).hexdigest(),source_label,
                                  mesh_size_mm,volume_native,max_tets)
-        finally:
-            gmsh.finalize()
 
 
 def generated_bracket_step(*,web_mm=8.):
@@ -126,8 +141,7 @@ def generated_bracket_step(*,web_mm=8.):
         raise RuntimeError('Install optional Gmsh first') from exc
     with tempfile.TemporaryDirectory(prefix='ffbracket_') as folder:
         path=Path(folder)/'bracket.step'
-        gmsh.initialize()
-        try:
+        with _gmsh_session(gmsh):
             gmsh.option.setNumber('General.Terminal',0)
             gmsh.model.add('Parametric demonstration bracket')
             a=gmsh.model.occ.addBox(0,0,0,75,40,8)
@@ -141,5 +155,3 @@ def generated_bracket_step(*,web_mm=8.):
                 raise ValueError('Bracket is not one watertight solid')
             gmsh.write(str(path))
             return path.read_bytes()
-        finally:
-            gmsh.finalize()
