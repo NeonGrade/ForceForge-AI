@@ -22,6 +22,76 @@ previous docs/CHANGELOG.md on 2026-11-14. Exact tests for past branches were
 reported by their authors; no retroactive browser validation is claimed.
 
 ========================================================================
+UI VERSION 0.2.0 — 2026-11-14
+Branch: ui/v0.2-adaptive-spatial
+Base: feature/real-step-import-fea-v8 (engineering v0.8)
+Type: Draft UI integration / adaptive spatial refinement; not merged
+========================================================================
+- Created a new UI v0.2 branch based on the newest engineering v0.8
+  development branch rather than altering the older v0.7 UI branch.
+- Ported the accepted Spatial Engineering UI v0.1 intact, retaining the
+  existing immersive 3D viewport, model-anchored force and thickness markers,
+  modal analysis, calibration, FEA candidate redesign and evidence handling.
+- Added a Real CAD workspace powered by the actual engineering v0.8
+  Gmsh OpenCASCADE STEP importer and quadratic tetra10 FEA solver.
+- Added user STEP file import (bounded to 32 MiB), exact source SHA-256
+  storage, official NIST STEP download with pinned hash verification,
+  original parametric bracket generation, source STEP download and JSON audit.
+- Added CAD load direction, fixture axis, Young's modulus, Poisson ratio,
+  density, yield assumption, tetra mesh scale and display displacement
+  controls, with source/mesh volume verification and safety limits preserved.
+- Added independent CAD revision: modified bracket dimensions or imported
+  revised STEP; each geometry is remeshed and re-solved under the same
+  assumed material/load, with separate source hash and before/after results.
+- Added concise, model-associated CAD result readouts and dedicated source
+  and revision actions; detailed analysis remains in optional panels.
+- Added a compact tools menu for narrow/short browser viewports; low-priority
+  on-model labels yield space without removing parameter access.
+- Added independently responsive styling for regular desktop, compact
+  laptop, narrow browser and short windows; no global page scrolling.
+- Kept ALL existing engineering modules, original app.py, Streamlit pages,
+  scripts, tests, and physics/ML libraries unchanged from engineering v0.8.
+- Added an explicit menu entry to open the original full Streamlit toolbox
+  in a separate local server (industry, robust, advanced lab, ML and CAD).
+- Added tests for the CAD API bridge, source validation, version metadata,
+  preserved original modules and real Gmsh integrated roundtrip.
+- Updated the standard Python regression CI and the Linux/macOS Gmsh
+  integration workflow to cover new Studio files and tests.
+- Removed docs/CHANGELOG.md on the UI integration branch to keep the sole
+  root English CHANGELOG.txt; no historical version records were removed.
+Limits and provenance:
+- Published NIST geometry/AM distortion data do NOT validate our assumed
+  static loading or an actual in-service structural safety case.
+- Curved CAD faces are represented by a straight-sided tet mesh; tet10
+  quadratic interpolation does not imply curved isoparametric BRep elements.
+- Gmsh remains an explicitly optional extra for real STEP workflows.
+- Single watertight solid only, 5,000 input tet cap, isotropic linear
+  elasticity; no multi-body contact, nonlinear material or certification.
+- Latest CI tests and actual Safari compact-screen acceptance are required
+  before this draft is merged. No unobserved browser acceptance is claimed.
+
+========================================================================
+ENGINEERING VERSION 0.8 — 2026-11-14
+PR: #12 | Branch: feature/real-step-import-fea-v8
+Type: Latest available unmerged engineering development branch
+========================================================================
+- Added a real NIST AM Bench 2022 bridge STEP BRep source and official
+  checksum-pinned provenance path (DOI 10.18434/mds2-2607).
+- Added Gmsh OpenCASCADE STEP import, single-body guard, mm/m unit
+  selection, 3D volume tetrahedral mesh with volume and shape checks.
+- Reused the verified three-DOF tetra10 solver on imported 3D CAD
+  volume meshes, with consistent traction and computed 3D Gauss stress.
+- Added a generated editable L-bracket with drilled holes, plus modified
+  CAD revisions which are independently remeshed and re-solved.
+- Added original/revised STEP downloads, comparison and FEA source hash
+  audit records in the existing specialist Streamlit page.
+- Preserved the original 3D solid, real laboratory, industrial, robust
+  redesign, ML and advanced structural modules.
+- No independent measured static validation, real contact modeling,
+  fatigue certification, nonlinear plasticity or general assembly solver.
+- The original NIST fine geometry can exceed interactive mesh limits.
+
+========================================================================
 UI VERSION 0.1.0 — SPATIAL ENGINEERING REBUILD — 2026-11-14
 PR: #11 | Branch: ui/v8-forge-studio
 Engineering foundation: 3D tetra10 solid FEA (engineering v0.7) and
