@@ -1,3 +1,90 @@
+# ForceForge X — Adaptive Spatial UI v0.2 / Engineering v0.8
+
+**Current integration preview:** UI v0.2 is based on the latest available
+engineering v0.8 branch. It preserves the immersive Spatial Engineering
+experience and adds an actual STEP CAD / Gmsh / tetra10 FEA workflow.
+
+## Launch on macOS
+
+Before switching branches, check for any uncommitted local files with
+`git status --short` and save them separately.
+
+```bash
+cd ~/ForceForge-AI
+git fetch origin
+git switch --track origin/ui/v0.2-adaptive-spatial
+python3 -m pip install -r requirements.txt
+python3 -m pip install 'gmsh>=4.12,<5'
+python3 studio_server.py
+```
+
+If you already have the branch locally, instead run:
+
+```bash
+git switch ui/v0.2-adaptive-spatial
+git pull --ff-only
+python3 studio_server.py
+```
+
+Open **http://127.0.0.1:8765** in Safari or Chrome. This is a
+loopback-only local website, not a public server. Stop with Control+C.
+
+The optional Gmsh package is required for actual STEP CAD meshing. Without
+it, the solid and laboratory modules remain available; CAD meshing reports
+the real dependency error instead of inventing a solution.
+
+## New experience
+
+- **Solid mechanics** — existing real tetra10 computational cantilever,
+  model-anchored force and section controls, actual simulated stress.
+- **Real laboratory** — published Hannover modal frequencies, measured
+  sensor locations, independent reduced-order FEM, Mode 1 support fit and
+  held-out Modes 2 and 3.
+- **Real CAD** — load the original generated bracket, import an actual
+  single-solid STEP, or explicitly download a checksum-verified original
+  NIST STEP file; tetra mesh and solve with genuine engineering v0.8
+  routines, change load/material/mesh assumptions, then revise geometry,
+  remesh and independently re-solve and compare.
+- **Complete engineering toolkit** — original Streamlit homepage, industry
+  tools, robust optimization, ML and specialist pages are still present.
+  From another Terminal run
+  `python3 -m streamlit run app.py` and open
+  **http://127.0.0.1:8501**. The Spatial interface links to those tools.
+
+The same full-height 3D space remains central. Compact windows expose
+the currently relevant action, one primary result and an optional tools
+menu; important controls remain accessible without page scrolling.
+Detailed engineering data and settings appear only when requested.
+
+## Engineering evidence and versioning
+
+The NIST published CAD is real geometry; it does **not** validate our
+user-assumed static loading, fixture, material properties or yield limits.
+Original and revised STEP meshes are independently solved. The source
+SHA-256, tetra mesh count/volume audit, displacements and sampled stress
+are recorded. Single-body geometries only; max 5,000 input tets;
+no nonlinear contact or physical safety certification.
+
+UI v0.2 is numbered independently from engineering v0.8.
+The only permanent version history is the root-level English-only
+**CHANGELOG.txt**. Earlier versions are retained.
+
+## Verification
+
+```bash
+python3 -m pytest -q tests/test_studio.py tests/test_studio_cad.py
+node --check studio/app.js
+node --check studio/viewport3d.js
+node --check studio/adaptive.js
+```
+
+With Gmsh installed, run the additional actual CAD integration:
+`python3 -m pytest -q tests/test_studio_cad_gmsh.py`.
+Safari model anchoring and responsive-screen acceptance are required
+before the Draft PR is merged.
+
+---
+
 # ForceForge X v0.8 — Real STEP → 3D Solid FEA → CAD Redesign
 
 **This is the current development branch, preserving all earlier numerical, real modal, robust, ML and cross-industry modules.**
