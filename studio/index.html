@@ -7,6 +7,7 @@
   <meta name="description" content="ForceForge X — a spatial environment for real engineering analysis.">
   <title>ForceForge X — Spatial Engineering</title>
   <link rel="stylesheet" href="/studio/styles.css">
+  <link rel="stylesheet" href="/studio/adaptive.css">
 </head>
 <body>
 <div class="spatial-app" id="app">
@@ -30,6 +31,7 @@
         <span class="solver-status" id="solver-status"><i id="solver-light"></i><span id="solver-status-text">SOLVING</span></span>
         <button type="button" class="top-icon" id="view-reset" aria-label="Reset camera" title="Reset camera">↺</button>
         <button type="button" class="top-icon" id="settings-open" aria-label="Advanced parameters" title="Advanced parameters">⚙</button>
+        <button type="button" class="top-icon compact-tools-toggle" id="tools-toggle" aria-label="Choose model control" aria-expanded="false" title="Model controls">⊕</button>
         <button type="button" class="top-icon" id="help-open" aria-label="Controls and evidence" title="Help">?</button>
       </div>
     </header>
@@ -90,10 +92,31 @@
       <button type="button" class="project-choice" data-workspace="solid">
         <span class="project-icon">⬡</span><span><strong>Solid mechanics</strong><small>3D stress & deformation</small></span><span class="project-arrow">↗</span>
       </button>
+      <button type="button" class="project-choice" data-workspace="cad">
+        <span class="project-icon">⌑</span><span><strong>Real CAD</strong><small>STEP geometry · volume FEA · revision</small></span><span class="project-arrow">↗</span>
+      </button>
       <button type="button" class="project-choice" data-workspace="lab">
         <span class="project-icon">∿</span><span><strong>Real laboratory</strong><small>Measured modal validation</small></span><span class="project-arrow">↗</span>
       </button>
+      <button type="button" class="project-choice secondary-project" id="legacy-launch">
+        <span class="project-icon">▤</span><span><strong>Complete engineering toolkit</strong><small>Industry, robust design, ML, advanced labs</small></span><span class="project-arrow">↗</span>
+      </button>
     </aside>
+    <div class="compact-tools" id="compact-tools" hidden aria-label="Available spatial controls">
+      <button type="button" data-select-pin="force">↘ Applied force</button>
+      <button type="button" data-select-pin="thickness">↔ Section thickness</button>
+      <button type="button" data-select-pin="support">⟲ Support stiffness</button>
+      <button type="button" data-select-pin="mode">∿ Vibration mode</button>
+      <button type="button" data-select-pin="result">◎ Current result</button>
+    </div>
+    <div class="cad-controls" id="cad-controls" hidden>
+      <button type="button" id="cad-source-pin" class="cad-source-pin" aria-label="Change CAD source">
+        <span class="cad-chip-icon">⌑</span><span><small>SOURCE GEOMETRY</small><strong id="cad-source-label">Generated bracket</strong></span>
+      </button>
+      <div class="cad-compact-actions">
+        <button type="button" id="cad-compare-shortcut" aria-label="Open CAD revision comparison">COMPARE ↗</button>
+      </div>
+    </div>
 
     <div class="field-legend" id="field-legend" aria-label="Stress color scale" hidden>
       <span>VON MISES · MPa</span><div class="field-gradient"></div><div class="field-range"><span>0</span><strong id="field-max">—</strong></div>
@@ -147,6 +170,50 @@
         <input id="setting-visual" type="range" min="1" max="120" step="1" value="60">
         <button type="button" class="sheet-action" id="redesign-run">Find a lighter section <span>↗</span></button>
       </div>
+      <div class="setting-set" id="cad-settings" hidden>
+        <div class="setting-heading">CAD MODEL / SOURCE</div>
+        <label for="cad-source-choice">Source type</label>
+        <select id="cad-source-choice"><option value="generated">Generated bracket · example</option><option value="uploaded">Imported STEP (single body)</option></select>
+        <div class="cad-source-actions">
+          <input id="cad-file" type="file" accept=".step,.stp" hidden>
+          <button type="button" id="cad-upload" class="secondary-action">Import STEP…</button>
+          <button type="button" id="cad-nist" class="secondary-action">Fetch NIST official STEP</button>
+        </div>
+        <span class="small-note" id="cad-source-feedback">Generated bracket is a computational sample; NIST geometry is independently sourced, but no static load test is validated.</span>
+        <label for="cad-web">Bracket web thickness</label>
+        <select id="cad-web"><option value="8">8 mm</option><option value="10">10 mm</option><option value="12">12 mm</option><option value="14">14 mm</option></select>
+        <label for="cad-mesh">Target tetra size (mm) <output id="cad-mesh-value">10</output></label>
+        <input id="cad-mesh" type="range" min="2" max="20" step="1" value="10">
+        <label for="cad-force">Applied transverse force (N) <output id="cad-force-value">250</output></label>
+        <input id="cad-force" type="range" min="20" max="2000" step="10" value="250">
+        <label for="cad-direction">Load direction</label>
+        <select id="cad-direction"><option value="+X">+X</option><option value="-X">−X</option><option value="+Y">+Y</option><option value="-Y">−Y</option></select>
+        <label for="cad-boundary">Base-to-tip axis</label>
+        <select id="cad-boundary"><option value="Z">Z</option><option value="X">X</option><option value="Y">Y</option></select>
+        <label for="cad-unit">STEP coordinate unit</label>
+        <select id="cad-unit"><option value="mm">Millimetres (mm)</option><option value="m">Metres (m)</option></select>
+        <div class="setting-heading">ASSUMED MATERIAL</div>
+        <label for="cad-young">Young's modulus (GPa)</label>
+        <input id="cad-young" type="number" min="10" max="400" value="200" step="10">
+        <label for="cad-nu">Poisson's ratio</label>
+        <input id="cad-nu" type="number" min=".1" max=".45" value=".29" step=".01">
+        <label for="cad-density">Density (kg/m³)</label>
+        <input id="cad-density" type="number" min="1000" max="20000" value="8190" step="100">
+        <label for="cad-yield">Assumed yield limit (MPa)</label>
+        <input id="cad-yield" type="number" min="10" max="1800" value="900" step="50">
+        <label for="cad-visual">Display deformation <output id="cad-visual-value">35×</output></label>
+        <input id="cad-visual" type="range" min="1" max="150" value="35" step="1">
+        <div class="setting-heading">REVISE / RE-MESH / RE-SOLVE</div>
+        <label for="cad-revision-web">Revised bracket web (mm)</label>
+        <select id="cad-revision-web"><option value="8">8</option><option value="10">10</option><option value="12" selected>12</option><option value="14">14</option></select>
+        <input id="cad-revision-file" type="file" accept=".step,.stp" hidden>
+        <button id="cad-revision-upload" class="secondary-action" type="button">Import revised STEP…</button>
+        <span class="small-note" id="cad-revision-feedback">Choose a different web thickness, or import a revised STEP.</span>
+        <button type="button" class="sheet-action" id="cad-run-revision">Compare two independently solved CAD revisions <span>↗</span></button>
+        <button type="button" class="secondary-action" id="cad-download-step">Download current STEP</button>
+        <button type="button" class="secondary-action" id="cad-download-audit">Export FEA audit JSON</button>
+        <div class="settings-disclosure">NIST actual geometry is not proof of the assumed static loading. Single watertight solid only. Up to 5,000 input tetrahedra.</div>
+      </div>
       <div class="setting-set" id="lab-settings" hidden>
         <div class="setting-heading">REAL LABORATORY</div>
         <label for="setting-lab-view">Analysis type</label>
@@ -169,5 +236,6 @@
 </div>
 <script src="/studio/viewport3d.js" defer></script>
 <script src="/studio/app.js" defer></script>
+<script src="/studio/adaptive.js" defer></script>
 </body>
 </html>
