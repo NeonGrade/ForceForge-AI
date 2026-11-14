@@ -20,7 +20,7 @@ from forceforge.step_mesh import (
 )
 from forceforge.cad_solid import CadLoad, solve_cad_mesh
 
-_MAX_CACHE_BYTES = 32 * 1024 * 1024
+_MAX_CACHE_BYTES = 64 * 1024 * 1024
 _CACHE: OrderedDict[str, tuple[bytes, str]] = OrderedDict()
 _LOCK = RLock()
 ALLOWED_WEB_MM = (8, 10, 12, 14)
