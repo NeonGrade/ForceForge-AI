@@ -1,0 +1,222 @@
+FORCEFORGE X — PERMANENT VERSION HISTORY
+========================================
+
+Policy
+------
+This is the sole version changelog in the repository.
+Language: English only.
+Location: /CHANGELOG.txt
+Format: version, date, branch/PR, type, changes, validation, limitations.
+Never delete or rewrite an earlier entry. Add corrections as a new dated entry.
+Document branch-only releases explicitly: a draft PR is not a main-branch release.
+The engineering application must preserve previous verified behavior.
+Any future UI or engineering release must append its complete change description
+to this same file in the same versioned commit or PR.
+
+Version numbering note
+----------------------
+Engineering and UI feature branches evolved in parallel. UI v0.4 and UI v0.5
+labels below do not denote merges of corresponding engineering versions.
+The records were reconstructed from retained GitHub PR descriptions and the
+previous docs/CHANGELOG.md on 2026-11-14. Exact tests for past branches were
+reported by their authors; no retroactive browser validation is claimed.
+
+========================================================================
+VERSION 0.8.0 — 2026-11-14
+Branch: ui/v8-forge-studio
+Base: feature/3d-solid-tet10-v7 (engineering v0.7)
+Type: Original UI/UX redesign and presentation API; draft, not merged
+========================================================================
+Design
+- Introduced ForceForge X Studio, an original, model-first visual system.
+- Replaced stacked dashboard assumptions with a dominant orbitable 3D canvas,
+  narrow tool rail, collapsible parameter tray, contextual live inspector
+  and expandable results/evidence drawer.
+- Added an intentional graphite material palette, luminous lime-green
+  highlights, refined typography, scale, spacing and purposeful state changes.
+- Added custom responsive web UI using studio/index.html, styles.css and app.js.
+- Designed to be visually distinct rather than imitate Apple or other brands.
+Engineering integration
+- Introduced studio_server.py, a localhost-only Python HTTP bridge reusing
+  forceforge/modal_benchmark.py and forceforge/solid3d.py without rewriting
+  physical simulation code.
+- Added two real working modules: parametric tetra10 volume FEA and published
+  laboratory modal correlation.
+- Added model orbit, zoom, camera reset, stress/form/mesh visualization,
+  source sensor markers, and live recomputation of FE results on input changes.
+- Added one-parameter calibration against measured Mode 1, with independently
+  reported holdout errors on Modes 2 and 3.
+- Added nine-candidate 3D solid re-meshing and numerical redesign with current
+  model constraints, result inspection and evidence/source access.
+- Preserved existing Streamlit specialist pages and numerical solver code.
+Version history
+- Consolidated the existing Markdown change log and known version history
+  into this root-level English-only CHANGELOG.txt.
+- Retired docs/CHANGELOG.md as a second changelog.
+Engineering integrity
+- Measured published modes remain distinct from computed frequencies.
+- Original 3D parametric solid is NOT a physically validated static specimen.
+- Deformation exaggeration is labeled as visualization only.
+- The source-attributed CAD reconstruction is not an original author mesh.
+- No structural certification, arbitrary CAD meshing, plasticity or CFD claim.
+Validation
+- Static code and interaction tests introduced in tests/test_studio.py.
+- Browser/Safari visual acceptance and real-host performance verification
+  remain required before merging.
+- No actual runtime or GitHub Actions pass is claimed in this release note.
+
+========================================================================
+ENGINEERING VERSION 0.7 — 2026-11-14
+PR: #10 | Branch: feature/3d-solid-tet10-v7
+Type: Draft engineering feature, not merged
+========================================================================
+- Added true linear-elastic 3D solid FEA using quadratic 10-node tetrahedra.
+- Three displacement DoFs per node, four integration points, stress recovery
+  from a full 6-component isotropic elasticity tensor, sparse solve.
+- Added clamped base, end-face traction, equilibrium checking, computed
+  von Mises visualization and regenerated thickness candidate meshes.
+- Added independent affine patch, force equilibrium, mesh convergence and
+  bending reference numerical tests.
+- Introduced 120 x 30 x 12 mm original computational solid specimen.
+- Documented no arbitrary STEP-to-mesh import, physical static verification,
+  contact, plasticity, CFD or production safety certification.
+- Previous laboratory modal benchmark and robust design tools retained.
+
+========================================================================
+ENGINEERING VERSION 0.6 — 2026-11-14
+PR: #9 | Branch: feature/robust-solid-fea-v6
+Type: Draft engineering feature, not merged
+========================================================================
+- Added eight-corner parametric uncertainty screening around the 1D beam
+  FEA stress/redesign challenge.
+- Adjustable assumed load, stiffness and thickness uncertainty ranges.
+- Re-solved FEA candidates and screened worst-case modeled movement.
+- Added robust redesign search and invalidation of stale results.
+- Uncertainty bounds are user assumptions, not measured distributions,
+  validated failure probabilities or formal reliability certification.
+
+========================================================================
+ENGINEERING VERSION 0.5 — 2026-11-14
+PR: #8 | Branch: feature/cad-simulation-loop-v5
+Type: Draft engineering feature, not merged
+========================================================================
+- Added physically calculated 1D Euler-Bernoulli beam static bending stress
+  mapped onto a reconstructed 3D beam surface.
+- Added simulated lateral load, thickness scale, assumed movement target,
+  stress field and redesigned section search.
+- Recomputed beam candidates with physics and compared mass/displacement.
+- The colored 3D surface is NOT a 3D volumetric finite-element solution.
+- Existing modal lab, industry, optimization and ML pages preserved.
+
+========================================================================
+UI VERSION 0.5.1 — 2026-11-14
+PR: #7 | Branch: ui/v5-real-lab-workstation
+Type: Draft UI patch on experimental v0.4, not merged
+========================================================================
+- Improved sidebar and control text contrast based on real Safari screenshots.
+- Enlarged plot/panel dimensions and rebalanced dashboard viewport usage.
+- Adjusted model camera settings and expanded live modal correlation.
+- Reused original real modal solver; no solver data was modified.
+- Mac browser acceptance was still pending at time of patch.
+
+========================================================================
+UI VERSION 0.5.0 — 2026-11-14
+PR: #7 | Branch: ui/v5-real-lab-workstation
+Type: Draft UI, not merged
+========================================================================
+- Introduced app_ui_v5.py as a single-screen Streamlit lab workstation.
+- Added 3D specimen, frequency comparison, calibration and evidence tabs.
+- Added compact engineering KPIs, left controls and live inspector.
+- Kept existing v0.4 homepage and numerical solver untouched.
+- User Safari testing revealed contrast, viewport and visual hierarchy issues.
+
+========================================================================
+ENGINEERING VERSION 0.4 — 2026-11-14
+PR: #6 | Branch: feature/real-lab-benchmark-v4
+Type: Draft engineering feature, not merged
+========================================================================
+- Promoted actual published Hannover steel cantilever experimental modal
+  measurements into the main demo and attributed the CC BY sources.
+- Physical beam: 1.524 m free length, 30 x 5.2 mm section, reduced
+  5.0 mm gauge regions and five documented source sensor positions.
+- Added reconstructed 3D geometry, downloadable STEP/STL files, and
+  independent 2D Euler-Bernoulli consistent-mass modal FE analysis.
+- Added base rotational stiffness control, mode-shape visualization,
+  observed-vs-calculated modal frequency comparison, one-parameter Mode 1
+  calibration and held-out Mode 2/3 checks.
+- Added optional original Abaqus .inp and MATLAB .mat metadata imports.
+- Kept Industry Explorer, FEA, optimization and ML tools available.
+- Source analysis is validation of frequency correlation, not structural
+  qualification; material properties and fitted stiffness remain assumptions.
+
+========================================================================
+UI VERSION 0.4 — 2026-11-14
+PR: #5 | Branch: ui/v4-single-screen
+Type: Draft UI on legacy v0.3-oriented workflow, not merged
+========================================================================
+- Added app_ui_v4.py single-screen Streamlit engineering dashboard.
+- Click-to-switch stress, displacement, buckling, reaction and data panels.
+- Desktop left controls, central charts, right inspector and responsive
+  scroll fallback.
+- Kept older FEA, robust optimization and ML modules unchanged.
+- Visual browser acceptance was not completed on the original PR.
+
+========================================================================
+ENGINEERING VERSION 0.3 — 2026-11-14
+PR: #4 | Branch: feature/decision-studio-v3
+Type: Draft engineering product workflow, not merged
+========================================================================
+- Added three-step judge-friendly application workflow:
+  Choose engineering problem -> Challenge load -> Compare FEA redesign.
+- Applied consistent member radius scaling across sector solvers.
+- Added modeled member mass and governing limit display.
+- Added per-sector session history, stale-parameter warnings and independent
+  engineering golden-case numerical regression protections.
+- Preserved advanced physics and AI/ML engineering workspaces.
+- Reported 48 passing local tests prior to PR; full Mac and CI acceptance
+  was still required.
+- No physical certification, validated fatigue or industrial qualification.
+
+========================================================================
+ENGINEERING VERSION 0.2 — 2026-11-14
+PR: #3 | Branch: feature/cross-industry-platform
+Type: Draft engineering feature, not merged
+========================================================================
+- Added typed multi-sector case/report schema with deterministic trace IDs.
+- Building: ideal planar truss FEM and buckling screening.
+- Industrial: 2D frame with semi-rigid support, thermal effects,
+  approximate P-delta response and hypothetical S-N fatigue.
+- Automotive: projected planar suspension-link proxy, not actual validated
+  3D control-arm structural mechanics.
+- Added three illustrative scenarios per sector, comparisons,
+  sensitivity controls and JSON export with explicit evidence gaps.
+
+========================================================================
+ENGINEERING VERSION 0.1 — 2026-11-14
+PR: #2 | Branch: feature/advanced-structural-physics
+Type: Draft engineering feature, not merged
+========================================================================
+- Added 2D Euler-Bernoulli frame elements with three DOFs per node.
+- Added equivalent rotational spring supports, thermal expansion/curvature,
+  approximate geometric stiffness and illustrative fatigue screening.
+- Added advanced structural Streamlit specialist page and eight numerical
+  verification tests.
+- No plastic contact, full nonlinear solver, real thermal PDE or CFD/FSI.
+
+========================================================================
+BASELINE / EARLY MAIN — BEFORE 2026-11-14
+PR: #1 | Branch: codex/ml-agent-validation (related draft improvements)
+Type: Initial engineering and machine-learning foundation
+========================================================================
+- Built 2D ideal pin-jointed truss FE analysis with static stiffness solve,
+  reaction, axial stress, mass and Euler buckling screening.
+- Added three predefined truss topologies and bounded robust candidate search.
+- Added FE-confirmed design challenge and optimization workflow.
+- Added RandomForest surrogate trained on FEA-generated reference labels.
+- Added structured natural-language design brief interpretation, offline
+  fallback and validation of user inputs.
+- Added AI/ML regression improvements, duplicate-group holdout protection,
+  stale-result handling, and FEA verification of proposed designs.
+- No evidence of measured physical structure certification from these tools.
+
+END OF RETAINED HISTORY — APPEND FUTURE VERSION ENTRIES ABOVE THIS LINE
