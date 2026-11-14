@@ -56,7 +56,7 @@ def test_javascript_source_parses_when_node_available():
     node = shutil.which("node")
     if node is None:
         pytest.skip("Node.js is not installed in this environment")
-    for script in ("app.js", "viewport3d.js"):
+    for script in ("app.js", "viewport3d.js", "adaptive.js", "inspection.js"):
         subprocess.run([node, "--check", str(ROOT / "studio" / script)],
                        check=True, capture_output=True, text=True)
 
@@ -148,3 +148,38 @@ def test_lab_static_mode_is_explicitly_computed_not_measured():
     modal = studio.lab_analysis({"workspace": "lab", "elements": 16,
                                  "view": "modes"})
     assert modal["static_tip_mm"] is None
+
+def test_surface_probe_preserves_reference_mesh_and_actual_fea_displacements():
+    p={"workspace":"solid","force_n":100,"thickness_mm":12,
+       "resolution":"fast","visual_scale":70}
+    data=studio.solid_analysis(p)
+    mesh=data["mesh"]
+    assert len(mesh["vertices"])==len(mesh["reference_vertices"])
+    assert len(mesh["vertices"])==len(mesh["displacements_mm"])
+    assert len(mesh["scalar"])==len(mesh["faces"])
+    ref=mesh["reference_vertices"]
+    displayed=mesh["vertices"]
+    actual=mesh["displacements_mm"]
+    assert any(sum(abs(x) for x in u)>1e-8 for u in actual)
+    for a,b,u in zip(ref,displayed,actual):
+        for i in range(3):
+            assert b[i]-a[i]==pytest.approx(70*u[i],abs=2e-5)
+
+
+def test_real_lab_hover_does_not_fabricate_modal_local_motion():
+    modal=studio.lab_analysis({"workspace":"lab","elements":16,"view":"modes"})
+    mesh=modal["mesh"]
+    assert len(mesh["reference_vertices"])==len(mesh["vertices"])
+    assert "displacements_mm" not in mesh
+    static=studio.lab_analysis({"workspace":"lab","elements":16,"view":"static"})
+    assert len(static["mesh"]["displacements_mm"])==len(static["mesh"]["vertices"])
+
+
+def test_probe_assets_and_data_attribution_are_available():
+    html=(ROOT/"studio/index.html").read_text()
+    js=(ROOT/"studio/inspection.js").read_text()
+    assert 'src="/studio/inspection.js"' in html
+    for phrase in ("SURFACE · FEM", "face sample", "REFERENCE", "barycentric",
+                   "displacements_mm", "probeAt", "axisIndicator"):
+        assert phrase.lower() in js.lower()
+    assert "UI VERSION 0.2.1" in (ROOT/"CHANGELOG.txt").read_text()
