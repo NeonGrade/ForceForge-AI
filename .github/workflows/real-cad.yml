@@ -1,0 +1,82 @@
+name: Real STEP / OpenCASCADE Integration
+on:
+  push:
+    paths:
+      - 'forceforge/step_mesh.py'
+      - 'forceforge/cad_solid.py'
+      - 'pages/13_Real_STEP_Engineering.py'
+      - 'tests/test_step_gmsh.py'
+      - 'tests/test_real_step_ui.py'
+      - 'scripts/mesh_original_nist.py'
+      - '.github/workflows/real-cad.yml'
+  pull_request:
+    paths:
+      - 'forceforge/step_mesh.py'
+      - 'forceforge/cad_solid.py'
+      - 'pages/13_Real_STEP_Engineering.py'
+      - 'tests/test_step_gmsh.py'
+      - '.github/workflows/real-cad.yml'
+jobs:
+  gmsh-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install OpenGL dependency for Gmsh wheels
+        run: sudo apt-get update -qq && sudo apt-get install -y libglu1-mesa
+      - name: Install FEA and CAD requirements
+        run: python -m pip install -r requirements.txt 'gmsh>=4.12,<5'
+      - name: Gmsh STEP import, volume mesh and FEA roundtrip
+        run: python -m pytest -q tests/test_step_gmsh.py tests/test_cad_solid.py tests/test_real_step_ui.py
+      - name: Attempt official NIST PDR STEP BRep inspection (external network, separately reported)
+        id: nist_source
+        continue-on-error: true
+        run: python -m scripts.audit_nist_brep
+      - name: Explicitly report whether the original published source was accessible
+        if: always()
+        run: echo 'NIST PDR STEP source audit outcome = ${{ steps.nist_source.outcome }}'
+      - name: Attempt real NIST thin-wall volume mesh and conditional FEA
+        id: real_nist_mesh
+        timeout-minutes: 4
+        continue-on-error: true
+        run: python -m scripts.mesh_original_nist
+      - name: Report actual NIST mesh/FEA outcome separately
+        if: always()
+        run: echo 'Actual NIST mesh attempt outcome = ${{ steps.real_nist_mesh.outcome }}'
+      - name: Upload actual NIST real mesh audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nist-real-tetra-mesh-audit
+          path: nist_original_real_mesh_audit.json
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Attach source audit record if downloaded
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nist-original-step-audit
+          path: nist_cad_import_audit.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  macos-py313-gmsh:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: Install Python dependencies and Gmsh SDK wheel on macOS
+        run: python -m pip install -r requirements.txt 'gmsh>=4.12,<5'
+      - name: macOS Gmsh native DLL and non-interruptible init smoke test
+        run: |
+          python -c "import sys,platform,gmsh; print(sys.executable,platform.machine(),gmsh.__file__); gmsh.initialize(interruptible=False); gmsh.finalize()"
+      - name: Test actual STEP generation in non-main threads on macOS
+        run: python -m pytest -q tests/test_step_gmsh.py tests/test_cad_solid.py tests/test_real_step_ui.py

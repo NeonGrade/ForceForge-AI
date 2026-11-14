@@ -1,3 +1,37 @@
+# ForceForge X v0.8 — Real STEP → 3D Solid FEA → CAD Redesign
+
+**This is the current development branch, preserving all earlier numerical, real modal, robust, ML and cross-industry modules.**
+
+- Import a **real published NIST STEP** (AMB2022-01 / DOI 10.18434/mds2-2607), or upload a single-solid STEP.
+- Audit the STEP BRep against an actual Gmsh 3D tetrahedral mesh (CAD solid volume, mesh volume, source SHA-256, mesh limit).
+- Solve isotropic small-strain 3D FEA with genuine **quadratic tetra10 displacement elements**, and display Gauss-point von Mises stress and reaction residuals.
+- Revise an actual CAD solid and independently remesh/recompute. A parametric L-bracket with bolt holes is an **original demonstration design**; it is not NIST experimental geometry.
+- NIST original specimen geometry is genuine. Our **static loading is assumed**, and is NOT independently validated by the NIST additive-manufacturing experimental data.
+
+## Mac terminal
+
+Stop Streamlit with Control+C, then check for uncommitted work before switching branches:
+
+```bash
+cd ~/ForceForge-AI
+git status --short
+git fetch origin
+git switch --track origin/feature/real-step-import-fea-v8
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m pip install 'gmsh>=4.12,<5'
+python -m pytest -q
+python -m streamlit run app.py
+```
+
+Already have that local branch? Instead use `git switch feature/real-step-import-fea-v8 && git pull --ff-only`.
+
+Open the new left-sidebar **Real STEP → 3D FEA / CAD redesign** page. For immediate testing, use the editable drilled L-bracket; for genuine published source geometry download the NIST original directly on the same page. Large/thin-wall source files may exceed the 5,000-tet compute limit, which is flagged without invented results.
+
+Technical, licensing and engineering limitations: [Real STEP CAD and FEA guide](docs/REAL_STEP_CAD_FEA.md).
+
+---
+
 # ForceForge X v0.5 — CAD Surface, FE Stress and Redesign
 
 Video-inspired **interactive engineering design** without simulated or fabricated solver claims.

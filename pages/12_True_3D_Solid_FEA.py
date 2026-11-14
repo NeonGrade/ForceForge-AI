@@ -17,6 +17,7 @@ st.set_page_config(page_title="ForceForge X | True 3D Solid FEA",
                    page_icon="🔩",layout="wide")
 st.markdown("[← Return to published laboratory benchmark](/)")
 st.title("True 3D Solid FEA — Volume Elements, Not Surface Coloring")
+st.markdown('[Continue: real STEP import and redesign](/Real_STEP_Engineering)')
 st.markdown(
     "The structural solver now assembles a **3D linear-elastic model with "
     "10-node quadratic tetrahedral elements**. Each node has 3 displacement "
