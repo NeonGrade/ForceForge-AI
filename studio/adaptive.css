@@ -1,0 +1,95 @@
+/* ForceForge X UI v0.2 — adaptive spatial overlays.
+   Preserve physical scale and CAD controls on compact desktop windows. */
+:root{--safe-header:96px;--safe-footer:103px}
+.compact-tools-toggle{display:none}
+.compact-tools{position:absolute;z-index:26;top:76px;right:20px;min-width:210px;border:1px solid #718d8b80;background:#11232bdc;backdrop-filter:blur(20px);padding:8px;border-radius:11px;box-shadow:0 14px 50px #0008}
+.compact-tools button{display:block;padding:13px 15px;font-size:11px;font-weight:800;color:#e3f0e3;text-align:left;background:none;border:0;border-radius:6px;width:100%}
+.compact-tools button:hover{background:#31484b}
+.compact-tools button[hidden]{display:none}
+.cad-controls{position:absolute;z-index:9;left:36px;bottom:116px;display:flex;align-items:center;gap:12px;pointer-events:none}
+.cad-source-pin{pointer-events:auto;display:flex;align-items:center;gap:11px;padding:9px 15px 9px 8px;color:#e6f3e8;text-align:left;background:#10262edc;border:1px solid #8eb2a36b;border-radius:9px;backdrop-filter:blur(18px)}
+.cad-source-pin:hover{background:#2b4448;border-color:#d9efaa}
+.cad-source-pin>span:last-child{display:flex;flex-direction:column;gap:4px}
+.cad-source-pin small{font-size:9px;letter-spacing:.7px;font-weight:800;color:#aabfc3}
+.cad-source-pin strong{font-size:12px;font-weight:750}
+.cad-chip-icon{width:31px;height:31px;border-radius:6px;display:grid;place-items:center;background:#d6efa0;color:#162923;font-size:21px}
+.cad-compact-actions{pointer-events:auto}
+.cad-compact-actions button{background:#1a2d33dd;border:1px solid #678c8577;color:#d9efa9;padding:13px 11px;border-radius:8px;font-size:9px;font-weight:850;letter-spacing:.8px}
+.cad-compact-actions button:hover{background:#314a4b}
+.cad-source-actions{display:flex;gap:8px;flex-wrap:wrap}
+.setting-set .secondary-action,.secondary-action{border:1px solid #6e898779;border-radius:7px;padding:10px 12px;background:#1c3540;color:#dcf3df;font-weight:750;font-size:10px;text-align:left}
+.setting-set .secondary-action:hover{background:#30515a}
+.small-note{font-size:10px;line-height:1.7;color:#a3bfc3}
+.setting-set input[type=number]{border:1px solid #6d8a8970;background:#1d3039;color:#ebf1e9;border-radius:7px;padding:11px;width:100%;font-size:12px}
+.detail-content a{color:#d6f2a5;text-decoration:none;overflow-wrap:anywhere}
+.detail-content a:hover{text-decoration:underline}
+.data-row strong{max-width:56%;overflow-wrap:anywhere}
+.cad-delta{color:#d6f1a4}
+.cad-warning{color:#f2b88d}
+.cad-compare-actions{display:flex;flex-wrap:wrap;gap:8px;margin:13px 0}
+.cad-compare-actions button{background:#27413e;border:1px solid #72978d;color:#e6f1de;padding:10px 12px;border-radius:7px;font-size:10px;font-weight:800}
+.cad-compare-actions button.active{background:#d5eea1;color:#192a22}
+.detail-content .compact-metric{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;color:#f0f6e8}
+.small-note.error{color:#f3b6a3}
+/* The default model remains visible; low-value annotations progressively yield. */
+@media(max-width:1279px){
+ .scene-context{top:110px;max-width:270px}
+ .context-headline{font-size:29px}
+ .context-subline{display:none}
+ .floating-header{padding:0 23px}
+ .spatial-pin .pin-copy small{font-size:7.5px}
+ .cad-controls{left:20px;bottom:108px}
+}
+@media(max-width:1080px), (max-height:710px){
+ .compact-tools-toggle{display:grid}
+ .floating-header{padding:0 16px}
+ .spatial-pin{padding:6px 9px;gap:6px}
+ .spatial-pin .pin-glyph{width:26px;height:26px}
+ .spatial-pin[data-pin="thickness"]:not(.selected),
+ .spatial-pin[data-pin="support"]:not(.selected),
+ .spatial-pin[data-pin="mode"]:not(.selected){display:none}
+ .scene-context{top:107px;left:22px}
+ .context-headline{font-size:27px}
+ .context-sequence{font-size:8px}
+ .space-footer{padding:9px 11px;left:16px;right:16px;bottom:12px}
+ .footer-fidelity{display:none}
+ .first-use{display:none}
+ .cad-controls{bottom:85px}
+ .quick-result{right:16px;top:auto;bottom:90px}
+ .spatial-editor{right:16px;top:auto;bottom:90px}
+ .field-legend{right:15px;bottom:100px}
+}
+@media(max-width:760px){
+ .compact-tools{top:80px;right:10px;max-width:calc(100vw - 20px)}
+ .cad-controls{left:10px;bottom:85px;right:10px}
+ .cad-source-pin{padding:7px 9px}
+ .cad-source-pin strong{font-size:10px}
+ .cad-source-pin small{font-size:7px}
+ .cad-compact-actions button{padding:11px 7px;font-size:8px}
+ .scene-context{left:15px;top:169px}
+ .context-headline{font-size:25px}
+ .top-icon{width:31px;height:31px}
+ .detail-panel,.settings-panel{right:0;left:0;top:auto;bottom:0;width:100%;max-height:80dvh;border-radius:18px 18px 0 0}
+ .spatial-editor,.quick-result{bottom:85px;left:10px;right:10px;width:auto;top:auto}
+ .scene-selector{min-width:185px}
+}
+@media(max-width:560px){
+ .brand-words small{display:none}
+ .brand-words strong{font-size:16px}
+ .brand-mark{width:29px;height:29px}
+ .header-tray{gap:4px}
+ .camera-cluster .camera-view:not(.active){display:none}
+ .camera-cluster{gap:0}
+ .space-footer{grid-template-columns:1fr auto}
+ .footer-right{justify-content:flex-end}
+ .spatial-pin{max-width:160px}
+ .spatial-pin .pin-copy strong{font-size:10px;white-space:normal}
+ .cad-compact-actions{display:none}
+ .project-chooser{top:138px;max-height:calc(100dvh - 220px);overflow-y:auto}
+}
+@media(max-height:580px){
+ .context-headline{display:none}
+ .scene-context{top:92px}
+ .spatial-editor,.quick-result{max-height:calc(100dvh - 160px);overflow-y:auto;bottom:72px}
+ .field-legend{display:none}
+}
