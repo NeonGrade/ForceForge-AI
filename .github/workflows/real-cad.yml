@@ -30,3 +30,18 @@ jobs:
         run: python -m pip install -r requirements.txt 'gmsh>=4.12,<5'
       - name: Gmsh STEP import, volume mesh and FEA roundtrip
         run: python -m pytest -q tests/test_step_gmsh.py tests/test_cad_solid.py
+      - name: Attempt official NIST PDR STEP BRep inspection (external network, separately reported)
+        id: nist_source
+        continue-on-error: true
+        run: python -m scripts.audit_nist_brep
+      - name: Explicitly report whether the original published source was accessible
+        if: always()
+        run: echo 'NIST PDR STEP source audit outcome = ${{ steps.nist_source.outcome }}'
+      - name: Attach source audit record if downloaded
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nist-original-step-audit
+          path: nist_cad_import_audit.json
+          if-no-files-found: ignore
+          retention-days: 7
