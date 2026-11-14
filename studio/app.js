@@ -1,393 +1,426 @@
 "use strict";
+/* ForceForge X / Spatial Engineering v0.1.
+   Mesh-driven 3D annotations, direct manipulation, progressive disclosure.
+   Physics and evidence always come from the original Python solvers.
+*/
 const $=id=>document.getElementById(id);
-const state={
- workspace:"solid",viz:"stress",sensors:true,data:null,redesign:null,calibration:null,requestId:0,drawer:"overview",
+const nf=(x,d=3)=>Number(x).toFixed(d);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const ui={
+ workspace:"solid",data:null,request:0,redesign:null,calibration:null,
+ selected:null,edit:null,dragging:null,viewMode:"material",pending:null,
  params:{
   solid:{workspace:"solid",force_n:200,thickness_mm:12,allowed_mm:.12,visual_scale:60,resolution:"refined"},
-  lab:{workspace:"lab",log10_k:3,mode:1,view:"modes",amplitude_mm:28,tip_force_n:.30,static_scale:15,E_gpa:210,elements:32,gauges:true,density:7850}
+  lab:{workspace:"lab",view:"modes",log10_k:3,mode:1,amplitude_mm:28,tip_force_n:.3,static_scale:15,E_gpa:210,elements:32,gauges:true,density:7850}
  }
 };
-const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
-const fmt=(n,d=3)=>Number(n).toFixed(d);
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-function text(id,s){$(id).textContent=s;}
-function visible(id,v){$(id).hidden=!v;}
-function status(s){text("analysis-status",s);text("control-status",s);}
-function notify(msg){const el=$("toast");el.textContent=msg;el.hidden=false;clearTimeout(notify.t);notify.t=setTimeout(()=>el.hidden=true,4800);}
-async function api(path,data){
- const r=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
- const result=await r.json();
- if(!r.ok)throw Error(result.error||"Request failed");
- return result;
+let view=null,usingGPU=false;
+try{view=new window.ForgeViewport($("model-canvas"));usingGPU=true;}
+catch(err){console.warn("WebGL2 unavailable; using accessible 2D placeholder",err);}
+
+function notice(message,isError=false){
+ const el=$("notification");el.textContent=message;el.style.borderColor=isError?"#f1a48f":"#8aaf9e";el.hidden=false;
+ clearTimeout(notice.timer);notice.timer=setTimeout(()=>el.hidden=true,4800);
 }
-class Renderer{
- constructor(canvas){
-  this.canvas=canvas;this.ctx=canvas.getContext("2d",{alpha:false});this.yaw=-.57;this.pitch=.33;this.zoom=1;
-  this.points=[];this.faces=[];this.values=null;this.sensors=[];this.center=[0,0,0];this.extent=120;this.max=1;
-  this.w=0;this.h=0;this.drag=false;this.last=[0,0];
-  canvas.addEventListener("pointerdown",e=>{this.drag=true;this.last=[e.clientX,e.clientY];canvas.setPointerCapture(e.pointerId);});
-  canvas.addEventListener("pointermove",e=>{if(!this.drag)return;this.yaw+=(e.clientX-this.last[0])*.007;this.pitch=clamp(this.pitch+(e.clientY-this.last[1])*.006,-1.35,1.35);this.last=[e.clientX,e.clientY];this.draw();});
-  ["pointerup","pointercancel"].forEach(name=>canvas.addEventListener(name,()=>{this.drag=false;}));
-  canvas.addEventListener("wheel",e=>{e.preventDefault();this.zoom=clamp(this.zoom*Math.exp(e.deltaY*.001),.55,3.5);this.draw();},{passive:false});
-  if(window.ResizeObserver)new ResizeObserver(()=>this.resize()).observe(canvas);
-  window.addEventListener("resize",()=>this.resize());
- }
- reset(){this.yaw=-.57;this.pitch=.33;this.zoom=1;this.draw();}
- load(d){
-  this.points=d.mesh.vertices;this.faces=d.mesh.faces;this.values=d.mesh.scalar;this.sensors=d.sensors||[];
-  this.max=d.stress_cmax_mpa||1;
-  const lo=[Infinity,Infinity,Infinity],hi=[-Infinity,-Infinity,-Infinity];
-  for(const p of this.points){for(let j=0;j<3;j++){lo[j]=Math.min(lo[j],p[j]);hi[j]=Math.max(hi[j],p[j]);}}
-  this.center=lo.map((v,j)=>(v+hi[j])/2);
-  this.extent=Math.max(1,...lo.map((v,j)=>hi[j]-v));
-  this.resize();
- }
- resize(){
-  const w=this.canvas.clientWidth,h=this.canvas.clientHeight;if(!w||!h)return;
-  const dpr=Math.min(2,window.devicePixelRatio||1);
-  this.w=w;this.h=h;
-  this.canvas.width=Math.floor(w*dpr);this.canvas.height=Math.floor(h*dpr);
-  this.ctx.setTransform(dpr,0,0,dpr,0,0);this.draw();
- }
- project(v){
-  const x=(v[0]-this.center[0])/this.extent,y=(v[1]-this.center[1])/this.extent,z=(v[2]-this.center[2])/this.extent;
-  const cy=Math.cos(this.yaw),sy=Math.sin(this.yaw),cp=Math.cos(this.pitch),sp=Math.sin(this.pitch);
-  const xx=x*cy-y*sy,yy=x*sy+y*cy,up=z*cp-yy*sp,depth=z*sp+yy*cp;
-  const scale=Math.min(this.w*.75,this.h*.78)/this.zoom;
-  return {x:this.w*.5+xx*scale,y:this.h*.57-up*scale,d:depth};
- }
- color(t){
-  const stops=[[66,124,157],[68,176,179],[150,212,144],[232,198,103],[222,128,91],[188,74,90]];
-  const u=clamp(t,0,1)*(stops.length-1),i=Math.min(stops.length-2,Math.floor(u));
-  return stops[i].map((n,j)=>Math.round(n*(1-(u-i))+stops[i+1][j]*(u-i)));
- }
- draw(){
-  if(!this.w||!this.h)return;
-  const c=this.ctx,w=this.w,h=this.h;c.fillStyle="#152330";c.fillRect(0,0,w,h);
-  const g=c.createRadialGradient(w*.51,h*.45,10,w*.51,h*.45,Math.max(w,h)*.75);
-  g.addColorStop(0,"#2a3d4a");g.addColorStop(.5,"#1b2c3b");g.addColorStop(1,"#101b28");c.fillStyle=g;c.fillRect(0,0,w,h);
-  c.strokeStyle="#98b5c51a";c.lineWidth=.8;
-  for(let k=-7;k<=7;k++){
-   const n=k*this.extent*.17,z=this.center[2]-this.extent*.57;
-   const a=this.project([this.center[0]-this.extent*1.4,this.center[1]+n,z]);
-   const b=this.project([this.center[0]+this.extent*1.4,this.center[1]+n,z]);
-   const d=this.project([this.center[0]+n,this.center[1]-this.extent*1.4,z]);
-   const e=this.project([this.center[0]+n,this.center[1]+this.extent*1.4,z]);
-   c.beginPath();c.moveTo(a.x,a.y);c.lineTo(b.x,b.y);c.moveTo(d.x,d.y);c.lineTo(e.x,e.y);c.stroke();
-  }
-  if(!this.points.length)return;
-  const projected=this.points.map(p=>this.project(p)),polys=[];
-  for(let i=0;i<Math.min(this.faces.length,25000);i++){
-   const ids=this.faces[i],a=projected[ids[0]],b=projected[ids[1]],d=projected[ids[2]];
-   if(!a||!b||!d)continue;
-   const area=(b.x-a.x)*(d.y-a.y)-(b.y-a.y)*(d.x-a.x);if(Math.abs(area)<.03)continue;
-   const p=this.points[ids[0]],q=this.points[ids[1]],r=this.points[ids[2]];
-   const ux=q[0]-p[0],uy=q[1]-p[1],uz=q[2]-p[2],vx=r[0]-p[0],vy=r[1]-p[1],vz=r[2]-p[2];
-   const nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx;
-   const magnitude=Math.hypot(nx,ny,nz)||1;
-   const shade=clamp(.73+.26*(nx*.23+ny*.55+nz*.72)/magnitude,.4,1);
-   const base=state.viz==="form"?[138,170,173]:state.workspace==="lab"?[116,170,168]:this.color(this.values?this.values[i]/this.max:0);
-   polys.push({a,b,d,depth:(a.d+b.d+d.d)/3,color:base.map(v=>Math.round(v*shade))});
-  }
-  polys.sort((a,b)=>a.depth-b.depth);
-  c.lineJoin="round";
-  for(const p of polys){
-   c.beginPath();c.moveTo(p.a.x,p.a.y);c.lineTo(p.b.x,p.b.y);c.lineTo(p.d.x,p.d.y);c.closePath();
-   if(state.viz==="wire"){c.fillStyle="rgba(109,151,159,.12)";c.strokeStyle="rgba(173,216,212,.48)";c.lineWidth=.7;}
-   else{c.fillStyle="rgb("+p.color.join(",")+")";c.strokeStyle="rgba("+p.color.join(",")+",.14)";c.lineWidth=.4;}
-   c.fill();c.stroke();
-  }
-  if(state.workspace==="lab"&&state.sensors){
-   c.font="700 10px sans-serif";c.textBaseline="middle";
-   for(const sensor of this.sensors){
-    const p=this.project(sensor.position);c.fillStyle="#d9f28c";c.beginPath();c.arc(p.x,p.y,4,0,Math.PI*2);c.fill();
-    c.strokeStyle="#a0c7a2";c.beginPath();c.moveTo(p.x+6,p.y);c.lineTo(p.x+23,p.y-9);c.stroke();c.fillStyle="#dde9dc";c.fillText(sensor.id,p.x+27,p.y-10);
-   }
-  }
+function setStatus(kind){
+ $("solver-status").classList.toggle("solving",kind==="SOLVING");
+ $("solver-status").classList.toggle("error",kind==="ERROR");
+ $("solver-status-text").textContent=kind;
+}
+async function request(path,p){
+ const r=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p)});
+ let v;try{v=await r.json();}catch{throw Error("Unexpected server response");}
+ if(!r.ok)throw Error(v.error||"Solver request failed");
+ return v;
+}
+function active(){return {...ui.params[ui.workspace]};}
+function closePanels(){
+ $("detail-panel").hidden=true;$("settings-panel").hidden=true;$("panel-backdrop").hidden=true;
+}
+function showPanel(id){
+ closeEditor();closeQuick();
+ $("detail-panel").hidden=id!=="detail-panel";$("settings-panel").hidden=id!=="settings-panel";
+ $("panel-backdrop").hidden=false;
+ if(id==="detail-panel")renderDetails();
+ if(id==="settings-panel")syncSettings();
+}
+function closeEditor(){ui.edit=null;$("spatial-editor").hidden=true;document.querySelectorAll(".spatial-pin").forEach(x=>x.classList.remove("selected"));}
+function closeQuick(){$("quick-result").hidden=true;}
+function changeWorkspace(space){
+ if(space!=="lab"&&space!=="solid")return;
+ ui.workspace=space;ui.selected=null;ui.redesign=null;ui.calibration=null;ui.data=null;
+ ui.request++;closePanels();closeEditor();closeQuick();$("project-chooser").hidden=true;
+ const lab=space==="lab";
+ $("scene-name").textContent=lab?"Real laboratory":"Solid mechanics";
+ $("scene-kind").textContent=lab?"MEASURED MODAL REFERENCE":"TRUE 3D · COMPUTATIONAL";
+ $("scene-sigil").textContent=lab?"∿":"◈";
+ $("scene-sequence").textContent=lab?"02 / EXPERIMENTAL MODES":"01 / STRUCTURAL ANALYSIS";
+ $("scene-headline").textContent=lab?"Observe the invisible.":"Shape the response.";
+ $("scene-subline").textContent=lab?"Pick a mode. Compare what was measured.":"Choose a handle to shape the structure.";
+ $("space-index").textContent=lab?"EXP / 002":"CAE / 001";
+ $("footer-fidelity").textContent=lab?"2D BEAM FEA / PHYSICAL MODES":"3D TET10 / COMPUTED";
+ $("field-legend").hidden=true;
+ window.forceForgeViz="form";window.forceForgeSensors=true;
+ if(view){view.selected=null;view.setTrueScale(false);view.reset();}
+ $("pin-force").hidden=lab?ui.params.lab.view!=="static":false;
+ $("pin-thickness").hidden=lab;
+ $("pin-support").hidden=!lab;
+ $("pin-mode").hidden=!lab||ui.params.lab.view==="static";
+ $("pin-result").hidden=false;
+ $("mode-view").firstChild.textContent="MATERIAL ";
+ $("settings-panel").hidden=true;
+ syncSettings();refreshPinText();solve();
+}
+function refreshPinText(){
+ const p=ui.params.solid,l=ui.params.lab;
+ $("force-readout").textContent=ui.workspace==="solid"?nf(p.force_n,0)+" N":nf(l.tip_force_n,2)+" N";
+ $("thickness-readout").textContent=nf(p.thickness_mm,0)+" mm";
+ $("support-readout").textContent="10^"+nf(l.log10_k,2)+" N·m/rad";
+ $("mode-readout").textContent="B"+l.mode+"x";
+ if(ui.data){
+  $("result-caption").textContent=ui.workspace==="solid"?"TIP MOVEMENT · FEM":l.view==="static"?"TIP MOVEMENT · FEM":"COMPUTED / MEASURED";
+  $("result-readout").textContent=ui.workspace==="solid"?nf(ui.data.tip_displacement_mm,4)+" mm":
+    l.view==="static"?nf(ui.data.static_tip_mm,3)+" mm":
+    nf(ui.data.frequencies_hz[l.mode-1],3)+" / "+nf(ui.data.measured_hz[l.mode-1],3)+" Hz";
  }
 }
-let view,usingGPU=false;
-try{
- view=new window.ForgeViewport($("model-canvas"));usingGPU=true;
-}catch(error){
- console.warn("WebGL unavailable, using interactive canvas fallback",error);
- view=new Renderer($("model-canvas"));
-}
-window.forceForgeViz="stress";window.forceForgeSensors=true;
-text("render-mode-status",usingGPU?"WEBGL2 / LIVE FE GEOMETRY":"CANVAS COMPATIBILITY MODE");
-function setSceneSelection(selection){
- const d=state.data;if(!d)return;
- const sensor=selection&&selection.type==="sensor";
- const lab=state.workspace==="lab";
- text("intel-index",sensor?"EXPERIMENT / "+selection.id:lab?"SOURCE / MEASURED SPECIMEN":"SOLVER / VOLUMETRIC GEOMETRY");
- text("intel-title",sensor?selection.id+" · MEASUREMENT POINT":lab?"PHYSICAL STEEL SPECIMEN":"TETRA10 · SOLID MESH");
- text("intel-body",sensor?fmt(selection.height_mm,0)+" mm above the clamp · "+(selection.id==="MP4"||selection.id==="MP5"?"strain gauge":"motion measurement"):
-  lab?"1,524 mm free length · published experimental modal reference · 5 measurement locations.":"120 × 30 mm computational solid · parameterized thickness · actual 3D FEA.");
- if(sensor){text("intel-action","VIEW MEASUREMENT DETAILS ↗");}
- else text("intel-action",lab?"REVIEW PUBLISHED EVIDENCE ↗":"EXPLORE MODEL PARAMETERS ↗");
-}
-if(usingGPU){
- view.onSelect=selection=>{
-  setSceneSelection(selection);
-  document.querySelectorAll(".tree-node").forEach(el=>el.classList.remove("selected"));
-  $("tree-model").classList.add("selected");
-  if(selection&&selection.type==="sensor"){
-   text("inspector-intro",selection.id+" · "+fmt(selection.height_mm,0)+" mm above the base");
-  }
+function pinAnchors(){
+ if(!ui.data)return {};
+ if(ui.workspace==="solid"){
+  const thickness=ui.params.solid.thickness_mm;
+  return {
+   force:[0,-thickness/2,120],
+   thickness:[15,0,54],
+   result:[0,0,93]
+  };
+ }
+ return {
+  force:[0,0,1524],
+  support:[0,0,0],
+  mode:[0,0,1190],
+  result:[0,0,690]
  };
 }
-function updateSceneControls(){
- const lab=state.workspace==="lab";
- visible("true-scale",lab);
- visible("toggle-sensors",lab);
- document.querySelectorAll('[data-viz="stress"]').forEach(el=>el.hidden=lab);
- text("form-viz-label",lab?"Mode shape":"Material");
- text("mesh-viz-label",lab?"Geometry":"FE mesh");
- window.forceForgeViz=state.viz;
- text("tree-model-label",lab?"Hannover steel beam":"Solid cantilever");
- text("scene-index",lab?"EXP-002 / REAL LAB DATA":"CAE-001 / VOLUME ELEMENTS");
- $("tree-solver").innerHTML=lab?'<span class="tree-icon">▥</span> Reduced-order beam FEM':'<span class="tree-icon">▥</span> Tetra10 volume mesh';
- $("tree-measurements").innerHTML=lab?'<span class="tree-icon">◎</span> Measured sensors':'<span class="tree-icon">◎</span> Calculated fields';
- setSceneSelection(null);
+const pinLayout={
+ solid:{force:[100,-12],thickness:[-107,25],result:[95,85]},
+ lab:{force:[113,-15],support:[-105,28],mode:[94,-12],result:[95,72]}
+};
+function layoutPins(){
+ if(!ui.data||!view||!view.width||!view.height)return;
+ const matrix=view.matrices(),anchors=pinAnchors(),out=[];
+ const world=$("world"),width=world.clientWidth,height=world.clientHeight;
+ for(const [name,point] of Object.entries(anchors)){
+  const pin=$("pin-"+name);if(pin.hidden)continue;
+  const p=view.projectRaw(point,matrix);if(!p)continue;
+  let [dx,dy]=pinLayout[ui.workspace][name];
+  let x=clamp(p.x+dx,85,width-105),y=clamp(p.y+dy,140,height-112);
+  if(width<800)x=clamp(p.x+dx*.62,80,width-84);
+  out.push({name,p,pin,x,y});
+ }
+ // Labels are placed near the model and nudged when they would overlap.
+ out.sort((a,b)=>a.y-b.y);
+ for(let i=1;i<out.length;i++){
+  if(Math.abs(out[i].y-out[i-1].y)<57&&Math.abs(out[i].x-out[i-1].x)<135)
+    out[i].y=Math.min(height-110,out[i-1].y+61);
+ }
+ const svg=$("world-leaders");svg.setAttribute("viewBox","0 0 "+width+" "+height);
+ svg.replaceChildren();
+ for(const item of out){
+  const {pin,p,x,y,name}=item;
+  pin.style.left=x+"px";pin.style.top=y+"px";pin.classList.add("is-positioned");
+  const line=document.createElementNS("http://www.w3.org/2000/svg","path");
+  const ex=x+(x>p.x?-30:30),ey=y;
+  line.setAttribute("d","M"+p.x.toFixed(1)+" "+p.y.toFixed(1)+" L"+(p.x+(ex-p.x)*.5).toFixed(1)+" "+ey.toFixed(1)+" L"+ex.toFixed(1)+" "+ey.toFixed(1));
+  line.setAttribute("fill","none");line.setAttribute("stroke",name==="result"?"#b6d9c7":"#d4efa2");
+  line.setAttribute("stroke-width","1.15");line.setAttribute("opacity",".53");svg.appendChild(line);
+  const marker=document.createElementNS("http://www.w3.org/2000/svg","circle");
+  marker.setAttribute("cx",p.x);marker.setAttribute("cy",p.y);marker.setAttribute("r","3.4");
+  marker.setAttribute("fill",name==="result"?"#b8e6dd":"#d6efa3");svg.appendChild(marker);
+ }
 }
-function updateLabels(){
- const p=state.params.solid,l=state.params.lab;
- text("solid-force-value",p.force_n+" N");text("solid-thickness-value",p.thickness_mm+" mm");
- text("solid-limit-value",fmt(p.allowed_mm,3)+" mm");text("solid-visual-value",p.visual_scale+"×");
- text("lab-mode-value","B"+l.mode+"x");text("lab-stiffness-value","10^"+fmt(l.log10_k,2)+" N·m/rad");
- text("lab-amplitude-value",l.amplitude_mm+" mm");text("lab-force-value",fmt(l.tip_force_n,2)+" N");
- $("lab-mode").disabled=l.view==="static";$("lab-amplitude").disabled=l.view==="static";$("lab-force").disabled=l.view!=="static";
- text("form-viz-label",l.view==="static"?"Deflection":"Mode shape");
- if(state.workspace==="lab"&&state.data)text("viewport-type",l.view==="static"?"SIMULATED STATIC LOAD":"PUBLISHED MODAL EXPERIMENT");
+function positionLoop(){
+ layoutPins();window.requestAnimationFrame(positionLoop);
 }
-function selectWorkspace(workspace){
- state.workspace=workspace;state.viz=workspace==="solid"?"stress":"form";state.data=null;state.redesign=null;state.calibration=null;
- state.requestId++;visible("module-menu",false);updateSceneControls();
- document.querySelectorAll("[data-workspace]").forEach(el=>el.classList.toggle("is-active",el.dataset.workspace===workspace));
- document.querySelectorAll("[data-viz]").forEach(el=>el.classList.toggle("selected",el.dataset.viz===state.viz));
- visible("solid-controls",workspace==="solid");visible("lab-controls",workspace==="lab");
- text("header-project",workspace==="solid"?"SOLID MECHANICS":"REAL LABORATORY");
- text("module-name",workspace==="solid"?"Solid mechanics":"Real laboratory");
- text("module-subname",workspace==="solid"?"3D VOLUMETRIC FEA":"EXPERIMENTAL MODAL STUDY");
- text("module-icon",workspace==="solid"?"◈":"◇");
- text("stage-overline",workspace==="solid"?"STRUCTURAL SIMULATION / 01":"EXPERIMENTAL VALIDATION / 02");
- text("stage-title",workspace==="solid"?"Form meets force.":"What makes a model real?");
- text("stage-description",workspace==="solid"?"A solid structure, solved in three dimensions. Explore how loads become displacement and stress.":"A measured laboratory specimen. Explore the gap between prediction and physical observation.");
- text("viewport-type",workspace==="solid"?"3D TETRAHEDRAL FEA":"PUBLISHED EXPERIMENT");
- text("viewport-model-name",workspace==="solid"?"PARAMETRIC CANTILEVER":"HANNOVER STEEL BEAM");
- text("inspector-intro",workspace==="solid"?"Numbers behind the geometry.":"Measured evidence, computed predictions.");
- updateLabels();view.reset();setDrawer(false);solve();
+function fallbackGeometry(){
+ // Explicitly labeled visual fallback; numeric metrics still come from Python.
+ const c=$("model-canvas"),ctx=c.getContext("2d");
+ if(!ctx)return;
+ function draw(){
+  const w=c.clientWidth,h=c.clientHeight,dpr=Math.min(2,window.devicePixelRatio||1);
+  if(!w||!h)return;
+  c.width=w*dpr;c.height=h*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+  const bg=ctx.createRadialGradient(w*.55,h*.5,0,w*.55,h*.5,Math.max(w,h)*.65);
+  bg.addColorStop(0,"#293e49");bg.addColorStop(1,"#0d1821");ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
+  const cx=w*.5,cy=h*.57,len=Math.min(h*.52,350);
+  ctx.fillStyle="#71999d";
+  ctx.beginPath();ctx.moveTo(cx-29,cy-len*.58);ctx.lineTo(cx+10,cy-len*.61);ctx.lineTo(cx+30,cy+len*.54);ctx.lineTo(cx-15,cy+len*.58);ctx.closePath();ctx.fill();
+  ctx.fillStyle="#e8f2df";ctx.font="700 12px sans-serif";ctx.fillText("SOFTWARE 3D RENDERER UNAVAILABLE",24,h-120);
+ }
+ window.addEventListener("resize",draw);draw();
 }
-function setControls(open){$("control-panel").classList.toggle("collapsed",!open);$("rail-controls").classList.toggle("tool-is-active",open);$("rail-controls").setAttribute("aria-expanded",String(open));setTimeout(()=>view.resize(),310);}
-function setDrawer(open){$("bottom-drawer").classList.toggle("open",open);$("drawer-toggle").setAttribute("aria-expanded",String(open));text("drawer-toggle-label",open?"COLLAPSE DETAILS":"EXPAND DETAILS");setTimeout(()=>view.resize(),310);}
-function drawerTab(tab){state.drawer=tab;document.querySelectorAll("[data-drawer-tab]").forEach(e=>e.classList.toggle("active",e.dataset.drawerTab===tab));renderDrawer();}
-let pending;
-function changed(){state.redesign=null;state.calibration=null;updateLabels();status("UPDATING");clearTimeout(pending);pending=setTimeout(solve,220);}
+let debounce;
+function modified(){
+ ui.calibration=null;ui.redesign=null;
+ refreshPinText();
+ setStatus("UPDATING");
+ clearTimeout(debounce);debounce=setTimeout(solve,200);
+}
 async function solve(){
- const req=++state.requestId,workspace=state.workspace,payload={...state.params[workspace]};
- status("SOLVING");$("primary-action").disabled=true;if(!state.data)visible("viewport-placeholder",true);
+ const token=++ui.request,workspace=ui.workspace;
+ setStatus("SOLVING");$("loading-veil").hidden=Boolean(ui.data);
  try{
-  const d=await api("/api/solve",payload);
-  if(req!==state.requestId)return;
-  state.data=d;view.load(d);renderInspector();renderDrawer();renderLegend();setSceneSelection(null);
-  status("SOLVED");visible("viewport-placeholder",false);
- }catch(e){if(req!==state.requestId)return;status("SOLVER ERROR");visible("viewport-placeholder",false);notify("Solver error: "+e.message);}
- finally{if(req===state.requestId)$("primary-action").disabled=false;}
+  const d=await request("/api/solve",active());
+  if(token!==ui.request||workspace!==ui.workspace)return;
+  ui.data=d;
+  if(view){view.load(d);view.draw();}
+  $("loading-veil").hidden=true;setStatus("SOLVED");
+  refreshPinText();renderDetails();refreshQuick();refreshLegend();
+ }catch(e){
+  if(token!==ui.request)return;
+  $("loading-veil").hidden=true;setStatus("ERROR");notice("Model solve failed: "+e.message,true);
+ }
 }
-function renderLegend(){
- const d=state.data;if(!d)return;
- const show=state.workspace==="solid"&&state.viz==="stress";
- $("spectrum-scale").parentElement.classList.toggle("no-scale",!show);
- text("scale-name",show?"VON MISES · MAX GAUSS SAMPLE":"MATERIAL");
- text("scale-high",show?fmt(d.stress_cmax_mpa,2)+" MPa":"");
- text("visual-disclaimer",d.visual_deformation.toUpperCase());
- text("model-fidelity",state.workspace==="solid"?"3D TET10 / ASSUMED LOAD":d.view==="static"?"1D BEAM STATIC FEA / HYPOTHETICAL LOAD":"2D BEAM FEM / PUBLISHED MODES");
+function refreshLegend(){
+ const hasStress=ui.workspace==="solid"&&ui.viewMode==="stress"&&ui.data;
+ $("field-legend").hidden=!hasStress;
+ if(hasStress)$("field-max").textContent=nf(ui.data.max_von_mises_mpa,2);
 }
-function renderInspector(){
- const d=state.data;if(!d)return;
- if(state.workspace==="solid"){
-  text("primary-metric-title","TIP DISPLACEMENT");text("primary-metric-value",fmt(d.tip_displacement_mm,4));text("primary-metric-unit","mm");
-  text("primary-metric-foot","3D quadratic volume FE calculation");text("secondary-a-title","VON MISES · MAX");text("secondary-a-value",fmt(d.max_von_mises_mpa,2)+" MPa");
-  text("secondary-b-title","SOLID MASS");text("secondary-b-value",fmt(d.mass_kg,3)+" kg");
-  text("comparison-heading","CURRENT PERFORMANCE");text("comparison-badge","SIMULATED");
-  text("meter-title","Assumed movement target");
-  const r=d.tip_displacement_mm/d.assumed_limit_mm;
-  text("meter-value",fmt(r*100,1)+"%");$("meter-bar").style.width=clamp(r*100,0,100)+"%";$("meter-bar").classList.toggle("over",r>1);
-  text("meter-foot",d.passes_assumed_limit?"Within modeled limits. Not safety certification.":"Modeled limit exceeded. Explore alternatives.");
-  visible("mode-comparisons",false);text("primary-action-label","Explore design alternatives");
-  text("action-footnote","Nine independently solved 3D mesh candidates.");
-  text("inspector-source","Original computed specimen. No measured static deflection or certified material properties.");
+const editors={
+ force:{title:"Applied tip force",symbol:"↘",key:"force_n",unit:"N",min:50,max:500,step:10,workspace:"solid"},
+ thickness:{title:"Section thickness",symbol:"↔",key:"thickness_mm",unit:"mm",min:8,max:20,step:1,workspace:"solid"},
+ support:{title:"Support rotational stiffness",symbol:"⟲",key:"log10_k",unit:"log₁₀ kθ",min:0,max:6,step:.05,workspace:"lab"},
+ mode:{title:"Natural vibration",symbol:"∿",key:"mode",unit:"MODE",min:1,max:3,step:1,workspace:"lab"},
+ labforce:{title:"Illustrative lateral load",symbol:"↘",key:"tip_force_n",unit:"N",min:.05,max:1,step:.05,workspace:"lab"}
+};
+function editorConfig(name){
+ if(name==="force"&&ui.workspace==="lab")return editors.labforce;
+ return editors[name];
+}
+function updateEditor(){
+ const e=ui.edit;if(!e)return;
+ const c=editorConfig(e),p=ui.params[c.workspace],v=Number(p[c.key]);
+ $("editor-title").textContent=c.title;$("editor-symbol").textContent=c.symbol;
+ $("editor-value").value=v;$("editor-value").min=c.min;$("editor-value").max=c.max;$("editor-value").step=c.step;
+ $("editor-unit").textContent=c.unit;
+ $("editor-range").min=c.min;$("editor-range").max=c.max;$("editor-range").step=c.step;$("editor-range").value=v;
+ const mode=e==="mode";
+ $("editor-options").hidden=!mode;$("editor-range").hidden=mode;
+ $("editor-value").parentElement.parentElement.hidden=mode;
+ $("editor-hint").textContent=mode?"Select a measured vibration mode.":"Drag the marker or adjust the value here.";
+ document.querySelectorAll("[data-mode]").forEach(el=>el.classList.toggle("active",Number(el.dataset.mode)===v));
+}
+function showEditor(name){
+ if(name==="result"){showQuick();return;}
+ ui.edit=name;closeQuick();closePanels();
+ document.querySelectorAll(".spatial-pin").forEach(el=>el.classList.toggle("selected",el.dataset.pin===name));
+ $("spatial-editor").hidden=false;updateEditor();
+}
+function setEditValue(value){
+ const e=ui.edit;if(!e)return;
+ const c=editorConfig(e);if(!Number.isFinite(Number(value)))return;
+ const v=clamp(Math.round(Number(value)/c.step)*c.step,c.min,c.max);
+ ui.params[c.workspace][c.key]=Number(v.toFixed(5));
+ updateEditor();modified();
+}
+function refreshQuick(){
+ if($("quick-result").hidden||!ui.data)return;
+ const d=ui.data,lab=ui.workspace==="lab",idx=ui.params.lab.mode-1;
+ const isStatic=lab&&ui.params.lab.view==="static";
+ $("quick-title").textContent=lab?(isStatic?"SIMULATED · LATERAL LOAD":"MEASURED / COMPUTED · MODE B"+(idx+1)):"CALCULATED TIP MOVEMENT";
+ $("quick-value").textContent=lab?(isStatic?nf(d.static_tip_mm,3):nf(d.frequencies_hz[idx],3)):nf(d.tip_displacement_mm,4);
+ $("quick-unit").textContent=lab&&!isStatic?"Hz":"mm";
+ $("quick-minis").innerHTML=lab?
+  isStatic?"<div>Applied force: <strong>"+nf(d.static_force_n,2)+" N</strong></div><div>Prediction only — not measured</div>":
+  "<div>Measured: <strong>"+nf(d.measured_hz[idx],3)+" Hz</strong></div><div>Deviation: <strong>"+nf(d.error_percent[idx],2)+"%</strong></div>":
+  "<div>Von Mises: <strong>"+nf(d.max_von_mises_mpa,2)+" MPa</strong></div><div>Target: <strong>"+nf(d.assumed_limit_mm,3)+" mm</strong> (assumed)</div>";
+}
+function showQuick(){if(!ui.data)return;closeEditor();$("quick-result").hidden=false;refreshQuick();}
+function row(k,v){return "<div class='data-row'><span>"+esc(k)+"</span><strong>"+esc(v)+"</strong></div>";}
+function block(title,body){return "<div class='detail-block'><h3>"+esc(title)+"</h3>"+body+"</div>";}
+function renderDetails(){
+ if(!ui.data)return;
+ const d=ui.data,lab=ui.workspace==="lab";
+ $("detail-title").textContent=lab?"Laboratory results":"Structural results";
+ $("detail-kicker").textContent=lab?"PUBLISHED MODES / INDEPENDENT FEM":"TRUE 3D / TETRA10";
+ let html="";
+ if(!lab){
+  html+=block("FINITE ELEMENT SOLUTION",
+    row("Tip displacement",nf(d.tip_displacement_mm,4)+" mm")+
+    row("Maximum sampled von Mises",nf(d.max_von_mises_mpa,2)+" MPa")+
+    row("Mass",nf(d.mass_kg,4)+" kg")+
+    row("Volume elements",String(d.element_count))+
+    row("Beam reference",nf(d.theoretical_beam_tip_mm,4)+" mm"));
+  html+=block("CURRENT MODEL",row("Tip force",nf(d.force_n,1)+" N")+
+    row("Cross section","30 × "+nf(ui.params.solid.thickness_mm,0)+" mm")+
+    row("Assumed limit",nf(d.assumed_limit_mm,3)+" mm")+
+    row("Status",d.passes_assumed_limit?"Within modeled limits":"Limit exceeded"));
+  if(ui.redesign){
+   html+=block("RE-SOLVED THICKNESS CANDIDATES",
+    ui.redesign.best?row("Lightest feasible",ui.redesign.best.thickness_mm+" mm")+
+    row("Mass difference",nf(ui.redesign.best.mass_delta_percent,1)+"%"):
+    "<p>No tested section meets both assumed limits.</p>");
+  }
+  html+="<div class='provenance'>Numerical 3D solid specimen, not a physically measured component. Applied load, material and displacement limit are assumptions. Clamp stress is mesh-sensitive. No certification implied.</div>";
  }else{
   if(d.view==="static"){
-    text("primary-metric-title","CALCULATED STATIC TIP MOVEMENT");
-    text("primary-metric-value",fmt(d.static_tip_mm,3));text("primary-metric-unit","mm");
-    text("primary-metric-foot","Illustrative load "+fmt(d.static_force_n,2)+" N · not measured in the source experiment");
-    text("secondary-a-title","ASSUMED STATIC FORCE");text("secondary-a-value",fmt(d.static_force_n,2)+" N");
-    text("secondary-b-title","MODEL BEAM MASS");text("secondary-b-value",fmt(d.mass_kg,3)+" kg");
-    text("comparison-heading","STATIC FEM / ASSUMED INPUT");
-    text("comparison-badge","SIMULATED");text("meter-title","Validation status");
-    text("meter-value","NOT MEASURED");$("meter-bar").style.width="0%";$("meter-bar").classList.remove("over");
-    text("meter-foot","The laboratory provides modal observations; this static load is a separate prediction.");
-    visible("mode-comparisons",false);
-    text("primary-action-label","Return to measured modal analysis");
-    text("action-footnote","Calibration applies to Mode 1 only, not this hypothetical static test.");
-    text("inspector-source","Static tip displacement is computed, not physically observed. The laboratory measurements concern natural frequencies.");
-    return;
-  }
-  const i=d.mode-1,e=d.error_percent[i];text("primary-metric-title","COMPUTED MODE B"+d.mode+"x");text("primary-metric-value",fmt(d.frequencies_hz[i],3));text("primary-metric-unit","Hz");
-  text("primary-metric-foot","Physical measurement: "+fmt(d.measured_hz[i],3)+" Hz; signed error "+fmt(e,2)+"%");
-  text("secondary-a-title","OBSERVED MODE 1");text("secondary-a-value",fmt(d.measured_hz[0],3)+" Hz");
-  text("secondary-b-title","COMPUTED BEAM MASS");text("secondary-b-value",fmt(d.mass_kg,3)+" kg");
-  text("comparison-heading","PHYSICAL / COMPUTED");text("comparison-badge","MEASURED");
-  text("meter-title","Selected mode error");text("meter-value",fmt(e,2)+"%");
-  $("meter-bar").style.width=clamp(Math.abs(e)*4,0,100)+"%";$("meter-bar").classList.toggle("over",Math.abs(e)>10);
-  text("meter-foot","Frequency correlation only, not design certification.");
-  $("mode-comparisons").innerHTML=d.frequencies_hz.map((f,j)=>"<div class='mode-row'><span>B"+(j+1)+"x · lab / FEM</span><b>"+fmt(d.measured_hz[j],3)+" / "+fmt(f,3)+" Hz</b></div>").join("");
-  visible("mode-comparisons",true);text("primary-action-label","Calibrate using measured Mode 1");
-  text("action-footnote","Fit one parameter; hold Modes 2 and 3 out.");
-  text("inspector-source","Only modal values are published measurements; the material and fixture model parameters are assumed.");
- }
-}
-function cards(items){return "<div class='drawer-grid'>"+items.map(x=>"<div class='drawer-card'><h3>"+x[0]+"</h3>"+x[1]+"</div>").join("")+"</div>";}
-function renderDrawer(){
- const d=state.data;if(!d)return;
- const solid=state.workspace==="solid",el=$("drawer-body");
- if(state.drawer==="overview"){
-  el.innerHTML=solid?cards([
-   ["True volumetric physics","<div class='drawer-number'>"+d.element_count.toLocaleString()+"</div><p>Quadratic tetrahedral volume elements, "+d.node_count.toLocaleString()+" mesh nodes</p>"],
-   ["Theory cross-check","<div class='drawer-number'>"+fmt(d.theoretical_beam_tip_mm,4)+" mm</div><p>Independent ideal beam reference; deviation "+fmt(d.reference_difference_percent,2)+"%</p>"],
-   ["Computational specimen","<div class='drawer-number'>120 × 30 × "+d.dimensions_mm[2]+" mm</div><p>Generated geometry; not a physically measured part.</p>"]
-  ]):cards([
-   ["Lab specimen","<div class='drawer-number'>1,524 mm</div><p>Reconstructed steel cantilever with five documented sensor heights.</p>"],
-   ["Published Mode 1","<div class='drawer-number'>1.569 Hz</div><p>Measured laboratory natural frequency, distinct from our solver.</p>"],
-   ["Validation boundaries","<p>Physical modal data only. This reduced-order FEM omits sensor masses, shear and fixture detail.</p>"]
-  ]);
- }else if(state.drawer==="results"){
-  if(solid){
-   if(!state.redesign){el.innerHTML="<p class='result-note'>Run Explore design alternatives to calculate nine independent 3D finite-element candidate designs.</p>";return;}
-   const r=state.redesign,rows=r.candidates;
-   el.innerHTML=(r.best?"<p class='result-note'><strong>Selected candidate:</strong> "+r.best.thickness_mm+" mm · "+fmt(r.best.tip_displacement_mm,4)+" mm tip movement · "+fmt(r.best.mass_delta_percent,1)+"% mass change.</p>":"<p class='result-note'>No candidate satisfies the chosen modeled limits.</p>")+
-    "<table class='result-table'><thead><tr><th>THICKNESS</th><th>DEFLECTION</th><th>VON MISES</th><th>MASS</th><th>LIMIT</th></tr></thead><tbody>"+rows.map(x=>"<tr><td>"+x.thickness_mm+" mm</td><td>"+fmt(x.tip_mm,4)+" mm</td><td>"+fmt(x.stress_mpa,2)+" MPa</td><td>"+fmt(x.mass_kg,3)+" kg</td><td>"+(x.feasible?"Within":"Exceeded")+"</td></tr>").join("")+"</tbody></table>";
+   html+=block("ILLUSTRATIVE STATIC FEA",
+     row("Predicted tip displacement",nf(d.static_tip_mm,3)+" mm")+
+     row("Assumed tip force",nf(d.static_force_n,2)+" N")+
+     row("Model beam mass",nf(d.mass_kg,3)+" kg"));
+   html+="<div class='provenance'>This loading was not part of the published measured modal dataset. The static result is a separate numerical prediction.</div>";
   }else{
-   el.innerHTML="<table class='result-table'><thead><tr><th>MODE</th><th>PHYSICAL</th><th>OUR FEM</th><th>PUBLISHED ABAQUS</th><th>OUR ERROR</th></tr></thead><tbody>"+d.frequencies_hz.map((f,i)=>"<tr><td>B"+(i+1)+"x</td><td>"+fmt(d.measured_hz[i],3)+" Hz</td><td>"+fmt(f,3)+" Hz</td><td>"+fmt(d.published_abaqus_hz[i],3)+" Hz</td><td>"+fmt(d.error_percent[i],2)+"%</td></tr>").join("")+"</tbody></table>"+
-   (state.calibration?"<p class='result-note'>Effective fitted stiffness "+fmt(state.calibration.k_nm_rad,1)+" N·m/rad; Modes 2 and 3 held-out MAPE "+fmt(state.calibration.holdout_mape_percent,2)+"%. Fitted stiffness is not a directly measured physical property.</p>":"<p class='result-note'>Calibration uses only the measured first mode; Modes 2 and 3 are held out.</p>");
+   html+="<table class='data-table'><thead><tr><th>MODE</th><th>MEASURED</th><th>OUR FEA</th><th>ERROR</th></tr></thead><tbody>"+
+     d.measured_hz.map((value,i)=>"<tr><td>B"+(i+1)+"x</td><td>"+nf(value,3)+" Hz</td><td>"+nf(d.frequencies_hz[i],3)+" Hz</td><td>"+nf(d.error_percent[i],2)+"%</td></tr>").join("")+"</tbody></table>";
+   if(ui.calibration)html+=block("ONE-PARAMETER CALIBRATION",
+     row("Fitted effective support kθ",nf(ui.calibration.k_nm_rad,2)+" N·m/rad")+
+     row("Held-out Modes 2/3 MAPE",nf(ui.calibration.holdout_mape_percent,2)+"%"));
+   html+=block("EXTERNAL REFERENCES",
+     "<a href='"+esc(d.measurement_source)+"' target='_blank' rel='noopener noreferrer'>Peer-reviewed laboratory paper ↗</a><p></p>"+
+     "<a href='"+esc(d.dataset_source)+"' target='_blank' rel='noopener noreferrer'>Original university dataset ↗</a>");
+   html+="<div class='provenance'>Measured values are from published physical tests. Our reduced-order beam FEA and fitted support stiffness are separate numerical modeling assumptions. Frequency correlation does not certify structural safety.</div>";
   }
- }else{
-  el.innerHTML=solid?cards([
-   ["Source of model","<p>Original parametric solid. No laboratory static test for this geometry.</p>"],
-   ["Solver boundaries","<p>True tet10 linear elasticity, sampled Gauss-point von Mises. Clamp-region stress is mesh sensitive.</p>"],
-   ["Original workflow","<p>Specialist Streamlit engineering pages remain available in the project.</p><a target='_blank' rel='noopener noreferrer' href='https://github.com/NeonGrade/ForceForge-AI'>Open repository ↗</a>"]
-  ]):cards([
-   ["Published article","<p>Thurn et al., Wind Energy Science (2026), CC BY 4.0.</p><a target='_blank' rel='noopener noreferrer' href='"+esc(d.measurement_source)+"'>Peer-reviewed paper ↗</a>"],
-   ["University dataset","<p>Published original measurements and Abaqus files, CC BY 3.0.</p><a target='_blank' rel='noopener noreferrer' href='"+esc(d.dataset_source)+"'>Source dataset ↗</a>"],
-   ["Reconstructed CAD","<p>STEP and STL based on the published physical specimen dimensions.</p><a href='/download/beam.step'>STEP ↗</a> &nbsp; <a href='/download/beam.stl'>STL ↗</a>"]
-  ]);
  }
+ $("detail-content").innerHTML=html;
 }
-async function primaryAction(){
- const workspace=state.workspace;
- if(workspace==="lab"&&state.params.lab.view==="static"){
-  state.params.lab.view="modes";$("lab-view").value="modes";
-  changed();notify("Switched to measured modal comparison; calibration is now available.");return;
- }
- const original=JSON.stringify(state.params[workspace]);
- $("primary-action").disabled=true;status("COMPUTING");
+function syncSettings(){
+ const p=ui.params.solid,l=ui.params.lab;
+ $("solid-settings").hidden=ui.workspace!=="solid";$("lab-settings").hidden=ui.workspace!=="lab";
+ $("setting-resolution").value=p.resolution;$("setting-limit").value=p.allowed_mm;
+ $("setting-limit-value").textContent=nf(p.allowed_mm,3)+" mm";
+ $("setting-visual").value=p.visual_scale;$("setting-visual-value").textContent=p.visual_scale+"×";
+ $("setting-lab-view").value=l.view;$("setting-stiffness").value=l.log10_k;
+ $("setting-stiffness-value").textContent=nf(l.log10_k,2);
+ $("setting-amplitude").value=l.amplitude_mm;$("setting-amplitude-value").textContent=l.amplitude_mm+" mm";
+ $("setting-elements").value=l.elements;$("setting-young").value=l.E_gpa;
+ $("setting-gauges").checked=l.gauges;
+ $("scientific-limit").textContent=ui.workspace==="solid"?
+  "Numerical tetra10 volume FEM. Load, material and limits are assumed. Not safety-certified.":
+  "Published modal measurements with an independent simplified beam FEM. No static experiment validation.";
+}
+async function runRedesign(){
+ if(ui.workspace!=="solid")return;
+ $("redesign-run").disabled=true;setStatus("SOLVING");
+ const key=JSON.stringify(active());
  try{
-  if(workspace==="solid"){
-   const d=await api("/api/redesign",{...state.params.solid});
-   if(workspace!==state.workspace||JSON.stringify(state.params[workspace])!==original)return;
-   state.redesign=d;notify(d.best?"Candidate "+d.best.thickness_mm+" mm; mass change "+fmt(d.best.mass_delta_percent,1)+"%.":"No candidate passed the assumed limits.");
-  }else{
-   const d=await api("/api/calibrate",{...state.params.lab});
-   if(workspace!==state.workspace||JSON.stringify(state.params[workspace])!==original)return;
-   state.calibration=d;state.params.lab.log10_k=d.log10_k;$("lab-stiffness").value=d.log10_k;
-   updateLabels();notify("Calibrated Mode 1; held-out MAPE "+fmt(d.holdout_mape_percent,2)+"%.");await solve();
-  }
-  drawerTab("results");setDrawer(true);
- }catch(e){notify("Analysis error: "+e.message);}
- finally{$("primary-action").disabled=false;status("SOLVED");}
+  const r=await request("/api/redesign",active());
+  if(ui.workspace!=="solid"||JSON.stringify(active())!==key)return;
+  ui.redesign=r;renderDetails();showPanel("detail-panel");
+  notice(r.best?"Best tested thickness: "+r.best.thickness_mm+" mm.":"No thickness meets the assumed criteria.");
+ }catch(e){notice(e.message,true);}
+ finally{$("redesign-run").disabled=false;setStatus("SOLVED");}
 }
-function dialog(title,content){text("dialog-title",title);$("dialog-content").innerHTML=content;$("studio-dialog").showModal();}
-function guide(){
- dialog("Engineering, made tangible.",
- "<p><strong>Explore the model.</strong> Drag to orbit; scroll to zoom. Select a workspace on the left, then adjust engineering controls. The geometry and numbers are driven by the existing Python solver.</p>"+
- "<p><strong>Inspect results.</strong> The right panel highlights current values. Expand the bottom drawer for detailed evidence, assumptions and source attribution.</p>"+
- "<p><strong>Interpret carefully.</strong> The true 3D solid is a numerical benchmark, not a physically tested part. The Hannover lab model has physical modal measurements but uses a simplified beam FEM. No structural safety certification is implied.</p>");
-}
-function init(){
- document.querySelectorAll("[data-workspace]").forEach(el=>el.onclick=()=>selectWorkspace(el.dataset.workspace));
- document.querySelectorAll("[data-select-workspace]").forEach(el=>el.onclick=()=>selectWorkspace(el.dataset.selectWorkspace));
- $("module-select").onclick=()=>visible("module-menu",$("module-menu").hidden);
- $("rail-controls").onclick=()=>setControls($("control-panel").classList.contains("collapsed"));
- $("close-controls").onclick=()=>setControls(false);
- $("rail-results").onclick=()=>setDrawer(!$("bottom-drawer").classList.contains("open"));
- $("rail-evidence").onclick=()=>{drawerTab("evidence");setDrawer(true);};
- $("drawer-toggle").onclick=()=>setDrawer(!$("bottom-drawer").classList.contains("open"));
- document.querySelectorAll("[data-drawer-tab]").forEach(el=>el.onclick=()=>{drawerTab(el.dataset.drawerTab);setDrawer(true);});
- document.querySelectorAll("[data-viz]").forEach(el=>el.onclick=()=>{
-  state.viz=el.dataset.viz;window.forceForgeViz=state.viz;document.querySelectorAll("[data-viz]").forEach(a=>a.classList.toggle("selected",a===el));
-  view.draw();if(state.data)renderLegend();
- });
- $("toggle-sensors").onclick=()=>{state.sensors=!state.sensors;window.forceForgeSensors=state.sensors;$("toggle-sensors").classList.toggle("is-on",state.sensors);view.draw();};
- ["reset-camera","view-reset-top"].forEach(id=>$(id).onclick=()=>view.reset());
- $("primary-action").onclick=primaryAction;
- let focus=false,standardView=0;
- $("explore-toggle").onclick=()=>{
-   focus=!focus;$("app").classList.toggle("focus-mode",focus);
-   $("explore-toggle").setAttribute("aria-pressed",String(focus));
-   text("explore-toggle-text",focus?"ENGINEERING":"IMMERSIVE");
-   setTimeout(()=>view.resize(),350);
- };
- $("camera-view").onclick=()=>{
-   const sequence=["iso","front","right","top"];
-   if(typeof view.setView==="function")view.setView(sequence[standardView%4]);
-   else view.reset();
-   text("camera-view",["ISO","FRONT","RIGHT","TOP"][standardView%4]);
-   standardView++;
- };
- $("true-scale").onclick=()=>{
-   if(typeof view.setTrueScale!=="function")return;
-   const exact=$("true-scale").getAttribute("aria-pressed")!=="true";
-   $("true-scale").setAttribute("aria-pressed",String(exact));
-   text("true-scale",exact?"DETAIL":"1:1");
-   view.setTrueScale(exact);
-   notify(exact?"Actual beam section aspect ratio enabled.":"Section enlarged for inspection only; physical dimensions unchanged.");
- };
- $("intel-action").onclick=()=>{
-   if(state.workspace==="lab"){drawerTab("evidence");setDrawer(true);}
-   else {setControls(true);$("solid-force").focus();}
- };
- $("tree-model").onclick=()=>{setSceneSelection(null);view.reset();};
- $("tree-geometry").onclick=()=>{setSceneSelection(null);state.viz="form";window.forceForgeViz="form";document.querySelectorAll("[data-viz]").forEach(b=>b.classList.toggle("selected",b.dataset.viz==="form"));view.draw();};
- $("tree-solver").onclick=()=>{state.viz="wire";window.forceForgeViz="wire";document.querySelectorAll("[data-viz]").forEach(b=>b.classList.toggle("selected",b.dataset.viz==="wire"));view.draw();};
- $("tree-measurements").onclick=()=>{
-    if(state.workspace==="lab"){state.sensors=true;window.forceForgeSensors=true;view.draw();setSceneSelection(null);}
-    drawerTab("results");setDrawer(true);
- };
-
- $("help-btn").onclick=guide;$("rail-guide").onclick=guide;
- $("stage-info").onclick=()=>dialog("Model fidelity and limitations.",
-  "<p>"+esc(state.data?.validation||"Model is not loaded.")+"</p><p>Visualization: "+esc(state.data?.visual_deformation||"not available")+"</p><p>See the Evidence drawer for sources and scope boundaries.</p>");
- $("dialog-close").onclick=()=>$("studio-dialog").close();
- const mapping={
-  "solid-force":["solid","force_n"],"solid-thickness":["solid","thickness_mm"],
-  "solid-limit":["solid","allowed_mm"],"solid-visual":["solid","visual_scale"],
-  "solid-resolution":["solid","resolution"],"lab-view":["lab","view"],
-  "lab-mode":["lab","mode"],"lab-stiffness":["lab","log10_k"],
-  "lab-amplitude":["lab","amplitude_mm"],"lab-force":["lab","tip_force_n"],
-  "lab-E":["lab","E_gpa"],"lab-elements":["lab","elements"],"lab-gauges":["lab","gauges"]
- };
- for(const [id,[w,key]] of Object.entries(mapping)){
-  const el=$(id),callback=()=>{state.params[w][key]=el.type==="checkbox"?el.checked:el.tagName==="SELECT"&&id==="solid-resolution"||id==="lab-view"?el.value:Number(el.value);changed();};
-  el.addEventListener(el.type==="range"?"input":"change",callback);
+async function runCalibration(){
+ if(ui.workspace!=="lab")return;
+ if(ui.params.lab.view==="static"){
+  ui.params.lab.view="modes";syncSettings();modified();notice("Returned to measured modal modes. Run calibration again.");return;
  }
- window.addEventListener("keydown",e=>{
-  if(["INPUT","SELECT","TEXTAREA"].includes(document.activeElement.tagName))return;
-  if(e.key==="r")view.reset();
-  if(e.key==="f")$("explore-toggle").click();
-  if(e.key==="1")selectWorkspace("solid");
-  if(e.key==="2")selectWorkspace("lab");
- });
- updateLabels();view.resize();selectWorkspace("solid");
+ $("calibrate-run").disabled=true;setStatus("SOLVING");
+ const key=JSON.stringify(active());
+ try{
+  const r=await request("/api/calibrate",active());
+  if(ui.workspace!=="lab"||JSON.stringify(active())!==key)return;
+  ui.calibration=r;ui.params.lab.log10_k=r.log10_k;syncSettings();
+  await solve();showPanel("detail-panel");
+  notice("Mode 1 fitted · held-out MAPE "+nf(r.holdout_mape_percent,2)+"%");
+ }catch(e){notice(e.message,true);}
+ finally{$("calibrate-run").disabled=false;}
 }
-document.addEventListener("DOMContentLoaded",init);
+function changeViz(){
+ const next=ui.workspace==="solid"?
+  ["form","stress","wire"]:[ "form","wire" ];
+ const current=next.indexOf(ui.viewMode);
+ ui.viewMode=next[(current+1)%next.length];
+ window.forceForgeViz=ui.viewMode;
+ $("mode-view").firstChild.textContent=(ui.viewMode==="stress"?"STRESS":ui.viewMode==="wire"?"MESH":"MATERIAL")+" ";
+ if(view)view.draw();refreshLegend();
+}
+function bind(){
+ $("scene-selector").onclick=e=>{e.stopPropagation();$("project-chooser").hidden=!$("project-chooser").hidden;};
+ document.querySelectorAll("[data-workspace]").forEach(el=>el.onclick=()=>changeWorkspace(el.dataset.workspace));
+ $("settings-open").onclick=()=>showPanel("settings-panel");
+ $("details-open").onclick=()=>showPanel("detail-panel");
+ $("help-open").onclick=()=>{
+  $("detail-title").textContent="Explore the space.";
+  $("detail-kicker").textContent="THREE THINGS TO KNOW";
+  $("detail-content").innerHTML=block("MODEL CONTROLS",row("Rotate","Drag in space")+row("Zoom","Scroll")+row("Adjust","Select an on-model marker")+row("Reset camera","R key"))+
+    "<div class='provenance'>Physical measurements and simulated values remain distinct. For complete sources, switch to the laboratory space and open Results.</div>";
+  closeEditor();$("detail-panel").hidden=false;$("settings-panel").hidden=true;$("panel-backdrop").hidden=false;
+ };
+ $("view-reset").onclick=()=>view&&view.reset();
+ document.querySelectorAll("[data-view]").forEach(el=>el.onclick=()=>{
+  document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b===el));
+  if(view)view.setView(el.dataset.view);
+ });
+ $("mode-view").onclick=changeViz;
+ for(const name of ["force","thickness","support","mode","result"]){
+  const pin=$("pin-"+name);
+  pin.onclick=()=>{if(!ui.dragging)showEditor(name);ui.dragging=null;};
+  if(name==="result"||name==="mode")continue;
+  let start=null;
+  pin.addEventListener("pointerdown",e=>{
+   if(e.button!==0)return;start={x:e.clientX,value:ui.params[editorConfig(name).workspace][editorConfig(name).key],moved:false};
+  });
+  pin.addEventListener("pointermove",e=>{
+   if(!start)return;
+   const dx=e.clientX-start.x;if(Math.abs(dx)<7&&!start.moved)return;
+   start.moved=true;ui.dragging=true;
+   const c=editorConfig(name),range=c.max-c.min;
+   const value=clamp(start.value+dx/230*range,c.min,c.max);
+   ui.edit=name;
+   const step=c.step;
+   ui.params[c.workspace][c.key]=Number((Math.round(value/step)*step).toFixed(5));
+   refreshPinText();modified();
+  });
+  pin.addEventListener("pointerup",()=>{start=null;setTimeout(()=>ui.dragging=null,0);});
+  pin.addEventListener("pointercancel",()=>{start=null;ui.dragging=null;});
+ }
+ $("editor-close").onclick=closeEditor;$("quick-close").onclick=closeQuick;
+ $("quick-action").onclick=()=>showPanel("detail-panel");
+ $("editor-minus").onclick=()=>{const c=editorConfig(ui.edit);setEditValue(Number(ui.params[c.workspace][c.key])-c.step);};
+ $("editor-plus").onclick=()=>{const c=editorConfig(ui.edit);setEditValue(Number(ui.params[c.workspace][c.key])+c.step);};
+ $("editor-range").oninput=e=>setEditValue(Number(e.target.value));
+ $("editor-value").onchange=e=>setEditValue(Number(e.target.value));
+ document.querySelectorAll("[data-mode]").forEach(el=>el.onclick=()=>setEditValue(Number(el.dataset.mode)));
+ $("panel-backdrop").onclick=closePanels;$("detail-close").onclick=closePanels;$("settings-close").onclick=closePanels;
+ $("setting-resolution").onchange=e=>{ui.params.solid.resolution=e.target.value;modified();};
+ $("setting-limit").oninput=e=>{ui.params.solid.allowed_mm=Number(e.target.value);syncSettings();modified();};
+ $("setting-visual").oninput=e=>{ui.params.solid.visual_scale=Number(e.target.value);syncSettings();modified();};
+ $("setting-lab-view").onchange=e=>{
+  ui.params.lab.view=e.target.value;
+  $("pin-force").hidden=e.target.value!=="static";
+  $("pin-mode").hidden=e.target.value==="static";
+  modified();
+ };
+ $("setting-stiffness").oninput=e=>{ui.params.lab.log10_k=Number(e.target.value);syncSettings();modified();};
+ $("setting-amplitude").oninput=e=>{ui.params.lab.amplitude_mm=Number(e.target.value);syncSettings();modified();};
+ $("setting-elements").onchange=e=>{ui.params.lab.elements=Number(e.target.value);modified();};
+ $("setting-young").onchange=e=>{ui.params.lab.E_gpa=Number(e.target.value);modified();};
+ $("setting-gauges").onchange=e=>{ui.params.lab.gauges=e.target.checked;modified();};
+ $("setting-true-scale").onchange=e=>{if(view)view.setTrueScale(e.target.checked);notice(e.target.checked?"True beam section proportions.":"Section expanded ×24 for inspection only.");};
+ $("redesign-run").onclick=runRedesign;$("calibrate-run").onclick=runCalibration;
+ $("dismiss-guide").onclick=()=>{$("first-use").hidden=true;};
+ $("world").addEventListener("pointerdown",e=>{
+  if(e.target.id==="model-canvas"){closeEditor();closeQuick();$("project-chooser").hidden=true;}
+ });
+ document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){closePanels();closeEditor();closeQuick();$("project-chooser").hidden=true;}
+  if(["INPUT","SELECT","TEXTAREA"].includes(document.activeElement.tagName))return;
+  if(e.key.toLowerCase()==="r"&&view)view.reset();
+ });
+ if(view){
+  view.onSelect=s=>{
+   if(s&&s.type==="sensor"){
+    ui.selected=s;
+    $("quick-result").hidden=false;
+    $("quick-title").textContent=s.id+" · MEASUREMENT POINT";
+    $("quick-value").textContent=nf(s.height_mm,0);
+    $("quick-unit").textContent="mm";
+    $("quick-minis").innerHTML="<div>"+esc(s.type==="sensor"?(s.id==="MP4"||s.id==="MP5"?"Strain gauge":"Motion measurement"):"Measured point")+"</div><div>Published sensor elevation above base</div>";
+  }
+  };
+ }
+}
+bind();refreshPinText();changeWorkspace("solid");
+if(!usingGPU){fallbackGeometry();$("loading-veil").hidden=true;}
+else window.requestAnimationFrame(positionLoop);
