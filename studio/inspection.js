@@ -56,7 +56,7 @@ function createReferenceGrid(v){
  const gl=v.gl,shaderProgram=makeProgram(gl);
  const vao=gl.createVertexArray(),buffer=gl.createBuffer();
  const geometry={program:shaderProgram,vao,buffer,count:0,axes:[],step:10};
- const push=(array,a,b,color)=>{for(const p of [a,b])array.push(...p,...color);};
+ const push=(array,a,b,color)=>{for(const p of [a,b])array.push(...normalizePoint(v,p),...color);};
  function build(){
   if(!v.raw||!v.raw.length)return;
   const lo=[Infinity,Infinity,Infinity],hi=[-Infinity,-Infinity,-Infinity];
