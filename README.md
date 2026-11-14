@@ -1,3 +1,17 @@
+# ForceForge X v1.0 — Source-Locked Mesh Evidence
+
+The same **actual STEP CAD** is now checked at **three independently generated 3D tetra mesh resolutions**. ForceForge reuses the active FEM solution, runs exactly two additional crash-isolated solves, and reports how actual element counts, global displacement, strain energy, sampled local von Mises, volume preservation and reaction balance vary with mesh refinement.
+
+**Importantly:** three-mesh comparisons are a *preliminary numerical sensitivity screen*, **not** proof that local peak stress has converged or that an engineering product is certified safe.
+
+**New user action:** open the **Real STEP → 3D FEA / CAD redesign** page, click **Run CAD import + 3D FEA**, then expand **Mesh-sensitivity evidence · 3 independent volume meshes** and click **Run mesh-sensitivity study (2 additional FE solves)**. Nothing computationally expensive runs on page load.
+
+[3D mesh evidence / engineering limits](docs/MESH_SENSITIVITY_EVIDENCE.md) · [Stable Mac runtime](docs/STABLE_CAD_RUNTIME.md)
+
+Development branch: `feature/mesh-evidence-v10`. Earlier NIST geometry, modal benchmark, thermal/joint, robust optimization, ML and CAD redesign modules are preserved.
+
+---
+
 # ForceForge X v0.9 — Stable CAD Studio
 
 **New: click-to-run real STEP → tetra10 3D FEA → CAD redesign**, with native Gmsh and sparse FEA isolated in bounded Python subprocesses so a native worker failure does not automatically terminate the Streamlit server.

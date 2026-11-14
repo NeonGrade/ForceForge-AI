@@ -13,6 +13,7 @@ import time
 import urllib.request
 
 import numpy as np
+import pandas as pd
 import streamlit as st
 
 from forceforge.cad_solid import CadLoad
@@ -20,6 +21,7 @@ from forceforge.isolated_cad import (
     CadJobError, MAX_INTERACTIVE_TETS,
     analyze_step_safely, generate_bracket_safely,
 )
+from forceforge.mesh_verification import run_mesh_evidence, select_mesh_sizes
 from forceforge.solid3d import surface_figure
 from forceforge.step_mesh import (
     MAX_CAD_BYTES, NIST_BRIDGE_URL, NIST_DATASET_DOI, NIST_PINNED_SHA256,
@@ -192,6 +194,7 @@ if run_requested:
     # Immediately invalidate the previous solution and its comparison.
     st.session_state.pop("stable_initial", None)
     st.session_state.pop("stable_revised", None)
+    st.session_state.pop("stable_mesh_evidence", None)
     t0 = time.monotonic()
     try:
         with st.spinner(
@@ -288,6 +291,108 @@ st.plotly_chart(
     surface_figure(result, deformation_scale=visual),
     width="stretch", key="stable_original_surface",
 )
+
+with st.expander(
+    "Mesh-sensitivity evidence · 3 independent volume meshes",
+    expanded=False,
+):
+    planned = select_mesh_sizes(mesh.mesh_size_mm)
+    st.write(
+        "The same exact STEP file, load, support planes and material will be "
+        "solved with target tetra edge sizes of "
+        + ", ".join(f"{x:g} mm" for x in planned)
+        + ". The current completed result is reused; two additional "
+        "mesh/FEA jobs run in short-lived isolated subprocesses."
+    )
+    st.caption(
+        "This screens numerical mesh dependence, particularly global "
+        "tip displacement. Local peak stress around fixed edges and holes "
+        "is separately reported and cannot be called converged."
+    )
+    if st.button(
+        "Run mesh-sensitivity study (2 additional FE solves)",
+        key="stable_run_mesh_verification",
+    ):
+        st.session_state.pop("stable_mesh_evidence", None)
+        elapsed_start = time.monotonic()
+        try:
+            with st.spinner(
+                "Checking 3 mesh resolutions · 2 isolated 3D FEA runs. "
+                "The main web server remains separate."
+            ):
+                evidence = run_mesh_evidence(
+                    saved["source"], result,
+                    source_label=saved["source_name"],
+                    unit=unit, solve_at=analyze_step_safely,
+                )
+            st.session_state["stable_mesh_evidence"] = {
+                "signature": signature,
+                "source_sha256": mesh.source_sha256,
+                "study": evidence,
+                "seconds": time.monotonic() - elapsed_start,
+            }
+        except (CadJobError, RuntimeError, ValueError, OSError) as exc:
+            st.error(
+                f"Mesh verification did not finish: {exc}. "
+                "No convergence result has been asserted. "
+                "Try a larger base tetra edge size or a simpler CAD solid."
+            )
+    record = st.session_state.get("stable_mesh_evidence")
+    if record is not None and (
+        record["signature"] != signature
+        or record["source_sha256"] != mesh.source_sha256
+    ):
+        st.warning(
+            "Geometry, loading, mesh or material inputs changed. "
+            "Previous mesh evidence is stale and hidden."
+        )
+        record = None
+    if record is not None:
+        evidence = record["study"]
+        st.write(
+            f"Completed in {record['seconds']:.1f} s. "
+            f"Assessment: **{evidence.decision}**"
+        )
+        st.write(evidence.decision_reason)
+        rows = [r.as_dict() for r in evidence.ordered_rows]
+        df = pd.DataFrame(rows).rename(columns={
+            "target_size_mm": "Target edge (mm)",
+            "tetrahedra": "3D tetrahedra",
+            "quadratic_nodes": "Quadratic FE nodes",
+            "volume_error_percent": "Volume discrepancy (%)",
+            "minimum_quality_proxy": "Min shape-quality proxy",
+            "tip_mm": "Tip displacement (mm)",
+            "peak_sampled_mises_mpa": "Sampled peak von Mises (MPa)",
+            "strain_energy_mj": "Strain energy (mJ)",
+            "reaction_residual": "Relative equilibrium residual",
+        })
+        st.dataframe(df.round(6), hide_index=True, width="stretch")
+        a, b, c = st.columns(3)
+        a.metric(
+            "Fine/medium tip difference",
+            f"{evidence.fine_vs_medium_displacement_percent:.2f}%",
+        )
+        b.metric(
+            "Fine/medium sampled stress difference",
+            f"{evidence.fine_vs_medium_stress_percent:.2f}%",
+        )
+        c.metric(
+            "Mesh count · coarse → fine",
+            f"{rows[0]['tetrahedra']:,} → {rows[2]['tetrahedra']:,}",
+        )
+        st.line_chart(
+            df.set_index("3D tetrahedra")[
+                ["Tip displacement (mm)"]
+            ],
+        )
+        st.caption(evidence.limitations)
+        st.download_button(
+            "Download mesh-sensitivity evidence (JSON)",
+            data=json.dumps(evidence.as_dict(), indent=2),
+            file_name="forceforge_mesh_evidence.json",
+            mime="application/json",
+            key="download_mesh_evidence",
+        )
 
 st.subheader("Step 3 · Independently re-mesh a revised STEP")
 st.write(
