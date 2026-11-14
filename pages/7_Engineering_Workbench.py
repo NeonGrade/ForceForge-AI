@@ -17,7 +17,7 @@ from forceforge.sensitivity import elasticities
 
 st.set_page_config(page_title="ForceForge AI 2.0", page_icon="⚙️", layout="wide")
 st.title("Engineering Workbench · FEA, Robust Optimization & ML")
-st.page_link("app.py",label="Back to the engineering mission",icon="🏠")
+st.markdown("[← Back to Decision Studio](/)")
 st.caption("Physics-verified generative truss design · uncertainty challenge · ML-assisted search")
 st.warning("Research / education prototype only. Ideal pin-jointed 2D truss, small strain, linear elastic. No joint, fatigue or full structural safety certification.")
 
