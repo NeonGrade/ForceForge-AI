@@ -23,12 +23,23 @@ def test_studio_assets_have_real_controls_and_single_log():
     assert (ROOT / "studio/index.html").exists()
     assert (ROOT / "studio/styles.css").exists()
     assert (ROOT / "studio/app.js").exists()
+    assert (ROOT / "studio/viewport3d.js").exists()
     assert (ROOT / "CHANGELOG.txt").exists()
     assert not (ROOT / "docs/CHANGELOG.md").exists()
     html = (ROOT / "studio/index.html").read_text()
     for item in ("model-canvas", "solid-force", "lab-stiffness",
-                 "primary-action", "bottom-drawer", "mode-comparisons"):
+                 "primary-action", "bottom-drawer", "mode-comparisons",
+                 "tree-model", "model-intelligence", "explore-toggle",
+                 "camera-view", "true-scale"):
         assert f'id="{item}"' in html
+    assert html.index("viewport3d.js") < html.index("app.js")
+    script = (ROOT / "studio/app.js").read_text()
+    viewer = (ROOT / "studio/viewport3d.js").read_text()
+    assert "window.ForgeViewport" in script
+    assert "class ForgeViewport" in viewer
+    assert "WebGL2" in viewer
+    assert "MODEL TREE" in html
+    assert studio.CATALOG["ui_version"].startswith("0.1")
     log = (ROOT / "CHANGELOG.txt").read_text()
     for version in ("VERSION 0.8.0", "VERSION 0.7", "VERSION 0.6",
                     "VERSION 0.5", "VERSION 0.4", "VERSION 0.3",
@@ -40,8 +51,9 @@ def test_javascript_source_parses_when_node_available():
     node = shutil.which("node")
     if node is None:
         pytest.skip("Node.js is not installed in this environment")
-    subprocess.run([node, "--check", str(ROOT / "studio/app.js")],
-                   check=True, capture_output=True, text=True)
+    for script in ("app.js", "viewport3d.js"):
+        subprocess.run([node, "--check", str(ROOT / "studio" / script)],
+                       check=True, capture_output=True, text=True)
 
 
 def test_invalid_solver_inputs_are_rejected():
