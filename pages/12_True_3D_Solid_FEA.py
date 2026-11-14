@@ -69,7 +69,7 @@ with st.spinner("Assembling 3D tetrahedral elasticity and solving sparse FEM sys
 
 p1,p2,p3,p4=st.columns(4)
 p1.metric("3D FE tip movement",f"{result.tip_displacement_mm:.4f} mm")
-p2.metric("Peak element von Mises",f"{result.max_mises_mpa:.2f} MPa")
+p2.metric("Max Gauss-point von Mises",f"{result.max_mises_mpa:.2f} MPa")
 p3.metric("Solid mass",f"{result.mass_kg:.3f} kg")
 p4.metric("Volume tetra10 elements",f"{len(result.tets10):,}")
 
@@ -85,10 +85,11 @@ st.plotly_chart(
     key="solid_fea_surface",width="stretch"
 )
 st.caption(
-    "The color shows von Mises stress from actual 3D tetrahedral volume "
-    "element calculations at the element centroids, shown on their surface "
-    "facets. Displacement is exaggerated for viewing. The fixed boundary "
-    "can exhibit mesh-sensitive stress peaks."
+    "The color shows the largest sampled von Mises stress among four "
+    "integration points in each quadratic tetrahedron, mapped to external "
+    "element faces. The actual interior field can vary within each element. "
+    "Displacement is exaggerated for viewing; clamped-edge peaks are "
+    "sensitive to mesh resolution."
 )
 
 st.subheader("Independent numerical verification")
