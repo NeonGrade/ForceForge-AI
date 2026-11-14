@@ -1,7 +1,6 @@
 """ForceForge AI 2.0: functional Streamlit engineering hackathon prototype."""
 import json
 import os
-from dataclasses import replace
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -17,6 +16,7 @@ from forceforge.sensitivity import elasticities
 
 st.set_page_config(page_title="ForceForge AI 2.0", page_icon="⚙️", layout="wide")
 st.title("ForceForge AI 2.0")
+st.page_link("pages/6_Cross_Industry_Platform.py", label="Open ForceForge X: Unified Cross-Industry Platform", icon="🏗️")
 st.caption("Physics-verified generative truss design · uncertainty challenge · ML-assisted search")
 st.warning("Research / education prototype only. Ideal pin-jointed 2D truss, small strain, linear elastic. No joint, fatigue or full structural safety certification.")
 
@@ -48,10 +48,6 @@ req = Requirements(span_m=span, base_load_n=force, material_E_pa=E,
                    yield_safety_factor=safety_y, buckling_safety_factor=safety_b,
                    load_uncertainty=load_unc, e_uncertainty=e_unc,
                    area_uncertainty=area_unc)
-
-if st.session_state.get("ml_requirements") != req:
-    st.session_state.pop("ml_verified", None)
-    st.session_state["ml_requirements"] = req
 
 
 def draw_truss(t, r, exaggeration: float = 250.0):
@@ -96,40 +92,15 @@ with tab1:
         area=st.slider("Uniform solid round-bar area (mm²)",60.,800.,180.,10.)
         truss=make_truss(topology,span,height,area,force,req.material)
         result=solve(truss)
+        metrics_row(truss,result)
+        st.dataframe(pd.DataFrame({"Member":range(len(truss.elements)),
+                                   "Axial force (N)":result.force_n,
+                                   "Stress (MPa)":result.stress_pa/1e6,
+                                   "Euler Pcr (N)":result.buckling_critical_n}),
+                     hide_index=True)
     with right:
         st.plotly_chart(draw_truss(truss,result),width="stretch")
         st.caption("Ideal pin-jointed rods. Orange=compression, teal=tension. Displacement in drawing is exaggerated.")
-
-    # Keep engineering metrics in the full-width section. In the narrow input
-    # column their values were clipped on a standard Mac laptop display.
-    st.subheader("FEA results | nominal load")
-    metrics_row(truss,result)
-
-    member_table = pd.DataFrame({
-        "Member": range(len(truss.elements)),
-        "Axial force (N)": result.force_n,
-        "Stress (MPa)": result.stress_pa / 1e6,
-        "Euler Pcr (N)": result.buckling_critical_n,
-    })
-    reaction_table = pd.DataFrame([
-        {
-            "Support node": int(node),
-            "Rx (N)": float(result.reactions_n[node, 0]) if fix_x else None,
-            "Ry (N)": float(result.reactions_n[node, 1]) if fix_y else None,
-        }
-        for node, fix_x, fix_y in truss.supports
-    ])
-    members_col, reactions_col = st.columns([3, 2])
-    with members_col:
-        st.markdown("**Member forces and ideal buckling loads**")
-        st.dataframe(member_table.round(4), hide_index=True, width="stretch")
-    with reactions_col:
-        st.markdown("**Support reactions**")
-        st.dataframe(reaction_table.round(4), hide_index=True, width="stretch")
-        residual_n = np.linalg.norm(
-            np.sum(result.reactions_n, axis=0) + np.sum(truss.forces_n, axis=0)
-        )
-        st.caption(f"Global force equilibrium residual: {residual_n:.3e} N")
     st.write("Current design across all uncertainty scenarios:")
     st.json(evaluate(topology,height,area,req))
 
@@ -166,104 +137,21 @@ with tab2:
                          force,req.material)
         base=solve(built)
         challenged=solve(built,load_factor=challenge,e_factor=1.-e_unc,area_factor=1.-area_unc)
-
-        # The original robust search only protects against the sidebar's
-        # maximum load increase. A larger challenge needs a NEW feasibility
-        # assessment including stress, displacement AND Euler buckling.
-        challenge_envelope=replace(
-            req,load_uncertainty=max(req.load_uncertainty,challenge-1.0)
-        )
-        challenged_check=evaluate(str(best["topology"]),float(best["height_m"]),
-                                  float(best["area_mm2"]),challenge_envelope)
-        st.caption(
-            f"Original robustness envelope: up to {1.+req.load_uncertainty:.2f}× load. "
-            f"Now checking up to {1.+challenge_envelope.load_uncertainty:.2f}× load, "
-            f"with E reduced {100.*e_unc:.0f}% and area reduced {100.*area_unc:.0f}%."
-        )
         c1,c2,c3=st.columns(3)
         c1.metric("Nominal displacement",f"{base.max_disp_m*1000:.4f} mm")
         c2.metric("Challenged displacement",f"{challenged.max_disp_m*1000:.4f} mm")
         c3.metric("Challenged maximum stress",f"{challenged.max_stress_pa/1e6:.3f} MPa")
-
-        check_rows=[
-            ("Axial yield",challenged_check["worst_stress_util"]),
-            ("Nodal displacement",challenged_check["worst_displacement_util"]),
-            ("Ideal member buckling",challenged_check["worst_buckling_util"]),
-        ]
-        st.markdown("**Recomputed worst-case constraint checks (utilization ≤ 1.0 required)**")
-        st.dataframe(pd.DataFrame([
-            {"Constraint":name,"Utilization":round(float(util),4),
-             "Status":"PASS" if util<=1.0+1e-10 else "FAIL"}
-            for name,util in check_rows
-        ]),hide_index=True,width="stretch")
-        if challenged_check["feasible"]:
-            st.success(
-                f"PASS — the originally selected design remains feasible over the "
-                f"expanded scenario grid (maximum utilization "
-                f"{challenged_check['worst_utilization']:.3f})."
-            )
-        else:
-            limiting=max(check_rows,key=lambda entry:entry[1])
-            st.error(
-                f"FAIL — the original design violates {limiting[0]} "
-                f"(utilization {limiting[1]:.3f} > 1.0). "
-                "The previously optimized design was not qualified for this higher load."
-            )
-        st.caption("These values are recomputed from the idealized FEA model, not generated by an LLM.")
-
-        if st.button("Find FEA-verified redesign for this challenge",type="primary"):
-            with st.spinner("Re-optimizing every candidate over the expanded scenario grid..."):
-                expanded_designs=search_cached(challenge_envelope)
-                updated_best=best_feasible(expanded_designs)
-            st.write(
-                f"**Expanded search:** {int(expanded_designs.feasible.sum())} / "
-                f"{len(expanded_designs)} candidates satisfy the updated constraints."
-            )
-            if updated_best is None:
-                st.warning(
-                    "No feasible candidate in the current topology, height and "
-                    "section grid. Consider enlarging the search space or relaxing constraints."
-                )
-            else:
-                old_mass=float(best["mass_kg"])
-                new_mass=float(updated_best["mass_kg"])
-                change_pct=(new_mass/old_mass-1.0)*100.
-                st.success(
-                    f"Recomputed robust solution: {updated_best['topology']} | "
-                    f"height {updated_best['height_m']:.2f} m | "
-                    f"area {updated_best['area_mm2']:.0f} mm² | "
-                    f"mass {new_mass:.3f} kg | "
-                    f"worst utilization {updated_best['worst_utilization']:.3f}."
-                )
-                p1,p2,p3=st.columns(3)
-                p1.metric("Original mass",f"{old_mass:.3f} kg")
-                p2.metric("Redesigned mass",f"{new_mass:.3f} kg",delta=f"{change_pct:+.1f}%")
-                p3.metric("Redesign worst utilization",
-                          f"{updated_best['worst_utilization']:.3f} / 1.000")
-                updated_truss=make_truss(
-                    str(updated_best["topology"]),span,
-                    float(updated_best["height_m"]),float(updated_best["area_mm2"]),
-                    force,req.material
-                )
-                updated_result=solve(updated_truss)
-                st.plotly_chart(draw_truss(updated_truss,updated_result),width="stretch")
-                st.caption(
-                    "Shown geometry is the FEA-verified redesign within the searched "
-                    "discrete candidate grid; deformation visualized at nominal load. "
-                    "No physical prototype or connection-strength verification."
-                )
+        st.caption("Above are recomputed FEA results, not generated by a language model.")
 
 with tab3:
     st.subheader("Train a surrogate from FEA results")
     st.caption("FEA generates labels → Random Forest learns approximate scenario utilization → candidates are FEA-verified again.")
     with st.spinner("Training and validating Random Forest surrogate..."):
         model,feature_cols,metrics=surrogate_cached(req)
-    mdf=pd.DataFrame([{"Target":name,"MAE (utilization)":x["mae"],"Test R²":x["r2"],
-                       "Mean baseline MAE": x["baseline_mae"]}
+    mdf=pd.DataFrame([{"Target":name,"MAE (utilization)":x["mae"],"Test R²":x["r2"]}
                       for name,x in metrics.items()])
     st.dataframe(mdf,hide_index=True)
-    st.caption(model.forceforge_validation_["method"])
-    st.warning("Duplicate design combinations stay in the same split. Metrics estimate interpolation under current requirements, not generalization to new topologies or materials. Proposals stay within sampled feature bounds and are FEA-verified.")
+    st.warning("Random split of FEA-generated design combinations. Test accuracy does not prove extrapolation to unseen topologies/materials. Always FEA-verify proposed designs.")
     if st.button("Propose with ML and verify with FEA"):
         with st.spinner("Screening random candidates, then verifying shortlisted designs..."):
             vdf=propose_and_verify(model,feature_cols,req,n=300)
@@ -289,4 +177,3 @@ with tab4:
 
 st.divider()
 st.caption("ForceForge AI 2.0 | Hack the Nest 2026 prototype | Not intended for real-world structural safety decisions")
-
