@@ -17,7 +17,8 @@
       </div>
       <div class="top-center"><span class="top-line"></span><span id="header-project">SOLID MECHANICS</span><span class="top-version">UI v0.1</span></div>
       <div class="top-actions">
-        <span class="save-status"><i></i><span>LOCAL SESSION</span></span>
+        <span class="save-status"><i></i><span>LOCAL COMPUTATION</span></span>
+        <button type="button" class="studio-mode-switch" id="explore-toggle" aria-pressed="false" title="Toggle immersive and engineering layouts"><span class="mode-switch-icon">◈</span><span id="explore-toggle-text">IMMERSIVE</span></button>
         <button type="button" class="icon-btn" id="view-reset-top" aria-label="Reset 3D camera" title="Reset camera"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2.8 6.5M3 4v7h7"/></svg></button>
         <button type="button" class="icon-btn" id="help-btn" aria-label="Open help and model limitations" title="Help"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.6 2.6 0 1 1 4.9 1.25c-.6 1-2.4 1.5-2.4 3.25M12 17.4h.01"/></svg></button>
       </div>
@@ -58,6 +59,11 @@
           <button type="button" class="small-icon-btn" id="close-controls" title="Collapse controls" aria-label="Collapse controls">×</button>
         </div>
         <div class="panel-inner-scroll">
+          <div class="object-explorer" id="object-explorer">
+            <div class="tree-header"><span>MODEL TREE</span><span class="tree-status">ACTIVE</span></div>
+            <button type="button" class="tree-node tree-root selected" id="tree-model"><span class="tree-icon">⬡</span><span id="tree-model-label">Solid specimen</span><small>01</small></button>
+            <div class="tree-children" id="tree-children"><button type="button" class="tree-node tree-child" id="tree-geometry"><span class="tree-icon">⌑</span> Geometry</button><button type="button" class="tree-node tree-child" id="tree-solver"><span class="tree-icon">▥</span> Finite element mesh</button><button type="button" class="tree-node tree-child" id="tree-measurements"><span class="tree-icon">◎</span> Analysis results</button></div>
+          </div>
           <section class="module-switch">
             <div class="field-caption">CURRENT MODULE</div>
             <button type="button" class="module-switch-btn" id="module-select">
@@ -133,16 +139,25 @@
           </div>
           <div class="stage-toolbar" aria-label="3D viewing tools">
             <div class="segmented" id="viz-modes">
-              <button type="button" data-viz="stress" class="selected">Stress</button>
-              <button type="button" data-viz="form">Form</button>
-              <button type="button" data-viz="wire">Mesh</button>
+              <button type="button" data-viz="stress" class="selected">Stress field</button>
+              <button type="button" data-viz="form"><span id="form-viz-label">Solid</span></button>
+              <button type="button" data-viz="wire"><span id="mesh-viz-label">FE mesh</span></button>
             </div>
             <div class="toolbar-separator"></div>
             <button class="toolbar-icon" id="toggle-sensors" type="button" aria-label="Toggle measured sensor markers" title="Toggle sensor points">◉</button>
             <button class="toolbar-icon" id="reset-camera" type="button" aria-label="Reset model camera" title="Reset camera">↺</button>
+            <div class="toolbar-separator"></div>
+            <button class="toolbar-icon tool-wide" id="camera-view" type="button" aria-label="Change standard camera view" title="Cycle isometric, front, right and top views">ISO</button>
+            <button class="toolbar-icon tool-wide" id="true-scale" type="button" aria-pressed="false" title="Toggle actual or expanded specimen cross section" hidden>1:1</button>
           </div>
           <div id="viewport" class="viewport" role="img" aria-label="Interactive 3D finite-element model. Drag to orbit, scroll to zoom.">
             <canvas id="model-canvas"></canvas>
+            <div class="model-intelligence" id="model-intelligence" aria-live="polite">
+              <div class="model-intel-index" id="intel-index">OBJECT 01 / ENGINEERING SCENE</div>
+              <div class="model-intel-title" id="intel-title">VOLUMETRIC FINITE ELEMENT MODEL</div>
+              <div class="model-intel-body" id="intel-body">Choose an object or explore the geometry.</div>
+              <button type="button" id="intel-action" class="intel-button">INSPECT DATA <span>↗</span></button>
+            </div>
             <div class="viewport-halo" aria-hidden="true"></div>
             <div class="axis-label axis-y">Y</div><div class="axis-label axis-x">X</div><div class="axis-label axis-z">Z</div>
             <div class="viewport-overlay overlay-left">
@@ -153,11 +168,12 @@
               <div class="visual-key"><span class="visual-key-title" id="scale-name">VON MISES STRESS</span><div class="spectrum-scale" id="spectrum-scale"></div><div class="visual-scale"><span>0</span><span id="scale-high">— MPa</span></div></div>
             </div>
             <div class="viewport-placeholder" id="viewport-placeholder"><div class="spinner"></div><span>Preparing engineering model…</span></div>
+            <div class="viewport-corner-trace"><span class="corner-glyph">⌑</span><span id="scene-index">S-001 / ACTIVE SCENE</span></div>
             <div class="viewport-gesture">DRAG TO ROTATE <span>·</span> SCROLL TO ZOOM</div>
           </div>
           <div class="stage-status-line">
             <div class="stage-status-left"><span class="status-pulse"></span><span id="analysis-status">SOLVER READY</span><span class="status-divider"></span><span id="model-fidelity">3D TET10 / NUMERICALLY VERIFIED</span></div>
-            <div class="stage-status-right"><span id="visual-disclaimer">DEFORMATION ×60 · DISPLAY ONLY</span></div>
+            <div class="stage-status-right"><span id="render-mode-status">GPU-ACCELERATED VIEWPORT</span><span class="status-divider"></span><span id="visual-disclaimer">DEFORMATION ×60 · DISPLAY ONLY</span></div>
           </div>
         </div>
 
@@ -204,6 +220,7 @@
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
     <dialog id="studio-dialog"><div class="dialog-head"><div><span class="eyebrow">FORCEFORGE X</span><h2 id="dialog-title">Engineering with intention.</h2></div><button type="button" id="dialog-close" aria-label="Close dialog">×</button></div><div id="dialog-content"></div></dialog>
   </div>
+  <script src="/studio/viewport3d.js" defer></script>
   <script src="/studio/app.js" defer></script>
 </body>
 </html>
