@@ -78,7 +78,7 @@ def test_ui_invalidates_ml_results():
     from streamlit.testing.v1 import AppTest
     app = AppTest.from_file("../app.py", default_timeout=90).run()
     assert not app.exception
-    app.button[0].click().run()
+    next(b for b in app.button if b.label == "Propose with ML and verify with FEA").click().run()
     assert not app.exception
     assert "ml_verified" in app.session_state
     app.sidebar.slider[1].set_value(1200).run()
