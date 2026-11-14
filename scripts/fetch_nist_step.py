@@ -41,6 +41,9 @@ def main():
     original=fetch_bytes(NIST_BRIDGE_URL)
     _validate_step(original)
     measured_hash=sha256(original).hexdigest()
+    from forceforge.step_mesh import NIST_PINNED_SHA256
+    if measured_hash != NIST_PINNED_SHA256:
+        raise ValueError('Source STEP SHA-256 changed since verified NIST publisher download; investigate version before import')
     publisher_verified=False
     try:
         claimed=parse_sha(fetch_bytes(NIST_BRIDGE_HASH_URL))
