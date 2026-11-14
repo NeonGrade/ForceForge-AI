@@ -1,3 +1,65 @@
+# ForceForge X Studio 0.8 — Model-First Interface (Preview)
+
+This UI preview is built on the engineering v0.7 branch and offers a custom
+single-page website for **genuine 3D tetra10 FEA** and **published laboratory
+modal validation**. It is not a mockup: all analysis data comes from the
+existing Python solvers.
+
+## Open on your Mac (Safari or Chrome)
+
+From the repository folder (stop the older Streamlit app with Control+C):
+
+```bash
+git fetch origin
+git switch --track origin/ui/v8-forge-studio
+python3 -m pip install -r requirements.txt
+python3 studio_server.py
+```
+
+If you have already checked out this branch, use:
+
+```bash
+git switch ui/v8-forge-studio
+git pull --ff-only
+python3 studio_server.py
+```
+
+The new studio opens locally at **http://127.0.0.1:8765**.
+
+This is an independent local web process; it does not replace the existing
+Streamlit `app.py` or change any engineering algorithms. It binds
+only to 127.0.0.1. If the browser does not open automatically, enter the
+address directly.
+
+## Experience and interaction
+
+- Main canvas: drag to rotate the real solver's displayed 3D surface mesh;
+  use the scroll wheel or trackpad to zoom.
+- Left tool rail: switch between Solid mechanics and Real laboratory.
+- Collapsible controls: vary physical model inputs and recompute in Python.
+- Right inspector: computed movement/stress or observed-vs-calculated modes.
+- Expandable bottom drawer: overview, comparison results, licensing and
+  experimental evidence.
+- Solid mechanics: run nine candidate tet10 FEA redesigns.
+- Laboratory: calibrate using measured Mode 1; hold out Modes 2 and 3.
+- All persistent version notes are in **CHANGELOG.txt** only.
+
+## Verification
+
+```bash
+python3 -m compileall -q studio_server.py
+python3 -m pytest -q tests/test_studio.py
+node --check studio/app.js
+```
+
+Actual Safari layout and performance still require a Mac review before merge.
+The solid is an original **computational** test piece without measured
+static results. The published Hannover beam has measured modal frequencies,
+but its modal solver is a simplified independent 2D FEM. No general-use
+structural safety certification is claimed.
+
+---
+
 # ForceForge X v0.5 — CAD Surface, FE Stress and Redesign
 
 Video-inspired **interactive engineering design** without simulated or fabricated solver claims.
@@ -102,7 +164,7 @@ The browser opens a single decision workflow with three examples:
 
 **Illustrative model screening does not establish actual safety, code compliance or certification.** Domain-specific loads, joint geometry, materials, manufacturing and physical test evidence are missing. The interface exposes these evidence gaps.
 
-For traceability see [Product Scope](docs/PRODUCT_V3.md), [Version History](docs/CHANGELOG.md), [90-Second Demo](docs/JUDGES_DEMO.md).
+For traceability see [Product Scope](docs/PRODUCT_V3.md), [Version History](CHANGELOG.txt), [90-Second Demo](docs/JUDGES_DEMO.md).
 
 ---
 
