@@ -11,8 +11,7 @@ natural-language requirement interpretation; the offline path works without it.
 ## 1. Quick Start (macOS)
 
 ```bash
-git clone https://github.com/NeonGrade/ForceForge-AI.git
-cd ForceForge-AI
+cd ForceForge_AI_2_Starter
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
@@ -83,13 +82,6 @@ utilizations. It is not a replacement for physics. The default hold-out test
 contains unseen design rows but can share a topology with training examples;
 that is **not** evidence of generalization to new structure families.
 
-Validation now groups identical topology/height/area combinations into the same
-holdout partition, reports a training-mean baseline MAE, and keeps proposals
-inside the sampled height/area bounds and observed topologies. This remains an
-interpolation check under the current engineering requirements; it does not
-validate new topologies, materials, or changed load cases. Changing sidebar
-requirements clears previous ML recommendations.
-
 Future work for a more defensible ML claim:
 - Group-based holdout by height intervals or by topology, with appropriate
   domain-matching feature encoding;
@@ -98,10 +90,6 @@ Future work for a more defensible ML claim:
 
 Optional LLM calls interpret a design request into **bounded**, typed values.
 The model cannot write directly into a solver state or declare a structure safe.
-API failures use the deterministic offline parser with an explicit fallback
-message. Offline parsing supports m/cm, N/kN and mm (plus 米/牛顿/千牛/毫米),
-rejects conflicting recognized values, and lists defaults for omitted values.
-Review all extracted values before entering them in the sidebar.
 
 ## 6. Team split
 
@@ -135,29 +123,31 @@ collect review evidence, and prepare demo/Devpost assets.
 - Some form of true physical experimentation and professional review is
   required before practical engineering safety decisions.
 
-## 9. Audited challenge benchmark (November 14, 2026)
-
-For comparable topology screening, **all three topology families now apply
-the same vertical point load at (span / 2, height)**. Earlier experimental
-results that placed Warren-2's load at its bottom-center node are not
-comparable across topologies and must not be used in the final presentation.
-
-With default 2 m span, steel, 1000 N and a 2 mm displacement limit:
-
-| Scenario range | Feasible / tested | Lowest-mass feasible candidate | Mass | Max utilization |
-| --- | ---: | --- | ---: | ---: |
-| Up to +20% load, E/area -10% | 100 / 144 | Triangle, h=0.80 m, A=180 mm² | 6.445 kg | 0.8491 |
-| Up to +60% load, E/area -10% | 89 / 144 | Triangle, h=0.80 m, A=230 mm² | 8.235 kg | 0.6934 |
-
-The first design FAILS under the second scenario envelope: ideal buckling
-utilization is 1.1321. The challenged redesign is 27.8% heavier. These are
-repeatable numerical checks for simplified pinned trusses—not laboratory
-measurements, proof of arbitrary-topology optimality, or structural certification.
-
-## 10. Official technical references
+## 9. Official technical references
 
 - SciPy: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html
 - scikit-learn RandomForestRegressor: https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html
 - Streamlit: https://docs.streamlit.io/develop/api-reference/charts/st.plotly_chart
 - OpenAI Structured Outputs: https://developers.openai.com/api/docs/guides/structured-outputs
 
+## Cross-industry unified platform (development branch)
+
+The `Cross-Industry Platform` Streamlit page provides one shared model request
+schema, solver orchestration, typed output, numerical evidence records, and
+traceable JSON export for **three deliberately simplified examples**:
+
+| Domain | Current solved case | Key physical omissions |
+| --- | --- | --- |
+| Building | Steel truss / hypothetical point loads / bar-buckling screen | Roof-specific adopted code, snow/wind/seismic loads, bracing and joints |
+| Industrial | Planar beam bracket, rotational joint spring, thermoelastic, P–Δ | Anchor bolts, contact, shock history, actual bracket geometry |
+| Automotive | Planar triangular suspension-link surrogate and fatigue screen | 3D ball joints/bushings, multi-axis strain history, actual OEM data |
+
+The application includes a **verification/evidence inventory** separate from
+solver execution and an exportable trace ID. Every generated example is
+explicitly **NOT CERTIFIED**. Code checks, contact FEA and actual fatigue
+qualification are not currently implemented, and cannot be represented by an
+AI-generated approval stamp.
+
+For demo: `python -m streamlit run app.py` → sidebar page **Cross Industry
+Platform**. The previously working main FEA and Advanced Structural Lab pages
+are retained. See `docs/CROSS_INDUSTRY_PLATFORM.md` for model scope and tests.
