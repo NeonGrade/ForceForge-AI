@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1219">
+  <meta name="description" content="ForceForge X — a spatial environment for real engineering analysis.">
+  <title>ForceForge X — Spatial Engineering</title>
+  <link rel="stylesheet" href="/studio/styles.css">
+</head>
+<body>
+<div class="spatial-app" id="app">
+  <main class="world" id="world" aria-label="Interactive engineering model workspace">
+    <canvas id="model-canvas" aria-label="3D engineering model. Drag to rotate, scroll to zoom, click a sensor to inspect it."></canvas>
+    <div class="world-ambient" aria-hidden="true"></div>
+    <div class="world-shading" aria-hidden="true"></div>
+    <svg id="world-leaders" class="world-leaders" aria-hidden="true" preserveAspectRatio="none"></svg>
+
+    <header class="floating-header">
+      <div class="brand" aria-label="ForceForge X">
+        <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="brand-words"><strong>forceforge<span> X</span></strong><small>SPATIAL ENGINEERING</small></div>
+      </div>
+      <button type="button" class="scene-selector" id="scene-selector" aria-expanded="false">
+        <span class="scene-sigil" id="scene-sigil">◈</span>
+        <span class="scene-selector-copy"><strong id="scene-name">Solid mechanics</strong><small id="scene-kind">TRUE 3D · COMPUTATIONAL</small></span>
+        <span class="scene-chevron" aria-hidden="true">⌄</span>
+      </button>
+      <div class="header-tray">
+        <span class="solver-status" id="solver-status"><i id="solver-light"></i><span id="solver-status-text">SOLVING</span></span>
+        <button type="button" class="top-icon" id="view-reset" aria-label="Reset camera" title="Reset camera">↺</button>
+        <button type="button" class="top-icon" id="settings-open" aria-label="Advanced parameters" title="Advanced parameters">⚙</button>
+        <button type="button" class="top-icon" id="help-open" aria-label="Controls and evidence" title="Help">?</button>
+      </div>
+    </header>
+
+    <div class="scene-context">
+      <span class="context-sequence" id="scene-sequence">01 / STRUCTURAL ANALYSIS</span>
+      <span class="context-headline" id="scene-headline">Shape the response.</span>
+      <span class="context-subline" id="scene-subline">Select a handle to interact with the structure.</span>
+    </div>
+
+    <div class="spatial-pins" id="spatial-pins" aria-label="Spatial engineering controls">
+      <button type="button" class="spatial-pin pin-force" id="pin-force" data-pin="force"
+        aria-label="Adjust applied tip force" title="Change applied force">
+        <span class="pin-glyph" aria-hidden="true">↘</span><span class="pin-copy"><small id="force-caption">TIP FORCE</small><strong id="force-readout">200 N</strong></span>
+      </button>
+      <button type="button" class="spatial-pin pin-thickness" id="pin-thickness" data-pin="thickness"
+        aria-label="Adjust model thickness" title="Change section thickness">
+        <span class="pin-glyph" aria-hidden="true">↔</span><span class="pin-copy"><small>THICKNESS</small><strong id="thickness-readout">12 mm</strong></span>
+      </button>
+      <button type="button" class="spatial-pin pin-support" id="pin-support" data-pin="support" hidden
+        aria-label="Adjust rotational support stiffness" title="Change support stiffness">
+        <span class="pin-glyph" aria-hidden="true">⟲</span><span class="pin-copy"><small>SUPPORT kθ</small><strong id="support-readout">10³ N·m/rad</strong></span>
+      </button>
+      <button type="button" class="spatial-pin pin-mode" id="pin-mode" data-pin="mode" hidden
+        aria-label="Select beam vibration mode" title="Choose vibration mode">
+        <span class="pin-glyph" aria-hidden="true">∿</span><span class="pin-copy"><small>MODE SHAPE</small><strong id="mode-readout">B1x</strong></span>
+      </button>
+      <button type="button" class="spatial-pin pin-result" id="pin-result" data-pin="result"
+        aria-label="Inspect principal simulation result" title="Inspect result">
+        <span class="pin-glyph result-symbol" aria-hidden="true">◎</span>
+        <span class="pin-copy"><small id="result-caption">TIP MOVEMENT · FEM</small><strong id="result-readout">— mm</strong></span>
+      </button>
+    </div>
+
+    <div class="spatial-editor" id="spatial-editor" role="group" aria-label="Selected model parameter" hidden>
+      <div class="editor-header"><span class="editor-symbol" id="editor-symbol">↘</span><span id="editor-title">Applied force</span><button type="button" class="ghost-close" id="editor-close" aria-label="Close control">×</button></div>
+      <div class="editor-value-row">
+        <button type="button" class="step-button" id="editor-minus" aria-label="Decrease value">−</button>
+        <label class="editor-input-wrap"><input type="number" id="editor-value" inputmode="decimal" aria-label="Parameter value" step="1"><span id="editor-unit">N</span></label>
+        <button type="button" class="step-button" id="editor-plus" aria-label="Increase value">+</button>
+      </div>
+      <input type="range" id="editor-range" aria-label="Parameter range" min="0" max="100" value="50" step="1">
+      <div class="editor-options" id="editor-options" hidden>
+        <button type="button" data-mode="1">B1</button><button type="button" data-mode="2">B2</button><button type="button" data-mode="3">B3</button>
+      </div>
+      <div class="editor-hint" id="editor-hint">Drag the on-model handle or enter a value</div>
+    </div>
+
+    <aside class="quick-result" id="quick-result" hidden aria-label="Relevant engineering result">
+      <div class="result-header"><span id="quick-title">SIMULATION RESULT</span><button type="button" class="ghost-close" id="quick-close" aria-label="Close result">×</button></div>
+      <div class="result-hero"><strong id="quick-value">—</strong><small id="quick-unit">mm</small></div>
+      <div class="result-minis" id="quick-minis"></div>
+      <button class="inline-action" type="button" id="quick-action">More details <span>↗</span></button>
+    </aside>
+
+    <aside class="project-chooser" id="project-chooser" aria-label="Choose engineering project" hidden>
+      <span class="sheet-kicker">CHOOSE A SPACE</span>
+      <button type="button" class="project-choice" data-workspace="solid">
+        <span class="project-icon">⬡</span><span><strong>Solid mechanics</strong><small>3D stress & deformation</small></span><span class="project-arrow">↗</span>
+      </button>
+      <button type="button" class="project-choice" data-workspace="lab">
+        <span class="project-icon">∿</span><span><strong>Real laboratory</strong><small>Measured modal validation</small></span><span class="project-arrow">↗</span>
+      </button>
+    </aside>
+
+    <div class="field-legend" id="field-legend" aria-label="Stress color scale" hidden>
+      <span>VON MISES · MPa</span><div class="field-gradient"></div><div class="field-range"><span>0</span><strong id="field-max">—</strong></div>
+    </div>
+
+    <div class="space-footer">
+      <div class="footer-left">
+        <span class="space-index" id="space-index">CAE / 001</span>
+        <span class="footer-fidelity" id="footer-fidelity">3D TET10 · NUMERICAL MODEL</span>
+      </div>
+      <div class="camera-cluster" aria-label="Model camera views">
+        <button type="button" class="camera-view active" data-view="iso" title="Isometric view">ISO</button>
+        <button type="button" class="camera-view" data-view="front" title="Front view">FRONT</button>
+        <button type="button" class="camera-view" data-view="right" title="Right view">RIGHT</button>
+        <button type="button" class="camera-view" data-view="top" title="Top view">TOP</button>
+      </div>
+      <div class="footer-right">
+        <button type="button" id="mode-view" class="foot-control" aria-label="Change visualization">MATERIAL <span>⌄</span></button>
+        <button type="button" id="details-open" class="foot-control foot-primary" aria-label="Show complete analysis data">RESULTS <span>↗</span></button>
+      </div>
+    </div>
+
+    <div class="first-use" id="first-use">
+      <span class="tutorial-icon" aria-hidden="true">⌖</span>
+      <span>DRAG TO ORBIT</span><i></i><span>SCROLL TO ZOOM</span><i></i><span>SELECT A MARKER</span>
+      <button type="button" id="dismiss-guide" aria-label="Dismiss controls hint">×</button>
+    </div>
+
+    <div class="notification" id="notification" role="status" aria-live="polite" hidden></div>
+    <div class="loading-veil" id="loading-veil">
+      <div class="loading-symbol" aria-hidden="true">⬡</div>
+      <div><strong>Preparing your workspace</strong><span>Starting the finite element solver…</span></div>
+    </div>
+  </main>
+
+  <div class="panel-backdrop" id="panel-backdrop" hidden></div>
+  <section class="detail-panel" id="detail-panel" aria-label="Engineering details" hidden>
+    <div class="detail-heading"><div><span class="sheet-kicker" id="detail-kicker">SIMULATION / VERIFIED VALUES</span><h2 id="detail-title">Analysis</h2></div><button type="button" class="ghost-close" id="detail-close" aria-label="Close details">×</button></div>
+    <div class="detail-content" id="detail-content"></div>
+  </section>
+  <section class="settings-panel" id="settings-panel" aria-label="Advanced engineering settings" hidden>
+    <div class="detail-heading"><div><span class="sheet-kicker">ENGINEERING SETTINGS</span><h2>Refine the model.</h2></div><button type="button" class="ghost-close" id="settings-close" aria-label="Close settings">×</button></div>
+    <div class="detail-content">
+      <div class="setting-set" id="solid-settings">
+        <div class="setting-heading">SOLID MECHANICS</div>
+        <label for="setting-resolution">Mesh resolution</label>
+        <select id="setting-resolution"><option value="fast">Fast · 2 × 2 × 8</option><option value="refined" selected>Refined · 2 × 2 × 12</option><option value="high">High · 3 × 3 × 12</option></select>
+        <label for="setting-limit">Movement target <output id="setting-limit-value">0.120 mm</output></label>
+        <input id="setting-limit" type="range" min="0.04" max="0.30" step="0.01" value="0.12">
+        <label for="setting-visual">Display deformation <output id="setting-visual-value">60×</output></label>
+        <input id="setting-visual" type="range" min="1" max="120" step="1" value="60">
+        <button type="button" class="sheet-action" id="redesign-run">Find a lighter section <span>↗</span></button>
+      </div>
+      <div class="setting-set" id="lab-settings" hidden>
+        <div class="setting-heading">REAL LABORATORY</div>
+        <label for="setting-lab-view">Analysis type</label>
+        <select id="setting-lab-view"><option value="modes">Natural vibration</option><option value="static">Illustrative static loading</option></select>
+        <label for="setting-stiffness">Base stiffness log₁₀(kθ) <output id="setting-stiffness-value">3.00</output></label>
+        <input id="setting-stiffness" type="range" min="0" max="6" step="0.05" value="3">
+        <label for="setting-amplitude">Mode amplitude <output id="setting-amplitude-value">28 mm</output></label>
+        <input id="setting-amplitude" type="range" min="5" max="65" step="1" value="28">
+        <label for="setting-elements">Beam finite elements</label>
+        <select id="setting-elements"><option>16</option><option>24</option><option selected>32</option><option>48</option><option>64</option></select>
+        <label for="setting-young">Assumed Young's modulus</label>
+        <select id="setting-young"><option value="190">190 GPa</option><option value="200">200 GPa</option><option value="210" selected>210 GPa</option><option value="220">220 GPa</option><option value="230">230 GPa</option></select>
+        <label class="check-control"><input type="checkbox" id="setting-gauges" checked>Reduced gauge sections</label>
+        <label class="check-control"><input type="checkbox" id="setting-true-scale">Show true beam section proportions</label>
+        <button type="button" class="sheet-action" id="calibrate-run">Calibrate from measured Mode 1 <span>↗</span></button>
+      </div>
+      <div class="settings-disclosure"><strong>Evidence, not decoration.</strong><span id="scientific-limit">Numerical analysis only. No physical safety certification.</span></div>
+    </div>
+  </section>
+</div>
+<script src="/studio/viewport3d.js" defer></script>
+<script src="/studio/app.js" defer></script>
+</body>
+</html>
