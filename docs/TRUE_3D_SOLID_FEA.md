@@ -41,8 +41,8 @@ and F=100 N under an assumed transverse uniform end traction:
 
 Additional verification: 3D affine patch test, positive volume check,
 material law and dimensions validation, root reaction equilibrium, load
-linearity, coarse→refined mesh comparison. The quadratic tetra15? **No**:
-the element has exactly ten geometric nodes and four integration points.
+linearity, coarse-to-refined mesh comparison. Each quadratic tetrahedral
+element has ten nodes and four numerical integration points.
 
 At F=200 N, displacement target 0.120 mm:
 
