@@ -13,6 +13,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from hashlib import sha256
 from pathlib import Path
+from threading import Lock
 import json
 import os
 import subprocess
@@ -29,6 +30,8 @@ ROOT = Path(__file__).resolve().parents[1]
 MAX_INTERACTIVE_TETS = 1400
 RUN_TIMEOUT_SECONDS = 85
 CAD_GENERATE_TIMEOUT_SECONDS = 35
+# Prevent several browser tabs from concurrently allocating large native FE jobs.
+_ACTIVE_WORKER = Lock()
 
 
 class CadJobError(RuntimeError):
@@ -134,18 +137,27 @@ def _invoke(kind: str, settings: dict, source: bytes | None,
             env[key] = "1"
         command = [sys.executable, "-m", "forceforge.isolated_cad",
                    "--worker", kind, str(folder)]
-        try:
-            completed = subprocess.run(
-                command, cwd=str(ROOT), env=env,
-                stdin=subprocess.DEVNULL, capture_output=True, text=True,
-                timeout=timeout, check=False,
-            )
-        except subprocess.TimeoutExpired as exc:
+        if not _ACTIVE_WORKER.acquire(blocking=False):
             raise CadJobError(
-                f"{kind.capitalize()} exceeded {timeout:g} seconds. "
-                "The native worker was stopped; ForceForge remains available. "
-                "Use a coarser mesh or a smaller CAD part."
-            ) from exc
+                "Another CAD or FEA job is already running in this "
+                "ForceForge server (possibly another browser tab). "
+                "Allow the existing solve to finish before starting another."
+            )
+        try:
+            try:
+                completed = subprocess.run(
+                    command, cwd=str(ROOT), env=env,
+                    stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                    timeout=timeout, check=False,
+                )
+            except subprocess.TimeoutExpired as exc:
+                raise CadJobError(
+                    f"{kind.capitalize()} exceeded {timeout:g} seconds. "
+                    "The native worker was stopped; ForceForge remains available. "
+                    "Use a coarser mesh or a smaller CAD part."
+                ) from exc
+        finally:
+            _ACTIVE_WORKER.release()
         if completed.returncode:
             detail = (completed.stderr or completed.stdout).strip()
             detail = detail[-1700:] if detail else "no Python error reported (possible native crash)"
