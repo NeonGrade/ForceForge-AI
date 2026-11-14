@@ -1,3 +1,38 @@
+# ForceForge X v0.5 — CAD Surface, FE Stress and Redesign
+
+Video-inspired **interactive engineering design** without simulated or fabricated solver claims.
+
+Run on your Mac (Ctrl+C to stop the previous Streamlit server):
+
+```bash
+cd ~/ForceForge-AI
+git fetch origin
+git switch --track origin/feature/cad-simulation-loop-v5
+python -m pip install -r requirements.txt
+python -m pytest -q
+python -m streamlit run app.py
+```
+
+Existing local branch? `git switch feature/cad-simulation-loop-v5` instead.
+
+On the existing **real laboratory benchmark homepage**, click **3D stress / failure / redesign** in the sidebar.
+
+* Apply an assumed lateral tip force to the documented 1524 mm steel beam and rotate the 3D stress surface.
+* See bending stress in **MPa**, predicted tip displacement in **mm**, support reactions, and a clearly user-defined 2 mm displacement limit.
+* Press **Find the lightest design that meets the modeled limits**. The app changes the beam section thickness and runs **new finite element solutions** for every candidate.
+* The side-by-side before/after comparison exposes mass, displacement and stress; experimental provenance is documented.
+
+**Unambiguous fidelity labels:** The source beam and its published *modal frequencies* are real measured laboratory data. Static loading and stress are **not** measured here. Stress is computed with a 1D Euler–Bernoulli bending finite-element model and recovered over a **3D CAD-dimension surface reconstruction**. It is *not* a three-dimensional solid element model, CFD, transient engine simulation, contact/plasticity or structural certification.
+
+The previously working v0.4 real experimental modal calibration, v0.3 industry explorer, FEA, robust optimization and ML tools remain in the same application.
+
+For the next engineering-grade steps (licensed high-complexity STEP assembly, quality-checked 3D solid mesh, elastic/plastic FEA, genuine CFD, CAD regeneration and independent validation), see [Video Reference Implementation](docs/VIDEO_REFERENCE_IMPLEMENTATION.md).
+
+**Experiment attribution:** Thurn et al., *Wind Energy Science* (2026), DOI: 10.5194/wes-11-3359-2026; raw measurements and Abaqus source DOI: 10.25835/lyav246d.
+
+
+---
+
 # ForceForge X v0.4 — Real Laboratory Benchmark + Interactive CAD
 
 **Current working focus: real physical data, a documented 3D specimen, and a reproducible FEA/experiment comparison.** The previous simulated-only three-industry scenarios remain available as the **Industry Explorer**; none has been misrepresented as experimentally validated.
