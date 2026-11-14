@@ -7,7 +7,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from forceforge.decision import MISSIONS, demo_case, recommend_design, failure_explanation
+from forceforge.decision import MISSIONS, demo_case, recommend_design, failure_explanation, plain_failure_name
 from forceforge.industry import run_industry_case
 
 st.set_page_config(
@@ -136,7 +136,7 @@ else:
     b.metric("Modeled member mass",f"{report.figures['mass_kg']:.2f} kg")
     c.metric("Applied load",f"{analysed.load_scale:.1f}× baseline")
     st.caption("100% is an illustrative constraint bound, not proof of actual structural safety.")
-    st.markdown(f"**Controlling factor:** {reason}. This is a physics-model result, not a diagnosis of a real damaged part.")
+    st.markdown(f"**What matters:** {plain_failure_name(reason)}. This result identifies a modeled constraint, not an actual damaged component.")
 
     if st.button("Find an FEA-verified improvement",type="primary",
                  use_container_width=True):
