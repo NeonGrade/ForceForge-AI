@@ -298,7 +298,7 @@ def solid_redesign(p: dict) -> dict:
 
 CATALOG = {
     "product": "ForceForge X Studio",
-    "ui_version": "0.8.0",
+    "ui_version": "0.1.0",
     "modules": [
         {
             "id": "solid", "name": "Solid mechanics",
@@ -321,7 +321,7 @@ CATALOG = {
 
 
 class StudioHandler(BaseHTTPRequestHandler):
-    server_version = "ForceForgeStudio/0.8"
+    server_version = "ForceForgeStudio/0.1"
 
     def log_message(self, fmt: str, *args):
         print(f"[studio] {self.address_string()} - {fmt % args}")
@@ -415,7 +415,7 @@ def main():
         parser.error("Choose a port from 1024 to 65535")
     server = ThreadingHTTPServer(("127.0.0.1", args.port), StudioHandler)
     address = f"http://127.0.0.1:{args.port}"
-    print(f"ForceForge X Studio 0.8 — {address}")
+    print(f"ForceForge X Studio UI v0.1 — {address}")
     print("Press Control+C to stop. Requires only the repository's Python requirements.")
     if not args.no_open:
         webbrowser.open(address)
