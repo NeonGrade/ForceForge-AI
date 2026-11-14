@@ -360,6 +360,7 @@ class StudioHandler(BaseHTTPRequestHandler):
         assets = {
             "/studio/styles.css": ("styles.css", "text/css; charset=utf-8"),
             "/studio/app.js": ("app.js", "text/javascript; charset=utf-8"),
+            "/studio/viewport3d.js": ("viewport3d.js", "text/javascript; charset=utf-8"),
         }
         if route in assets:
             filename, mimetype = assets[route]
