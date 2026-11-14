@@ -51,7 +51,7 @@ class SolidCase:
             raise ValueError("Poisson ratio must be between 0 and 0.49")
         if not 0<=self.force_n<=10000:
             raise ValueError("Tip transverse load must be in [0,10000] N")
-        if not 1<=min(self.nx,self.ny,self.nz) and min(self.nx,self.ny,self.nz)>0:
+        if min(self.nx,self.ny,self.nz)<1:
             raise ValueError("Each mesh axis needs at least one division")
         if max(self.nx,self.ny,self.nz)>48:
             raise ValueError("Mesh too large for interactive prototype")
