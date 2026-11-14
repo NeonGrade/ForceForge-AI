@@ -41,3 +41,35 @@ def test_local_section_area_elasticity():
     assert abs(get("mass_kg") - 1.) < .001
     assert abs(get("worst_displacement_util") + 1.) < .002
     assert abs(get("worst_buckling_util") + 2.) < .004
+
+
+def test_challenge_60_percent_load_catches_member_buckling():
+    """A +60% load is NOT covered by the original +20% robust design."""
+    from dataclasses import replace
+
+    original_req = Requirements()
+    initial = evaluate("Triangle", .8, 180., original_req)
+    assert initial["feasible"]
+    assert initial["worst_buckling_util"] < 1.0
+
+    challenged_req = replace(original_req, load_uncertainty=.60)
+    reevaluated = evaluate("Triangle", .8, 180., challenged_req)
+    assert not reevaluated["feasible"]
+    assert reevaluated["worst_buckling_util"] > 1.0
+    # At fixed E and area, axial force and utilization increase linearly with load.
+    assert abs(reevaluated["worst_buckling_util"]
+               / initial["worst_buckling_util"] - 1.60/1.20) < 1e-10
+
+
+def test_expanded_challenge_reoptimization_stays_physics_verified():
+    from dataclasses import replace
+
+    original_req = Requirements()
+    earlier = evaluate("Triangle", .8, 180., original_req)
+    expanded_req = replace(original_req, load_uncertainty=.60)
+    expanded_results = grid_search(expanded_req)
+    new_best = best_feasible(expanded_results)
+    assert new_best is not None
+    assert new_best["feasible"]
+    assert new_best["worst_utilization"] <= 1.0
+    assert new_best["mass_kg"] > earlier["mass_kg"]
