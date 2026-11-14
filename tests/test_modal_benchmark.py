@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from modal_benchmark import (
+from forceforge.modal_benchmark import (
     LENGTH_M, MEASURED_HZ, PUBLISHED_FE_HZ, SENSOR_HEIGHTS_M,
     build_matrices, solve_modes, solve_static, fit_base_stiffness,
     frequency_comparison,holdout_mape,section_properties,prism_surface,read_abaqus_inp)
