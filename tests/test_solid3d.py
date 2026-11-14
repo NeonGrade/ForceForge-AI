@@ -73,3 +73,18 @@ def test_invalid_mesh_material_and_poisson_rejected():
         SolidCase(nu=.50)
     with pytest.raises(ValueError):
         SolidCase(nx=-1)
+
+
+def test_quadrature_stress_is_not_just_the_centroid_bending_stress():
+    case=SolidCase(force_n=200,nx=2,ny=2,nz=12)
+    result=solve_solid(case)
+    sx,sy,sz,txy,tyz,txz=result.stress_voigt_pa.T
+    centroid_vm=np.sqrt(((sx-sy)**2+(sy-sz)**2+(sz-sx)**2)/2
+                        +3*(txy*txy+tyz*tyz+txz*txz))
+    assert result.max_mises_mpa*1e6>max(centroid_vm)
+    # This 3D cantilever test has a known outer-fibre beam reference;
+    # the FE *sampled* Gauss-point peak is not the exact surface peak.
+    I=case.width_m*case.thickness_m**3/12
+    beam_surface_mpa=(case.force_n*case.length_m
+                      *(case.thickness_m/2)/I)/1e6
+    assert abs(result.max_mises_mpa/beam_surface_mpa-1)<.25
