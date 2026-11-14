@@ -12,6 +12,8 @@ import numpy as np
 
 NIST_BRIDGE_URL = 'https://data.nist.gov/od/ds/ark:/88434/mds2-2607/CAD_Geometry/AMB2022-01-AMMT-PartCAD.STEP'
 NIST_BRIDGE_HASH_URL = NIST_BRIDGE_URL + '.sha256'
+# Exact publicly downloaded file verified by independent GitHub runner (2026-11-14).
+NIST_PINNED_SHA256 = '623ee615d015bb231accdff3594592c3c7c563d98c463bd21680da2c0005d055'
 NIST_DATASET_DOI = '10.18434/mds2-2607'
 MAX_CAD_BYTES=32*1024*1024
 
