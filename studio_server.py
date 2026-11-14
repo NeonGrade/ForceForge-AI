@@ -27,6 +27,7 @@ from forceforge.modal_benchmark import (
     fit_base_stiffness, prism_surface,
 )
 from forceforge.solid3d import SolidCase, solve_solid
+import studio_cad_api as cad_api
 
 ROOT = Path(__file__).resolve().parent
 WEB = ROOT / "studio"
@@ -302,12 +303,17 @@ def solid_redesign(p: dict) -> dict:
 
 CATALOG = {
     "product": "ForceForge X Studio",
-    "ui_version": "0.1.0",
+    "ui_version": "0.2.0",
     "modules": [
         {
             "id": "solid", "name": "Solid mechanics",
             "subtitle": "3D volumetric FEA · tetra10",
             "evidence": "Numerically verified · not physically measured",
+        },
+        {
+            "id": "cad", "name": "Real CAD",
+            "subtitle": "Actual STEP BRep to tet10 volume FEA",
+            "evidence": "NIST geometry source or original generated bracket; loading is assumed",
         },
         {
             "id": "lab", "name": "Real laboratory",
@@ -316,16 +322,18 @@ CATALOG = {
         },
     ],
     "source_paper": PAPER,
+    "engineering_version": "0.8",
+    "modules_notice": "Original Streamlit advanced/industry/ML workspaces remain preserved in app.py and pages/.",
     "source_dataset": DATASET,
     "limitations": (
         "Research prototype. No real service qualification, certification, "
-        "arbitrary STEP volumetric meshing, contact, CFD or nonlinear plasticity."
+        "single-body STEP meshing requires optional Gmsh; no contact, CFD or nonlinear plasticity."
     ),
 }
 
 
 class StudioHandler(BaseHTTPRequestHandler):
-    server_version = "ForceForgeStudio/0.1"
+    server_version = "ForceForgeStudio/0.2"
 
     def log_message(self, fmt: str, *args):
         print(f"[studio] {self.address_string()} - {fmt % args}")
@@ -365,10 +373,27 @@ class StudioHandler(BaseHTTPRequestHandler):
             "/studio/styles.css": ("styles.css", "text/css; charset=utf-8"),
             "/studio/app.js": ("app.js", "text/javascript; charset=utf-8"),
             "/studio/viewport3d.js": ("viewport3d.js", "text/javascript; charset=utf-8"),
+            "/studio/adaptive.js": ("adaptive.js", "text/javascript; charset=utf-8"),
+            "/studio/adaptive.css": ("adaptive.css", "text/css; charset=utf-8"),
         }
         if route in assets:
             filename, mimetype = assets[route]
             return self._bytes(WEB / filename, mimetype)
+        if route.startswith("/download/cad/") and route.endswith(".step"):
+            token = route[len("/download/cad/"):-len(".step")]
+            try:
+                source, label = cad_api.get_step(token)
+            except ValueError:
+                self.send_error(404, "CAD source not available")
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "application/step")
+            self.send_header("Content-Disposition", 'attachment; filename="forceforge-cad.step"')
+            self.send_header("Content-Length", str(len(source)))
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.end_headers()
+            self.wfile.write(source)
+            return
         if route == "/download/beam.step":
             return self._bytes(STEP, "application/step", download=True)
         if route == "/download/beam.stl":
@@ -377,16 +402,34 @@ class StudioHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         route = self.path.split("?", 1)[0]
-        if route not in ("/api/solve", "/api/calibrate", "/api/redesign"):
+        if route not in ("/api/solve", "/api/calibrate", "/api/redesign",
+                         "/api/cad/solve", "/api/cad/revise", "/api/cad/import",
+                         "/api/cad/fetch-nist"):
             self.send_error(404, "Unknown API endpoint")
             return
         try:
+            origin = self.headers.get("Origin")
+            if origin and origin not in (f"http://127.0.0.1:{self.server.server_port}",
+                                        f"http://localhost:{self.server.server_port}"):
+                raise ValueError("Cross-origin requests are not supported")
             size = int(self.headers.get("Content-Length", "0"))
+            if route == "/api/cad/import":
+                if not 100 < size <= cad_api.MAX_CAD_BYTES:
+                    raise ValueError("STEP upload must be between 101 bytes and 32 MiB")
+                raw = self.rfile.read(size)
+                name = self.headers.get("X-Cad-Name", "Imported STEP")
+                return self._json(cad_api.store_step(raw, name))
             if not 0 < size <= 65536:
-                raise ValueError("Request body must be smaller than 64 KiB")
+                raise ValueError("JSON request body must be smaller than 64 KiB")
             payload = json.loads(self.rfile.read(size).decode("utf-8"))
             if not isinstance(payload, dict):
                 raise ValueError("Body must be a JSON object")
+            if route == "/api/cad/solve":
+                return self._json(cad_api.analyze(payload))
+            if route == "/api/cad/revise":
+                return self._json(cad_api.revise(payload))
+            if route == "/api/cad/fetch-nist":
+                return self._json(cad_api.fetch_published_nist())
             if route == "/api/solve":
                 workspace = choice(payload, "workspace", ("lab", "solid"), "solid")
                 output = lab_analysis(payload) if workspace == "lab" else solid_analysis(payload)
@@ -420,8 +463,8 @@ def main():
         parser.error("Choose a port from 1024 to 65535")
     server = ThreadingHTTPServer(("127.0.0.1", args.port), StudioHandler)
     address = f"http://127.0.0.1:{args.port}"
-    print(f"ForceForge X Studio UI v0.1 — {address}")
-    print("Press Control+C to stop. Requires only the repository's Python requirements.")
+    print(f"ForceForge X Studio UI v0.2 / Engineering v0.8 — {address}")
+    print("Press Control+C to stop. Real CAD requires the optional gmsh Python package.")
     if not args.no_open:
         webbrowser.open(address)
     try:
