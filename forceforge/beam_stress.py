@@ -238,7 +238,7 @@ def plotly_surface(result: StaticResult, *, exaggeration: float=18,
     axis=dict(showbackground=True,backgroundcolor='#f8fafc',
               gridcolor='#d7e2e9',zerolinecolor='#bdccd6',
               tickfont=dict(color='#425c6a',size=10),
-              title=dict(font=dict(color='#425c6a',size=11)))
+              showticklabels=True)
     fig.update_layout(
         height=585,margin=dict(l=2,r=50,b=0,t=35),
         template='plotly_white',font=dict(color='#173747'),
