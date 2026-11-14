@@ -48,6 +48,11 @@ function showPanel(id){
 function closeEditor(){ui.edit=null;$("spatial-editor").hidden=true;document.querySelectorAll(".spatial-pin").forEach(x=>x.classList.remove("selected"));}
 function closeQuick(){$("quick-result").hidden=true;}
 function changeWorkspace(space){
+ if(space==="cad"){
+   if(!window.cadUI){notice("CAD tools are still loading",true);return;}
+   ui.request++;closePanels();closeEditor();closeQuick();$("project-chooser").hidden=true;
+   window.cadUI.activate();return;
+ }
  if(space!=="lab"&&space!=="solid")return;
  ui.workspace=space;ui.selected=null;ui.redesign=null;ui.calibration=null;ui.data=null;
  ui.request++;closePanels();closeEditor();closeQuick();$("project-chooser").hidden=true;
@@ -73,6 +78,7 @@ function changeWorkspace(space){
  syncSettings();refreshPinText();solve();
 }
 function refreshPinText(){
+ if(ui.workspace==="cad"){window.cadUI?.refreshPinText();return;}
  const p=ui.params.solid,l=ui.params.lab;
  $("force-readout").textContent=ui.workspace==="solid"?nf(p.force_n,0)+" N":nf(l.tip_force_n,2)+" N";
  $("thickness-readout").textContent=nf(p.thickness_mm,0)+" mm";
@@ -87,6 +93,7 @@ function refreshPinText(){
 }
 function pinAnchors(){
  if(!ui.data)return {};
+ if(ui.workspace==="cad")return window.cadUI?.pinAnchors()||{};
  if(ui.workspace==="solid"){
   const thickness=ui.params.solid.thickness_mm;
   return {
@@ -103,6 +110,7 @@ function pinAnchors(){
  };
 }
 const pinLayout={
+ cad:{force:[104,-6],thickness:[-100,33],result:[105,75]},
  solid:{force:[100,-12],thickness:[-107,25],result:[95,85]},
  lab:{force:[113,-15],support:[-105,28],mode:[94,-12],result:[95,72]}
 };
@@ -114,7 +122,9 @@ function layoutPins(){
   const pin=$("pin-"+name);if(pin.hidden)continue;
   const p=view.projectRaw(point,matrix);if(!p)continue;
   let [dx,dy]=pinLayout[ui.workspace][name];
-  let x=clamp(p.x+dx,85,width-105),y=clamp(p.y+dy,140,height-112);
+  const narrow=width<1080||height<710;
+  const safeTop=width<760?236:narrow?172:140;
+  let x=clamp(p.x+dx,85,width-105),y=clamp(p.y+dy,safeTop,height-112);
   if(width<800)x=clamp(p.x+dx*.62,80,width-84);
   out.push({name,p,pin,x,y});
  }
@@ -163,6 +173,7 @@ function fallbackGeometry(){
 }
 let debounce;
 function modified(){
+ if(ui.workspace==="cad"){window.cadUI?.scheduleSolve();return;}
  ui.request++;
  ui.calibration=null;ui.redesign=null;
  refreshPinText();
@@ -170,6 +181,7 @@ function modified(){
  clearTimeout(debounce);debounce=setTimeout(solve,200);
 }
 async function solve(){
+ if(ui.workspace==="cad"){return window.cadUI?.solve();}
  const token=++ui.request,workspace=ui.workspace;
  setStatus("SOLVING");$("loading-veil").hidden=Boolean(ui.data);
  try{
@@ -185,7 +197,7 @@ async function solve(){
  }
 }
 function refreshLegend(){
- const hasStress=ui.workspace==="solid"&&ui.viewMode==="stress"&&ui.data;
+ const hasStress=(ui.workspace==="solid"||ui.workspace==="cad")&&ui.viewMode==="stress"&&ui.data;
  $("field-legend").hidden=!hasStress;
  if(hasStress)$("field-max").textContent=nf(ui.data.max_von_mises_mpa,2);
 }
@@ -194,9 +206,12 @@ const editors={
  thickness:{title:"Section thickness",symbol:"↔",key:"thickness_mm",unit:"mm",min:8,max:20,step:1,workspace:"solid"},
  support:{title:"Support rotational stiffness",symbol:"⟲",key:"log10_k",unit:"log₁₀ kθ",min:0,max:6,step:.05,workspace:"lab"},
  mode:{title:"Natural vibration",symbol:"∿",key:"mode",unit:"MODE",min:1,max:3,step:1,workspace:"lab"},
+ cadforce:{title:"Applied transverse load",symbol:"↘",key:"force_n",unit:"N",min:20,max:2000,step:10,workspace:"cad"},
+ cadweb:{title:"Bracket web thickness",symbol:"↔",key:"web_mm",unit:"mm",min:8,max:14,step:2,workspace:"cad"},
  labforce:{title:"Illustrative lateral load",symbol:"↘",key:"tip_force_n",unit:"N",min:.05,max:1,step:.05,workspace:"lab"}
 };
 function editorConfig(name){
+ if(ui.workspace==="cad")return name==="force"?editors.cadforce:editors.cadweb;
  if(name==="force"&&ui.workspace==="lab")return editors.labforce;
  return editors[name];
 }
@@ -214,6 +229,7 @@ function updateEditor(){
  document.querySelectorAll("[data-mode]").forEach(el=>el.classList.toggle("active",Number(el.dataset.mode)===v));
 }
 function showEditor(name){
+ if(ui.workspace==="cad"&&name==="thickness"&&ui.params.cad.source!=="generated"){showPanel("settings-panel");return;}
  if(name==="result"){showQuick();return;}
  ui.edit=name;closeQuick();closePanels();
  document.querySelectorAll(".spatial-pin").forEach(el=>el.classList.toggle("selected",el.dataset.pin===name));
@@ -224,10 +240,12 @@ function setEditValue(value){
  const c=editorConfig(e);if(!Number.isFinite(Number(value)))return;
  const v=clamp(Math.round(Number(value)/c.step)*c.step,c.min,c.max);
  ui.params[c.workspace][c.key]=Number(v.toFixed(5));
+ if(ui.workspace==="cad"&&c.key==="web_mm"&&![8,10,12,14].includes(ui.params.cad.web_mm))return;
  updateEditor();modified();
 }
 function refreshQuick(){
  if($("quick-result").hidden||!ui.data)return;
+ if(ui.workspace==="cad"){window.cadUI?.refreshQuick();return;}
  const d=ui.data,lab=ui.workspace==="lab",idx=ui.params.lab.mode-1;
  const isStatic=lab&&ui.params.lab.view==="static";
  $("quick-title").textContent=lab?(isStatic?"SIMULATED · LATERAL LOAD":"MEASURED / COMPUTED · MODE B"+(idx+1)):"CALCULATED TIP MOVEMENT";
@@ -242,6 +260,7 @@ function showQuick(){if(!ui.data)return;closeEditor();$("quick-result").hidden=f
 function row(k,v){return "<div class='data-row'><span>"+esc(k)+"</span><strong>"+esc(v)+"</strong></div>";}
 function block(title,body){return "<div class='detail-block'><h3>"+esc(title)+"</h3>"+body+"</div>";}
 function renderDetails(){
+ if(ui.workspace==="cad"){window.cadUI?.renderDetails();return;}
  if(!ui.data)return;
  const d=ui.data,lab=ui.workspace==="lab";
  $("detail-title").textContent=lab?"Laboratory results":"Structural results";
@@ -287,6 +306,8 @@ function renderDetails(){
  $("detail-content").innerHTML=html;
 }
 function syncSettings(){
+ $("cad-settings").hidden=ui.workspace!=="cad";
+ if(ui.workspace==="cad"){window.cadUI?.syncSettings();return;}
  const p=ui.params.solid,l=ui.params.lab;
  $("solid-settings").hidden=ui.workspace!=="solid";$("lab-settings").hidden=ui.workspace!=="lab";
  $("setting-resolution").value=p.resolution;$("setting-limit").value=p.allowed_mm;
@@ -330,7 +351,7 @@ async function runCalibration(){
  finally{$("calibrate-run").disabled=false;}
 }
 function changeViz(){
- const next=ui.workspace==="solid"?
+ const next=(ui.workspace==="solid"||ui.workspace==="cad")?
   ["form","stress","wire"]:[ "form","wire" ];
  const current=next.indexOf(ui.viewMode);
  ui.viewMode=next[(current+1)%next.length];
@@ -362,7 +383,8 @@ function bind(){
   if(name==="result"||name==="mode")continue;
   let start=null;
   pin.addEventListener("pointerdown",e=>{
-   if(e.button!==0)return;start={x:e.clientX,value:ui.params[editorConfig(name).workspace][editorConfig(name).key],moved:false};
+   if(e.button!==0)return;
+   if(ui.workspace==="cad"&&name==="thickness"&&ui.params.cad.source!=="generated")return;start={x:e.clientX,value:ui.params[editorConfig(name).workspace][editorConfig(name).key],moved:false};
   });
   pin.addEventListener("pointermove",e=>{
    if(!start)return;
@@ -372,7 +394,9 @@ function bind(){
    const value=clamp(start.value+dx/230*range,c.min,c.max);
    ui.edit=name;
    const step=c.step;
-   ui.params[c.workspace][c.key]=Number((Math.round(value/step)*step).toFixed(5));
+   let stepped=Number((Math.round(value/step)*step).toFixed(5));
+   if(c.workspace==="cad"&&c.key==="web_mm")stepped=[8,10,12,14].reduce((a,b)=>Math.abs(b-stepped)<Math.abs(a-stepped)?b:a);
+   ui.params[c.workspace][c.key]=stepped;
    refreshPinText();modified();
   });
   pin.addEventListener("pointerup",()=>{start=null;setTimeout(()=>ui.dragging=null,0);});
