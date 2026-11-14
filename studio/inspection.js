@@ -69,15 +69,19 @@ function createReferenceGrid(v){
   const x0=center[0]-extent,x1=center[0]+extent;
   const y0=center[1]-extent,y1=center[1]+extent;
   const data=[];
-  for(let n=-Math.ceil(extent/step);n<=Math.ceil(extent/step);n++){
-   const major=(n%5===0);
-   const color=major?[.41,.64,.67,.31]:[.37,.54,.59,.16];
-   const x=center[0]+n*step,y=center[1]+n*step;
+  for(let n=Math.floor(x0/step);n<=Math.ceil(x1/step);n++){
+   const color=n%5===0?[.41,.64,.67,.31]:[.37,.54,.59,.16];
+   const x=n*step;
    push(data,[x,y0,center[2]],[x,y1,center[2]],color);
+  }
+  for(let n=Math.floor(y0/step);n<=Math.ceil(y1/step);n++){
+   const color=n%5===0?[.41,.64,.67,.31]:[.37,.54,.59,.16];
+   const y=n*step;
    push(data,[x0,y,center[2]],[x1,y,center[2]],color);
   }
   const axisLength=Math.max(size*.22,step*3);
-  const origin=[lo[0]-step*.35,lo[1]-step*.35,lo[2]-step*.35];
+  // Coordinate triad originates at the actual (0,0,0) world coordinate.
+  const origin=[0,0,0];
   const list=[
    ["X",[origin[0]+axisLength,origin[1],origin[2]],[1,.48,.39,1]],
    ["Y",[origin[0],origin[1]+axisLength,origin[2]],[.57,.93,.66,1]],
