@@ -24,13 +24,16 @@ def make_truss(
         elements = ((0, 1), (1, 2), (0, 3), (2, 3), (1, 3))
         load_node = 3
         supports = ((0, True, True), (2, False, True))
-    else:  # Warren-2: middle-bottom joint receives center load
+    else:  # Warren-2: same top-center load position as the other families.
         nodes = np.array([
             [0, 0], [span_m/2, 0], [span_m, 0],
-            [span_m/4, height_m], [3*span_m/4, height_m]
+            [span_m/4, height_m], [span_m/2, height_m], [3*span_m/4, height_m]
         ], float)
-        elements = ((0, 1), (1, 2), (0, 3), (3, 1), (1, 4), (4, 2), (3, 4))
-        load_node = 1
+        elements = (
+            (0, 1), (1, 2), (0, 3), (3, 1), (1, 5), (5, 2),
+            (3, 4), (4, 5), (1, 4),
+        )
+        load_node = 4
         supports = ((0, True, True), (2, False, True))
     forces = np.zeros_like(nodes)
     forces[load_node, 1] = -load_n
