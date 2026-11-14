@@ -124,7 +124,26 @@ collect review evidence, and prepare demo/Devpost assets.
 - Some form of true physical experimentation and professional review is
   required before practical engineering safety decisions.
 
-## 9. Official technical references
+## 9. Audited challenge benchmark (November 14, 2026)
+
+For comparable topology screening, **all three topology families now apply
+the same vertical point load at (span / 2, height)**. Earlier experimental
+results that placed Warren-2's load at its bottom-center node are not
+comparable across topologies and must not be used in the final presentation.
+
+With default 2 m span, steel, 1000 N and a 2 mm displacement limit:
+
+| Scenario range | Feasible / tested | Lowest-mass feasible candidate | Mass | Max utilization |
+| --- | ---: | --- | ---: | ---: |
+| Up to +20% load, E/area -10% | 100 / 144 | Triangle, h=0.80 m, A=180 mm² | 6.445 kg | 0.8491 |
+| Up to +60% load, E/area -10% | 89 / 144 | Triangle, h=0.80 m, A=230 mm² | 8.235 kg | 0.6934 |
+
+The first design FAILS under the second scenario envelope: ideal buckling
+utilization is 1.1321. The challenged redesign is 27.8% heavier. These are
+repeatable numerical checks for simplified pinned trusses—not laboratory
+measurements, proof of arbitrary-topology optimality, or structural certification.
+
+## 10. Official technical references
 
 - SciPy: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html
 - scikit-learn RandomForestRegressor: https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html
