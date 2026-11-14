@@ -43,7 +43,7 @@ def test_studio_assets_have_real_controls_and_single_log():
     assert "layoutPins" in script
     assert "pinAnchors" in script
     assert "spatial engineering" in html.lower()
-    assert studio.CATALOG["ui_version"].startswith("0.1")
+    assert studio.CATALOG["ui_version"].startswith("0.2")
     log = (ROOT / "CHANGELOG.txt").read_text()
     for version in ("VERSION 0.8.0", "VERSION 0.7", "VERSION 0.6",
                     "VERSION 0.5", "VERSION 0.4", "VERSION 0.3",
