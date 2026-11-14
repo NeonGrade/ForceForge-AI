@@ -32,3 +32,30 @@ This file records a user-provided visual and workflow reference and preserves a 
 - CAD / gmsh / PyVista interop: https://github.com/pyvista/pyvista-cad
 - Hannover modal experimental specimen: https://doi.org/10.5194/wes-11-3359-2026
 - Hannover raw data + Abaqus source: https://doi.org/10.25835/lyav246d
+
+## Screenshot-driven visual comparison corrections (November 14, 2026)
+
+A Mac screenshot at force 0.26 N and source thickness factor 1.10 showed
+a 1.30× reference-thickness redesign with 3.158 → 1.913 mm displacement
+and 2.422 → 1.734 MPa stress, while the member mass increased by 18.2%.
+Two presentation issues were fixed without altering the FE solver formulation:
+
+1. **Same absolute stress color scale** is now shared by the before/after
+   surfaces. For example, teal at the same legend position now means the same
+   computed MPa in both views; independent auto-scaling is forbidden.
+2. **Same camera and transverse-axis range** are used on both meshes. The
+   long 1,524 mm specimen uses a manually enhanced display aspect ratio
+   while retaining real mm coordinate labels; zoom and deformation are
+   explicitly visualization-only.
+3. **Clear design references:** 1.10× and 1.30× are relative to the documented
+   nominal specimen, whereas +18.2% mass is relative to the current 1.10×
+   design. A numerical pass/fail banner identifies the specific 2.00 mm
+   displacement target.
+4. **Stale scenario safety:** changing load or geometry after a redesign hides
+   the prior comparison until the finite element search is rerun. Old numbers
+   must not be presented as if they belong to new inputs.
+5. Added UI regression and shared-color-range tests to the existing CI gate.
+
+Remaining engineering limitation: This visual comparison remains stress
+recovery from a 1D Euler–Bernoulli beam FEM over a 3D surface reconstruction,
+not a true volumetric 3D solid mesh solution.
