@@ -1,8 +1,12 @@
-# ForceForge X — Adaptive Spatial UI v0.2.1 / Engineering v0.8
+# ForceForge X — Level 2 / Spatial Engineering UI v0.2.1 / Engineering v0.8
 
 **Current integration preview:** UI v0.2 is based on the latest available
 engineering v0.8 branch. It preserves the immersive Spatial Engineering
 experience and adds an actual STEP CAD / Gmsh / tetra10 FEA workflow.
+
+## Interface hierarchy
+
+**Level 2 (Spatial Engineering):** The current immersive 3D engineering workspace, including physical-model controls, coordinate reference grid and finite-element surface probing. **Level 2 is an interface classification, not a version number.** Its UI version remains v0.2.1 and the engineering backend remains v0.8. No Level 1 interface is defined or changed by this naming update.
 
 ## Launch on macOS
 
