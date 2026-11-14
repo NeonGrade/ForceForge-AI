@@ -42,3 +42,37 @@ def test_parametric_bracket_export_changes_real_cad_volume():
     assert second.source_sha256!=first.source_sha256
     assert first.relative_volume_difference<.20
     assert second.relative_volume_difference<.20
+
+
+def test_mac_streamlit_script_runner_thread_can_initialize_and_finalize_gmsh():
+    """Reproduce macOS ValueError: signal only works in main thread.
+
+    Streamlit runs each page in a ScriptRunner worker thread. Gmsh must use
+    initialize(interruptible=False), and all engine work must remain guarded
+    by a process-wide lock even with multiple simultaneous UI sessions.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+    import threading
+
+    def worker(web):
+        assert threading.current_thread() is not threading.main_thread()
+        step=generated_bracket_step(web_mm=float(web))
+        mesh=mesh_step_bytes(step,source_label=f'web-{web}',mesh_size_mm=12,
+                             max_tets=5000)
+        return mesh
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first=executor.submit(worker,8)
+        second=executor.submit(worker,12)
+        one=first.result(timeout=75)
+        two=second.result(timeout=75)
+    assert one.num_tets>0 and two.num_tets>0
+    assert one.source_sha256!=two.source_sha256
+    assert two.cad_volume_m3>one.cad_volume_m3
+
+
+def test_gmsh_does_not_replace_application_sigint_handler():
+    import signal
+    before=signal.getsignal(signal.SIGINT)
+    generated_bracket_step(web_mm=8.)
+    assert signal.getsignal(signal.SIGINT) is before
