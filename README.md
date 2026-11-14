@@ -1,3 +1,177 @@
+# ForceForge X — Spatial Engineering UI v0.1
+
+**Current UI:** A model-first, immersive spatial engineering workspace built on
+the team's existing 3D finite-element and physically measured modal models.
+It is not a static mockup: interaction markers invoke real Python FEA.
+
+## Start on macOS
+
+```bash
+cd ~/ForceForge-AI
+git fetch origin
+git switch ui/v8-forge-studio
+git pull --ff-only
+python3 -m pip install -r requirements.txt
+python3 studio_server.py
+```
+
+If this branch is not yet local, use
+`git switch --track origin/ui/v8-forge-studio` instead of `git switch`.
+Open **http://127.0.0.1:8765** in Safari or Chrome.
+
+## The spatial interface
+
+The opening view is intentionally just the engineering model and a few
+on-model controls. Load, cross-section, mode, fixture and primary numerical
+readouts appear at their physically relevant positions, not in always-visible
+dashboard columns. Click a marker to adjust it; drag force and dimension
+markers horizontally to change the solver inputs. Rotate the model by dragging
+empty space, zoom with the wheel/trackpad and use ISO/FRONT/RIGHT/TOP views.
+Only selecting Results or Settings opens detailed numerical data and advanced
+parameters. The top project selector switches between **Solid mechanics**
+and **Real laboratory**. The optional first-use gesture hint can be dismissed.
+
+Professional CAD interaction inspires the control model; a bespoke
+precision-industrial visual language creates a high-fidelity atmosphere;
+short, local action hints keep onboarding immediate. No game, CAD brand or
+Apple asset has been copied.
+
+### Engineering honesty
+
+- Solid: genuine volume tetra10 FEA on an original parametric numerical test
+  specimen, not a physically measured manufactured bracket.
+- Laboratory: published physical modal frequencies and source sensor positions;
+  our independent simplified beam FEA is separately labeled.
+- Static loads in the laboratory case are a *hypothetical numerical experiment*,
+  not published measured data.
+- Enlarged cross-section and deformation are visualization aids only. The
+  original geometry, material assumptions and computation stay unchanged.
+- No engineering safety certification or production validation is claimed.
+
+### Checks
+
+```bash
+python3 -m pytest -q tests/test_studio.py
+node --check studio/viewport3d.js
+node --check studio/app.js
+```
+
+The only permanent version log is **CHANGELOG.txt** at repository root.
+All historical versions remain in the same English file. UI versions are
+numbered independently from engineering solver versions.
+
+**Draft UI work:** The Mac Safari visual appearance and precise feel of
+model-marker manipulation require end-user acceptance before merging.
+
+---
+
+## Earlier v0.1 Studio iteration — historical implementation notes
+
+This UI preview is built on the engineering v0.7 branch and offers a custom
+single-page website for **genuine 3D tetra10 FEA** and **published laboratory
+modal validation**. It is not a mockup: all analysis data comes from the
+existing Python solvers.
+
+## Open on your Mac (Safari or Chrome)
+
+From the repository folder (stop the older Streamlit app with Control+C):
+
+```bash
+git fetch origin
+git switch --track origin/ui/v8-forge-studio
+python3 -m pip install -r requirements.txt
+python3 studio_server.py
+```
+
+If you have already checked out this branch, use:
+
+```bash
+git switch ui/v8-forge-studio
+git pull --ff-only
+python3 studio_server.py
+```
+
+The new studio opens locally at **http://127.0.0.1:8765**.
+
+This is an independent local web process; it does not replace the existing
+Streamlit `app.py` or change any engineering algorithms. It binds
+only to 127.0.0.1. If the browser does not open automatically, enter the
+address directly.
+
+## Independent version numbering
+
+UI releases use their own sequence beginning with **UI v0.1**; engineering releases remain separately numbered. The UI and engineering version histories are both retained in the sole root-level `CHANGELOG.txt`.
+
+## UI v0.1 rebuild: Precision × Immersion × Simplicity
+
+The redesigned first UI release now emphasizes **professional CAD controls,
+an authored industrial sci-fi visual identity, and discoverable interaction**.
+It does not copy graphical assets from SolidWorks, NX, games, or Apple.
+
+- `studio/viewport3d.js` renders actual FEM geometry using WebGL2, with
+  model-space normals, interactive camera orbit/zoom, GPU mesh outlines and
+  physically sourced stress sample coloring for the 3D solid solver.
+- `studio/app.js` retains the prior Canvas renderer as a compatibility
+  fallback when WebGL2 is unavailable.
+- A CAD-style model tree switches between geometry, finite element mesh
+  and analysis/measurement context. Clicking published laboratory sensor
+  markers reveals their documented elevation and instrumentation type.
+- The compact immersive mode hides side panels without replacing or
+  recomputing the engineering model. Press **F** to toggle this layout,
+  **R** to reset the camera, **1 / 2** to switch workspaces.
+- Camera views include isometric, front, right, and top; each workspace
+  exposes only visualization modes meaningful to its physics.
+- The slender real laboratory beam remains dimensionally correct in the
+  source mesh. Its *displayed cross-section* is enlarged **24× by default
+  solely for inspection**, visibly labelled; a button returns to true
+  proportions. Computed frequencies and sensor heights are unchanged.
+- The UI uses local rendering and the existing Python solver; no external
+  image, typography, or UI dependencies are required for scientific accuracy.
+
+### Acceptance before merging
+
+1. Open Safari, confirm full-height model visualization without page scrolling
+   at a typical Mac desktop viewport.
+2. Rotate/zoom both specimens and test all standard views.
+3. Verify real-lab Mode 1/2/3 frequency and calibrated holdout results.
+4. Change 3D load and thickness, confirm recomputation and source units.
+5. Test model tree, measured sensor selection, evidence drawer, and
+   immersive mode; verify no viewport text overlaps.
+6. Confirm true/proportional beam section toggle is visually explained.
+7. Run `python3 -m pytest -q` and JavaScript syntax checks.
+
+The versioned record of this design revision is in root `CHANGELOG.txt`.
+Earlier records are preserved. A draft PR is not a merged release.
+
+## Experience and interaction
+
+- Main canvas: drag to rotate the real solver's displayed 3D surface mesh;
+  use the scroll wheel or trackpad to zoom.
+- Left tool rail: switch between Solid mechanics and Real laboratory.
+- Collapsible controls: vary physical model inputs and recompute in Python.
+- Right inspector: computed movement/stress or observed-vs-calculated modes.
+- Expandable bottom drawer: overview, comparison results, licensing and
+  experimental evidence.
+- Solid mechanics: run nine candidate tet10 FEA redesigns.
+- Laboratory: calibrate using measured Mode 1; hold out Modes 2 and 3.
+- All persistent version notes are in **CHANGELOG.txt** only.
+
+## Verification
+
+```bash
+python3 -m compileall -q studio_server.py
+python3 -m pytest -q tests/test_studio.py
+node --check studio/app.js
+```
+
+Actual Safari layout and performance still require a Mac review before merge.
+The solid is an original **computational** test piece without measured
+static results. The published Hannover beam has measured modal frequencies,
+but its modal solver is a simplified independent 2D FEM. No general-use
+structural safety certification is claimed.
+
+---
+
 # ForceForge X v0.5 — CAD Surface, FE Stress and Redesign
 
 Video-inspired **interactive engineering design** without simulated or fabricated solver claims.
@@ -102,7 +276,7 @@ The browser opens a single decision workflow with three examples:
 
 **Illustrative model screening does not establish actual safety, code compliance or certification.** Domain-specific loads, joint geometry, materials, manufacturing and physical test evidence are missing. The interface exposes these evidence gaps.
 
-For traceability see [Product Scope](docs/PRODUCT_V3.md), [Version History](docs/CHANGELOG.md), [90-Second Demo](docs/JUDGES_DEMO.md).
+For traceability see [Product Scope](docs/PRODUCT_V3.md), [Version History](CHANGELOG.txt), [90-Second Demo](docs/JUDGES_DEMO.md).
 
 ---
 
