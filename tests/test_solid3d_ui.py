@@ -8,7 +8,7 @@ def test_true_3d_solid_page_solves_and_displays_volume_element_results():
     assert not app.exception
     labels={x.label for x in app.metric}
     assert "3D FE tip movement" in labels
-    assert "Peak element von Mises" in labels
+    assert "Max Gauss-point von Mises" in labels
     assert "Volume tetra10 elements" in labels
     assert any(b.label=="Find lighter feasible solid thickness (3D FEA)"
                for b in app.button)
