@@ -1,4 +1,4 @@
-# ForceForge X Studio 0.8 — Model-First Interface (Preview)
+# ForceForge X Studio UI v0.1 — Model-First Interface (Preview)
 
 This UI preview is built on the engineering v0.7 branch and offers a custom
 single-page website for **genuine 3D tetra10 FEA** and **published laboratory
@@ -30,6 +30,10 @@ This is an independent local web process; it does not replace the existing
 Streamlit `app.py` or change any engineering algorithms. It binds
 only to 127.0.0.1. If the browser does not open automatically, enter the
 address directly.
+
+## Independent version numbering
+
+UI releases use their own sequence beginning with **UI v0.1**; engineering releases remain separately numbered. The UI and engineering version histories are both retained in the sole root-level `CHANGELOG.txt`.
 
 ## Experience and interaction
 
