@@ -227,17 +227,8 @@ class ForgeViewport {
  _drawGuides(matrix){
    const ctx=this.overlayContext,w=this.width,h=this.height;
    ctx.clearRect(0,0,w,h);
-   const subtle="rgba(156,189,196,.12)";
-   ctx.lineWidth=.75;
-   // Fine model-grounded reference grid, not a fixed decorative background.
-   for(let i=-8;i<=8;i++){
-     const v=i*.18;
-     for(const [a,b] of [[[-1.5,v,-.58],[1.5,v,-.58]],[[v,-1.5,-.58],[v,1.5,-.58]]]){
-       const p=this.projectNormalized(a,matrix),q=this.projectNormalized(b,matrix);
-       if(!p||!q)continue;
-       ctx.strokeStyle=subtle;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();
-     }
-   }
+   // Keep the overlay clean: the model and picked sensors take priority.
+   // A fixed HUD grid would render over the physical solid and obscure stress.
    const p0=this.projectNormalized([0,0,-.56],matrix),p1=this.projectNormalized([0,0,.56],matrix);
    if(p0&&p1){
      ctx.strokeStyle="rgba(169,215,213,.22)";ctx.setLineDash([3,8]);ctx.beginPath();ctx.moveTo(p0.x,p0.y);ctx.lineTo(p1.x,p1.y);ctx.stroke();ctx.setLineDash([]);
