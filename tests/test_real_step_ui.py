@@ -1,35 +1,57 @@
-"""Browser-level interaction against the actual STEP mesher (Gmsh optional).
+"""Streamlit stability acceptance: click-to-run, actual STEP, no stale FEM.
 
-Run in the dedicated Gmsh CI job. The existing 3D, modal and ML test
-suite continues in the standard Python jobs without gmsh.
+This entire test module runs on the optional Gmsh integration CI job.
 """
 import pytest
-pytest.importorskip('gmsh')
+pytest.importorskip("gmsh")
 from streamlit.testing.v1 import AppTest
 
 
-def _get_button(app,label):
-    return next(b for b in app.button if b.label==label)
+def button(app, label):
+    return next(x for x in app.button if x.label == label)
 
 
-def test_real_step_studio_opens_with_drilled_parametric_cad_and_solved_volume():
-    app=AppTest.from_file('../pages/13_Real_STEP_Engineering.py',
-                          default_timeout=100).run()
+def test_default_page_opens_without_automatically_meshing_or_solving():
+    app = AppTest.from_file(
+        "../pages/13_Real_STEP_Engineering.py", default_timeout=140
+    ).run()
     assert not app.exception
-    labels={x.label for x in app.metric}
-    assert 'Solid tetrahedra' in labels
-    assert 'Sampled peak von Mises' in labels
-    assert 'Reaction residual' in labels
-    assert _get_button(app,'Re-mesh revised CAD and re-run 3D FEA')
+    # Loading/reloading a page must never automatically invoke Gmsh or FEM.
+    assert not any(x.label == "3D tetrahedra" for x in app.metric)
+    assert button(app, "Run CAD import + 3D FEA")
+    assert "stable_initial" not in app.session_state
 
 
-def test_real_step_before_after_regenerates_cad_and_independently_solves():
-    app=AppTest.from_file('../pages/13_Real_STEP_Engineering.py',
-                          default_timeout=150).run()
+def test_user_click_runs_real_step_tetra10_and_revised_cad_job():
+    app = AppTest.from_file(
+        "../pages/13_Real_STEP_Engineering.py", default_timeout=160
+    ).run()
     assert not app.exception
-    _get_button(app,'Re-mesh revised CAD and re-run 3D FEA').click().run()
+    button(app, "Run CAD import + 3D FEA").click().run()
     assert not app.exception
-    previous=app.session_state['real_cad_revision']
-    assert previous['result'].mesh.num_tets>0
-    assert previous['result'].relative_reaction_residual<1e-7
-    assert previous['result'].mesh.source_sha256!=previous['inputs'][0]
+    initial = app.session_state["stable_initial"]
+    assert initial["result"].mesh.num_tets > 20
+    assert initial["result"].relative_reaction_residual < 1e-6
+    labels = {x.label for x in app.metric}
+    assert "3D tetrahedra" in labels
+    assert "Sampled peak von Mises" in labels
+    button(app, "Re-mesh revised CAD and re-run 3D FEA").click().run()
+    assert not app.exception
+    other = app.session_state["stable_revised"]
+    assert other["result"].relative_reaction_residual < 1e-6
+    assert other["result"].mesh.source_sha256 != initial["result"].mesh.source_sha256
+    assert other["result"].mesh.cad_volume_m3 != initial["result"].mesh.cad_volume_m3
+
+
+def test_changed_force_hides_old_fe_results_until_explicit_rerun():
+    app = AppTest.from_file(
+        "../pages/13_Real_STEP_Engineering.py", default_timeout=160
+    ).run()
+    button(app, "Run CAD import + 3D FEA").click().run()
+    assert not app.exception
+    first_hash = app.session_state["stable_initial"]["result"].mesh.source_sha256
+    next(x for x in app.sidebar.slider if x.label == "Transverse force (N)").set_value(300).run()
+    assert not app.exception
+    assert not any(x.label == "3D tetrahedra" for x in app.metric)
+    # The snapshot is preserved for diagnostics, but cannot be shown as new FEA.
+    assert app.session_state["stable_initial"]["result"].mesh.source_sha256 == first_hash
