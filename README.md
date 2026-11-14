@@ -1,4 +1,71 @@
-# ForceForge X Studio UI v0.1 — Model-First Interface (Preview)
+# ForceForge X — Spatial Engineering UI v0.1
+
+**Current UI:** A model-first, immersive spatial engineering workspace built on
+the team's existing 3D finite-element and physically measured modal models.
+It is not a static mockup: interaction markers invoke real Python FEA.
+
+## Start on macOS
+
+```bash
+cd ~/ForceForge-AI
+git fetch origin
+git switch ui/v8-forge-studio
+git pull --ff-only
+python3 -m pip install -r requirements.txt
+python3 studio_server.py
+```
+
+If this branch is not yet local, use
+`git switch --track origin/ui/v8-forge-studio` instead of `git switch`.
+Open **http://127.0.0.1:8765** in Safari or Chrome.
+
+## The spatial interface
+
+The opening view is intentionally just the engineering model and a few
+on-model controls. Load, cross-section, mode, fixture and primary numerical
+readouts appear at their physically relevant positions, not in always-visible
+dashboard columns. Click a marker to adjust it; drag force and dimension
+markers horizontally to change the solver inputs. Rotate the model by dragging
+empty space, zoom with the wheel/trackpad and use ISO/FRONT/RIGHT/TOP views.
+Only selecting Results or Settings opens detailed numerical data and advanced
+parameters. The top project selector switches between **Solid mechanics**
+and **Real laboratory**. The optional first-use gesture hint can be dismissed.
+
+Professional CAD interaction inspires the control model; a bespoke
+precision-industrial visual language creates a high-fidelity atmosphere;
+short, local action hints keep onboarding immediate. No game, CAD brand or
+Apple asset has been copied.
+
+### Engineering honesty
+
+- Solid: genuine volume tetra10 FEA on an original parametric numerical test
+  specimen, not a physically measured manufactured bracket.
+- Laboratory: published physical modal frequencies and source sensor positions;
+  our independent simplified beam FEA is separately labeled.
+- Static loads in the laboratory case are a *hypothetical numerical experiment*,
+  not published measured data.
+- Enlarged cross-section and deformation are visualization aids only. The
+  original geometry, material assumptions and computation stay unchanged.
+- No engineering safety certification or production validation is claimed.
+
+### Checks
+
+```bash
+python3 -m pytest -q tests/test_studio.py
+node --check studio/viewport3d.js
+node --check studio/app.js
+```
+
+The only permanent version log is **CHANGELOG.txt** at repository root.
+All historical versions remain in the same English file. UI versions are
+numbered independently from engineering solver versions.
+
+**Draft UI work:** The Mac Safari visual appearance and precise feel of
+model-marker manipulation require end-user acceptance before merging.
+
+---
+
+## Earlier v0.1 Studio iteration — historical implementation notes
 
 This UI preview is built on the engineering v0.7 branch and offers a custom
 single-page website for **genuine 3D tetra10 FEA** and **published laboratory
