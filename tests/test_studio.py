@@ -27,24 +27,29 @@ def test_studio_assets_have_real_controls_and_single_log():
     assert (ROOT / "CHANGELOG.txt").exists()
     assert not (ROOT / "docs/CHANGELOG.md").exists()
     html = (ROOT / "studio/index.html").read_text()
-    for item in ("model-canvas", "solid-force", "lab-stiffness",
-                 "primary-action", "bottom-drawer", "mode-comparisons",
-                 "tree-model", "model-intelligence", "explore-toggle",
-                 "camera-view", "true-scale"):
+    for item in ("model-canvas", "pin-force", "pin-thickness", "pin-support",
+                 "pin-mode", "pin-result", "spatial-editor", "editor-value",
+                 "editor-range", "scene-selector", "quick-result",
+                 "detail-panel", "settings-panel", "view-reset"):
         assert f'id="{item}"' in html
+    assert "bottom-drawer" not in html
+    assert "inspector" not in html
     assert html.index("viewport3d.js") < html.index("app.js")
     script = (ROOT / "studio/app.js").read_text()
     viewer = (ROOT / "studio/viewport3d.js").read_text()
     assert "window.ForgeViewport" in script
     assert "class ForgeViewport" in viewer
     assert "WebGL2" in viewer
-    assert "MODEL TREE" in html
+    assert "layoutPins" in script
+    assert "pinAnchors" in script
+    assert "spatial engineering" in html.lower()
     assert studio.CATALOG["ui_version"].startswith("0.1")
     log = (ROOT / "CHANGELOG.txt").read_text()
     for version in ("VERSION 0.8.0", "VERSION 0.7", "VERSION 0.6",
                     "VERSION 0.5", "VERSION 0.4", "VERSION 0.3",
                     "VERSION 0.2", "VERSION 0.1", "UI VERSION 0.4"):
         assert version in log
+    assert "SPATIAL ENGINEERING" in log
 
 
 def test_javascript_source_parses_when_node_available():
