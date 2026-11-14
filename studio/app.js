@@ -139,8 +139,10 @@ function layoutPins(){
   marker.setAttribute("fill",name==="result"?"#b8e6dd":"#d6efa3");svg.appendChild(marker);
  }
 }
-function positionLoop(){
- layoutPins();window.requestAnimationFrame(positionLoop);
+let lastPinFrame=0;
+function positionLoop(timestamp){
+ if(timestamp-lastPinFrame>32){layoutPins();lastPinFrame=timestamp;}
+ window.requestAnimationFrame(positionLoop);
 }
 function fallbackGeometry(){
  // Explicitly labeled visual fallback; numeric metrics still come from Python.
@@ -161,6 +163,7 @@ function fallbackGeometry(){
 }
 let debounce;
 function modified(){
+ ui.request++;
  ui.calibration=null;ui.redesign=null;
  refreshPinText();
  setStatus("UPDATING");
@@ -422,5 +425,15 @@ function bind(){
  }
 }
 bind();refreshPinText();changeWorkspace("solid");
-if(!usingGPU){fallbackGeometry();$("loading-veil").hidden=true;}
-else window.requestAnimationFrame(positionLoop);
+if(!usingGPU){
+ fallbackGeometry();
+ $("loading-veil").hidden=true;
+ const placements={force:[.56,.41],thickness:[.37,.55],support:[.36,.72],mode:[.64,.46],result:[.61,.69]};
+ function positionFallback(){
+  for(const [key,[rx,ry]] of Object.entries(placements)){
+   const el=$("pin-"+key);el.style.left=(rx*window.innerWidth)+"px";el.style.top=(ry*window.innerHeight)+"px";el.classList.add("is-positioned");
+  }
+ }
+ window.addEventListener("resize",positionFallback);positionFallback();
+ notice("WebGL2 unavailable. Numerical analysis remains active; use the visible model controls.");
+}else window.requestAnimationFrame(positionLoop);
