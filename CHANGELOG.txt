@@ -22,6 +22,58 @@ previous docs/CHANGELOG.md on 2026-11-14. Exact tests for past branches were
 reported by their authors; no retroactive browser validation is claimed.
 
 ========================================================================
+UI VERSION 0.1.0 — FULL INTERFACE REBUILD REVISION — 2026-11-14
+PR: #11 | Branch: ui/v8-forge-studio
+Engineering foundation: v0.7 tetra10 FEA + v0.4 measured modal study
+Type: UI v0.1 redesigned implementation; draft, not merged
+========================================================================
+Design and interaction
+- Rebuilt the original UI v0.1 into an object-centered CAD/CAE experience
+  informed by professional feature trees and mode-specific property controls.
+- Introduced an authored precision-industrial design language with technical
+  typography, compact scientific HUD, restrained high-contrast materials,
+  coherent visual hierarchy and improved model-stage balance.
+- Replaced generic dashboard thinking with a CAD-like object explorer, a
+  scene-context card, focused analytical inspector and immersive panel mode.
+- Added interaction shortcuts: F toggles immersive mode, R resets the camera,
+  and 1 / 2 switches the supported engineering workspaces.
+Rendering and model presentation
+- Added studio/viewport3d.js: original WebGL2 rendering engine for the actual
+  Python-returned FEM mesh surface triangles, normals, picked lab sensor
+  positions, GPU wireframe overlay and color-mapped solid von Mises samples.
+- Added isometric/front/right/top camera controls, responsive orbit/zoom,
+  model selection, source sensor inspection, and optional true-proportion view.
+- Kept the original Canvas renderer as fallback if WebGL2 is unavailable.
+- Reframed the slender 1,524 mm Hannover physical beam by enlarging the
+  displayed section width/thickness 24x only for visual inspection, with
+  an explicit visible exaggeration label and a true-scale toggle. Numerical
+  geometry, published elevations and solver data were not modified.
+- Removed a distracting overlay grid drawn on top of the model surface.
+Engineering fidelity and compatibility
+- Show stress visualization only in the actual tetra10 3D solid workspace;
+  real-laboratory modal mode instead exposes Mode Shape / Geometry / Sensors.
+- Retained the existing modal calibration, held-out checks, source evidence,
+  parameter sliders, 3D candidate redesign and physical FEM solver modules.
+- Kept the laboratory's physical measured frequencies separate from assumed
+  material constants and computed FE values.
+- The 3D solid is a computational benchmark, not an experimentally validated
+  manufactured specimen; no safety qualification is claimed.
+Testing and documentation
+- Added WebGL engine to the local HTTP asset allowlist.
+- Extended CI JavaScript syntax checks to both app.js and viewport3d.js.
+- Extended studio regression tests for 3D renderer assets, object explorer,
+  version metadata and UI controls.
+- Updated README with Mac guidance, new UX flow, shortcuts and Safari
+  acceptance steps.
+- All notes are English and appended to this sole CHANGELOG.txt. Earlier
+  engineering and UI history is preserved verbatim.
+Validation status
+- GitHub CI numerical regression and JavaScript syntax checks required.
+- macOS Safari visual quality, camera performance and UX still require
+  direct review; no browser visual acceptance is claimed.
+- The existing v0.1 rollout remains a Draft PR pending those checks.
+
+========================================================================
 UI VERSION 0.1.0 — 2026-11-14
 PR: #11 | Branch: ui/v8-forge-studio (historical branch name)
 Based on engineering version: 0.7
