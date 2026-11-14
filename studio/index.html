@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1018">
+  <meta name="description" content="ForceForge X Studio — physics-first engineering exploration.">
+  <title>ForceForge X — Engineering Studio</title>
+  <link rel="stylesheet" href="/studio/styles.css">
+</head>
+<body>
+  <div class="app-shell" id="app">
+    <header class="topbar">
+      <div class="brand-lockup">
+        <div class="brand-symbol" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="brand-wordmark"><strong>forceforge<span class="brand-x"> X</span></strong><small>ENGINEERING STUDIO</small></div>
+      </div>
+      <div class="top-center"><span class="top-line"></span><span id="header-project">SOLID MECHANICS</span><span class="top-version">STUDIO 0.8</span></div>
+      <div class="top-actions">
+        <span class="save-status"><i></i><span>LOCAL SESSION</span></span>
+        <button type="button" class="icon-btn" id="view-reset-top" aria-label="Reset 3D camera" title="Reset camera"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2.8 6.5M3 4v7h7"/></svg></button>
+        <button type="button" class="icon-btn" id="help-btn" aria-label="Open help and model limitations" title="Help"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.6 2.6 0 1 1 4.9 1.25c-.6 1-2.4 1.5-2.4 3.25M12 17.4h.01"/></svg></button>
+      </div>
+    </header>
+
+    <div class="main-layout">
+      <nav class="tool-rail" aria-label="Primary workspace navigation">
+        <div class="rail-section rail-workspaces">
+          <span class="rail-small-label">SPACES</span>
+          <button type="button" class="rail-btn is-active" data-workspace="solid" aria-label="3D solid FEA workspace" title="3D solid FEA">
+            <svg viewBox="0 0 24 24"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5ZM3 7l9 5 9-5M12 12v10"/></svg>
+          </button>
+          <button type="button" class="rail-btn" data-workspace="lab" aria-label="Real laboratory modal benchmark" title="Real laboratory">
+            <svg viewBox="0 0 24 24"><path d="M8 3v7l-5 8a2 2 0 0 0 1.7 3h14.6a2 2 0 0 0 1.7-3l-5-8V3M6 3h12M7 15h10"/></svg>
+          </button>
+        </div>
+        <div class="rail-separator"></div>
+        <div class="rail-section">
+          <span class="rail-small-label">TOOLS</span>
+          <button type="button" class="rail-btn tool-is-active" id="rail-controls" aria-label="Toggle parameters" aria-expanded="true" title="Model parameters">
+            <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2.4"/><circle cx="16" cy="12" r="2.4"/><circle cx="8" cy="18" r="2.4"/></svg>
+          </button>
+          <button type="button" class="rail-btn" id="rail-results" aria-label="Toggle results drawer" aria-expanded="false" title="Analysis results">
+            <svg viewBox="0 0 24 24"><path d="M3 20h18M6 17V9M12 17V4M18 17v-6"/></svg>
+          </button>
+          <button type="button" class="rail-btn" id="rail-evidence" aria-label="View source and evidence" title="Evidence and sources">
+            <svg viewBox="0 0 24 24"><path d="M8 3h8l4 4v14H4V3h4ZM15 3v5h5M8 13h8M8 17h8"/></svg>
+          </button>
+        </div>
+        <div class="rail-bottom">
+          <button type="button" class="rail-btn" id="rail-guide" aria-label="Open studio guide" title="Studio guide"><svg viewBox="0 0 24 24"><path d="M4 5.5C7 4 10 4 12 6c2-2 5-2 8-.5V20c-3-1.5-6-1.5-8 .5-2-2-5-2-8-.5V5.5ZM12 6v14.5"/></svg></button>
+        </div>
+      </nav>
+
+      <aside class="control-panel" id="control-panel" aria-label="Engineering controls">
+        <div class="panel-heading">
+          <div><span class="eyebrow">WORKSPACE</span><h2>Design controls</h2></div>
+          <button type="button" class="small-icon-btn" id="close-controls" title="Collapse controls" aria-label="Collapse controls">×</button>
+        </div>
+        <div class="panel-inner-scroll">
+          <section class="module-switch">
+            <div class="field-caption">CURRENT MODULE</div>
+            <button type="button" class="module-switch-btn" id="module-select">
+              <span class="module-switch-icon" id="module-icon">◈</span>
+              <span><strong id="module-name">Solid mechanics</strong><small id="module-subname">3D VOLUMETRIC FEA</small></span>
+              <span class="chev">⌄</span>
+            </button>
+            <div class="module-menu" id="module-menu" hidden>
+              <button type="button" data-select-workspace="solid"><b>Solid mechanics</b><small>3D tetra10 finite-element analysis</small></button>
+              <button type="button" data-select-workspace="lab"><b>Real laboratory</b><small>Measured modal correlation</small></button>
+            </div>
+          </section>
+
+          <div id="solid-controls">
+            <section class="control-section">
+              <div class="section-title-row"><h3>01 <span>Load conditions</span></h3><span class="tiny-accent">SOLID 3D</span></div>
+              <label class="range-control" for="solid-force"><span>Tip load</span><output id="solid-force-value">200 N</output></label>
+              <input id="solid-force" type="range" min="50" max="500" value="200" step="10">
+              <div class="range-endpoints"><span>50 N</span><span>500 N</span></div>
+              <label class="range-control" for="solid-thickness"><span>Section thickness</span><output id="solid-thickness-value">12 mm</output></label>
+              <input id="solid-thickness" type="range" min="8" max="20" value="12" step="1">
+              <div class="range-endpoints"><span>8 mm</span><span>20 mm</span></div>
+            </section>
+            <section class="control-section">
+              <div class="section-title-row"><h3>02 <span>Analysis setup</span></h3></div>
+              <label class="label-simple" for="solid-resolution">Mesh resolution</label>
+              <select id="solid-resolution" class="nice-select"><option value="fast">Fast · 2 × 2 × 8</option><option value="refined" selected>Refined · 2 × 2 × 12</option><option value="high">Higher · 3 × 3 × 12</option></select>
+              <label class="range-control" for="solid-limit"><span>Movement target</span><output id="solid-limit-value">0.120 mm</output></label>
+              <input id="solid-limit" type="range" min="0.04" max="0.30" value="0.12" step="0.01">
+              <label class="range-control" for="solid-visual"><span>Visual deformation</span><output id="solid-visual-value">60×</output></label>
+              <input id="solid-visual" type="range" min="1" max="120" value="60" step="1">
+            </section>
+          </div>
+
+          <div id="lab-controls" hidden>
+            <section class="control-section">
+              <div class="section-title-row"><h3>01 <span>Modal analysis</span></h3><span class="tiny-accent">REAL DATA</span></div>
+              <label class="label-simple" for="lab-view">Analysis view</label>
+              <select id="lab-view" class="nice-select"><option value="modes">Vibration modes</option><option value="static">Illustrative static loading</option></select>
+              <label class="range-control" for="lab-mode"><span>Vibration mode</span><output id="lab-mode-value">B1x</output></label>
+              <input id="lab-mode" type="range" min="1" max="3" value="1" step="1">
+              <label class="range-control" for="lab-stiffness"><span>Base support stiffness</span><output id="lab-stiffness-value">10³ N·m/rad</output></label>
+              <input id="lab-stiffness" type="range" min="0" max="6" value="3" step="0.05">
+              <div class="range-endpoints"><span>10⁰</span><span>10⁶</span></div>
+              <label class="range-control" for="lab-amplitude"><span>Mode shape amplitude</span><output id="lab-amplitude-value">28 mm</output></label>
+              <input id="lab-amplitude" type="range" min="5" max="65" value="28" step="1">
+              <label class="range-control" for="lab-force"><span>Static tip load</span><output id="lab-force-value">0.30 N</output></label>
+              <input id="lab-force" type="range" min="0.05" max="1" value="0.30" step="0.05">
+            </section>
+            <section class="control-section">
+              <div class="section-title-row"><h3>02 <span>Model assumptions</span></h3></div>
+              <label class="label-simple" for="lab-E">Assumed Young's modulus</label>
+              <select id="lab-E" class="nice-select"><option value="190">190 GPa</option><option value="200">200 GPa</option><option value="210" selected>210 GPa</option><option value="220">220 GPa</option><option value="230">230 GPa</option></select>
+              <label class="label-simple" for="lab-elements">Beam elements</label>
+              <select id="lab-elements" class="nice-select"><option value="16">16</option><option value="24">24</option><option value="32" selected>32</option><option value="48">48</option><option value="64">64</option></select>
+              <label class="checkbox-row"><input id="lab-gauges" type="checkbox" checked><span>Reduced gauge thickness</span></label>
+            </section>
+          </div>
+          <div class="control-footnote"><span class="accent-dot"></span> Changes update an actual Python FEA solve. Reported physical measurements are never generated by this interface.</div>
+        </div>
+        <div class="panel-footer"><span>MODEL STATUS</span><strong id="control-status">READY</strong></div>
+      </aside>
+
+      <main class="studio-main">
+        <div class="stage" id="stage">
+          <div class="stage-top">
+            <div class="stage-title-block">
+              <div class="stage-kicker"><span class="signal-mark"></span><span id="stage-overline">STRUCTURAL SIMULATION / 01</span></div>
+              <h1 id="stage-title">Form meets force.</h1>
+              <p id="stage-description">A solid structure, solved in three dimensions. Explore how loads become displacement and stress.</p>
+            </div>
+            <button type="button" id="stage-info" class="stage-info-btn" aria-label="Show model information" title="Model information"><span>i</span></button>
+          </div>
+          <div class="stage-toolbar" aria-label="3D viewing tools">
+            <div class="segmented" id="viz-modes">
+              <button type="button" data-viz="stress" class="selected">Stress</button>
+              <button type="button" data-viz="form">Form</button>
+              <button type="button" data-viz="wire">Mesh</button>
+            </div>
+            <div class="toolbar-separator"></div>
+            <button class="toolbar-icon" id="toggle-sensors" type="button" aria-label="Toggle measured sensor markers" title="Toggle sensor points">◉</button>
+            <button class="toolbar-icon" id="reset-camera" type="button" aria-label="Reset model camera" title="Reset camera">↺</button>
+          </div>
+          <div id="viewport" class="viewport" role="img" aria-label="Interactive 3D finite-element model. Drag to orbit, scroll to zoom.">
+            <canvas id="model-canvas"></canvas>
+            <div class="viewport-halo" aria-hidden="true"></div>
+            <div class="axis-label axis-y">Y</div><div class="axis-label axis-x">X</div><div class="axis-label axis-z">Z</div>
+            <div class="viewport-overlay overlay-left">
+              <span class="tag-badge" id="viewport-type">TRUE 3D FEA</span>
+              <p id="viewport-model-name">PARAMETRIC CANTILEVER</p>
+            </div>
+            <div class="viewport-overlay overlay-right">
+              <div class="visual-key"><span class="visual-key-title" id="scale-name">VON MISES STRESS</span><div class="spectrum-scale" id="spectrum-scale"></div><div class="visual-scale"><span>0</span><span id="scale-high">— MPa</span></div></div>
+            </div>
+            <div class="viewport-placeholder" id="viewport-placeholder"><div class="spinner"></div><span>Preparing engineering model…</span></div>
+            <div class="viewport-gesture">DRAG TO ROTATE <span>·</span> SCROLL TO ZOOM</div>
+          </div>
+          <div class="stage-status-line">
+            <div class="stage-status-left"><span class="status-pulse"></span><span id="analysis-status">SOLVER READY</span><span class="status-divider"></span><span id="model-fidelity">3D TET10 / NUMERICALLY VERIFIED</span></div>
+            <div class="stage-status-right"><span id="visual-disclaimer">DEFORMATION ×60 · DISPLAY ONLY</span></div>
+          </div>
+        </div>
+
+        <aside class="inspector" id="inspector" aria-label="Live analysis inspector">
+          <div class="inspector-header"><span class="eyebrow">LIVE INSPECTOR</span><h2>Engineering insight.</h2><p id="inspector-intro">Numbers behind the geometry.</p></div>
+          <div class="inspector-content">
+            <div class="feature-metric">
+              <span class="metric-kicker" id="primary-metric-title">TIP DISPLACEMENT</span>
+              <div class="feature-value"><strong id="primary-metric-value">—</strong><span id="primary-metric-unit">mm</span></div>
+              <div class="metric-foot" id="primary-metric-foot">Awaiting finite-element solver</div>
+            </div>
+            <div class="metric-separator"></div>
+            <div class="metric-pair">
+              <div class="mini-metric"><span id="secondary-a-title">VON MISES</span><strong id="secondary-a-value">—</strong></div>
+              <div class="mini-metric"><span id="secondary-b-title">MASS</span><strong id="secondary-b-value">—</strong></div>
+            </div>
+            <div class="metric-separator"></div>
+            <div class="inspector-section-head"><span id="comparison-heading">CURRENT PERFORMANCE</span><span class="soft-mark" id="comparison-badge">SIMULATED</span></div>
+            <div class="performance-meter"><div class="performance-row"><span id="meter-title">Modeled displacement target</span><strong id="meter-value">—</strong></div><div class="meter-track"><span id="meter-bar"></span></div><small id="meter-foot">Checking computed result</small></div>
+            <div id="mode-comparisons" class="mode-comparisons" hidden></div>
+            <div class="inspector-action">
+              <button type="button" id="primary-action" class="cta-button"><span id="primary-action-label">Explore design alternatives</span><span aria-hidden="true">↗</span></button>
+              <p id="action-footnote">Compare fully re-solved 3D candidate meshes.</p>
+            </div>
+            <div class="tiny-source" id="inspector-source">Original computational solid, not a physically tested specimen.</div>
+          </div>
+          <div class="inspector-bottom"><span class="icon-circle">✓</span><div><strong>Evidence-aware</strong><small>Measurements and simulations stay distinct.</small></div></div>
+        </aside>
+      </main>
+    </div>
+
+    <div class="bottom-drawer" id="bottom-drawer">
+      <div class="drawer-bar">
+        <div class="drawer-tabs">
+          <span class="drawer-label">EXPLORE</span>
+          <button type="button" data-drawer-tab="overview" class="drawer-tab active">Overview</button>
+          <button type="button" data-drawer-tab="results" class="drawer-tab">Results</button>
+          <button type="button" data-drawer-tab="evidence" class="drawer-tab">Evidence</button>
+        </div>
+        <button type="button" id="drawer-toggle" class="drawer-toggle" aria-label="Expand results drawer" aria-expanded="false"><span id="drawer-toggle-label">EXPAND DETAILS</span><span id="drawer-chevron">⌃</span></button>
+      </div>
+      <div class="drawer-body" id="drawer-body" aria-live="polite"></div>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+    <dialog id="studio-dialog"><div class="dialog-head"><div><span class="eyebrow">FORCEFORGE X</span><h2 id="dialog-title">Engineering with intention.</h2></div><button type="button" id="dialog-close" aria-label="Close dialog">×</button></div><div id="dialog-content"></div></dialog>
+  </div>
+  <script src="/studio/app.js" defer></script>
+</body>
+</html>
