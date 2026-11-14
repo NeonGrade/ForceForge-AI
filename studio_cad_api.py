@@ -142,6 +142,8 @@ def _mesh_payload(result, scale):
     values = result.von_mises_pa[result.surface_element_ids] / 1e6
     return {
         "vertices": np.round(displaced * 1000, 6).tolist(),
+        "reference_vertices": np.round(result.nodes_m * 1000, 6).tolist(),
+        "displacements_mm": np.round(result.displacements_m * 1000, 8).tolist(),
         "faces": np.asarray(result.surface_faces, dtype=int).tolist(),
         "scalar": np.round(values, 5).tolist(),
         "unit": "mm",
