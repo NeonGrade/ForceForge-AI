@@ -17,7 +17,7 @@ with st.sidebar:
     st.markdown('### CAD source')
     selection=st.radio('Choose model', ['NIST original bridge STEP','Editable 3D L-bracket','Upload your STEP'], index=1)
     st.caption('NIST original is a real, published IN718 additive-manufacturing specimen; L-bracket is a newly generated CAD test model.')
-    mesh_size=st.slider('Target tetra size (mm)',2.,15.,5.,1.)
+    mesh_size=st.slider('Target tetra size (mm)',2.,15.,10.,1.)
     st.caption('For complex NIST thin walls a coarse tetra mesh may not satisfy the geometry volume guard; invalid/oversize meshes are rejected.')
     st.divider()
     force=st.slider('Applied transverse force (N)',20,2000,250,10)
