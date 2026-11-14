@@ -64,7 +64,19 @@ if selection=='NIST original bridge STEP':
 elif selection=='Editable 3D L-bracket':
     st.info('An original editable CAD demonstration bracket with mounting holes. It is NOT a physically measured NIST specimen.')
     web=st.select_slider('Vertical web thickness (mm)',options=[8,10,12,14],value=8)
-    source=_generated(web)
+    try:
+        source=_generated(web)
+    except Exception as exc:
+        st.error(
+            'The CAD kernel could not generate the bracket STEP. '
+            f'{type(exc).__name__}: {exc}'
+        )
+        st.info(
+            'If this refers to SIGINT / signal only works in main thread, '
+            'ensure your local ForceForge branch includes the Gmsh '
+            'interruptible=False fix. Restart Streamlit after pulling.'
+        )
+        st.stop()
     name=f'Generated L-bracket / web {web} mm'
 else:
     uploaded=st.file_uploader('Upload permission-cleared STEP or STP',type=['step','stp'])
@@ -134,7 +146,11 @@ st.write('A revision is a SECOND actual STEP geometry, independently meshed and 
 revision=None;revision_name=None
 if selection=='Editable 3D L-bracket':
     revision_mm=st.select_slider('Proposed revised web thickness (mm)',options=[8,10,12,14],value=12)
-    revision=_generated(revision_mm)
+    try:
+        revision=_generated(revision_mm)
+    except Exception as exc:
+        st.error(f'Unable to regenerate the revised STEP: {type(exc).__name__}: {exc}')
+        st.stop()
     revision_name=f'Generated revised bracket / {revision_mm} mm web'
 else:
     revfile=st.file_uploader('Upload revised STEP geometry from CAD',type=['step','stp'],key='revised_step')
