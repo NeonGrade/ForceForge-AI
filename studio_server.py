@@ -96,6 +96,7 @@ def lab_analysis(p: dict) -> dict:
         reduce_gauges=a["gauges"],
         count=3,
     )
+    static_tip_mm = None
     if a["view"] == "static":
         _, deflection, _, _, _ = solve_static(
             tip_force_n=a["tip_force_n"],
@@ -106,6 +107,7 @@ def lab_analysis(p: dict) -> dict:
             reduce_gauges=a["gauges"],
         )
         offset = deflection * a["static_scale"]
+        static_tip_mm = float(deflection[-1] * 1000.0)
     else:
         offset = result.transverse_shapes[:, a["mode"] - 1] * a["amplitude_mm"] / 1000
     verts, faces, _ = prism_surface(
@@ -152,6 +154,8 @@ def lab_analysis(p: dict) -> dict:
         },
         "mode": a["mode"],
         "view": a["view"],
+        "static_tip_mm": static_tip_mm,
+        "static_force_n": a["tip_force_n"] if a["view"] == "static" else None,
         "visual_deformation": (
             f"Mode shape amplitude {a['amplitude_mm']:.0f} mm (display only)"
             if a["view"] == "modes" else
