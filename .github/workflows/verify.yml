@@ -29,6 +29,6 @@ jobs:
       - name: Python source syntax
         run: python -m compileall -q app.py studio_server.py forceforge pages tests
       - name: Studio JavaScript syntax
-        run: node --check studio/app.js
+        run: node --check studio/app.js && node --check studio/viewport3d.js
       - name: Numerical verification and golden-case regression
         run: python -m pytest -q
