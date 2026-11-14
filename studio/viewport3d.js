@@ -130,7 +130,7 @@ class ForgeViewport {
    this.center=lo.map((x,i)=>(x+hi[i])/2);
    this.extent=Math.max(1,...lo.map((x,i)=>hi[i]-x));
    const data=new Float32Array(this.faces.length*3*10);
-   const lab=this.workspace==="lab",thicknessScale=lab&&!this.trueScale?7:1;
+   const lab=this.workspace==="lab",thicknessScale=lab&&!this.trueScale?24:1;
    const point=(p)=>{
      const v=p.map((x,i)=>(x-this.center[i])/this.extent);
      if(lab){v[0]*=thicknessScale;v[1]*=thicknessScale;}
@@ -196,7 +196,7 @@ class ForgeViewport {
  }
  projectRaw(p,m){
    const v=p.map((x,i)=>(x-this.center[i])/this.extent);
-   if(this.workspace==="lab"&&!this.trueScale){v[0]*=7;v[1]*=7;}
+   if(this.workspace==="lab"&&!this.trueScale){v[0]*=24;v[1]*=24;}
    return this.projectNormalized(v,m);
  }
  draw(){
@@ -258,7 +258,7 @@ class ForgeViewport {
    for(const [label,p]of axes){const a=this.projectNormalized(p,matrix);if(a)ctx.fillText(label,a.x,a.y);}
    if(this.workspace==="lab"&&!this.trueScale){
      ctx.font="700 10px -apple-system,sans-serif";ctx.fillStyle="rgba(214,232,227,.8)";
-     ctx.fillText("SECTION EXPANDED ×7 · DISPLAY ONLY",20,h-100);
+     ctx.fillText("SECTION EXPANDED ×24 · DISPLAY ONLY",20,h-100);
    }
  }
  selectAt(x,y){
