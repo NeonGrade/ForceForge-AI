@@ -6,6 +6,7 @@ on:
       - 'forceforge/cad_solid.py'
       - 'pages/13_Real_STEP_Engineering.py'
       - 'tests/test_step_gmsh.py'
+      - 'scripts/mesh_original_nist.py'
       - '.github/workflows/real-cad.yml'
   pull_request:
     paths:
@@ -37,6 +38,22 @@ jobs:
       - name: Explicitly report whether the original published source was accessible
         if: always()
         run: echo 'NIST PDR STEP source audit outcome = ${{ steps.nist_source.outcome }}'
+      - name: Attempt real NIST thin-wall volume mesh and conditional FEA
+        id: real_nist_mesh
+        timeout-minutes: 4
+        continue-on-error: true
+        run: python -m scripts.mesh_original_nist
+      - name: Report actual NIST mesh/FEA outcome separately
+        if: always()
+        run: echo 'Actual NIST mesh attempt outcome = ${{ steps.real_nist_mesh.outcome }}'
+      - name: Upload actual NIST real mesh audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nist-real-tetra-mesh-audit
+          path: nist_original_real_mesh_audit.json
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Attach source audit record if downloaded
         if: always()
         uses: actions/upload-artifact@v4
