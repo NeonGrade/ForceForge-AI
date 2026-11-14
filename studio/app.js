@@ -157,6 +157,8 @@ function updateLabels(){
  text("lab-mode-value","B"+l.mode+"x");text("lab-stiffness-value","10^"+fmt(l.log10_k,2)+" N·m/rad");
  text("lab-amplitude-value",l.amplitude_mm+" mm");text("lab-force-value",fmt(l.tip_force_n,2)+" N");
  $("lab-mode").disabled=l.view==="static";$("lab-amplitude").disabled=l.view==="static";$("lab-force").disabled=l.view!=="static";
+ text("form-viz-label",l.view==="static"?"Deflection":"Mode shape");
+ if(state.workspace==="lab"&&state.data)text("viewport-type",l.view==="static"?"SIMULATED STATIC LOAD":"PUBLISHED MODAL EXPERIMENT");
 }
 function selectWorkspace(workspace){
  state.workspace=workspace;state.viz=workspace==="solid"?"stress":"form";state.data=null;state.redesign=null;state.calibration=null;
@@ -199,7 +201,7 @@ function renderLegend(){
  text("scale-name",show?"VON MISES · MAX GAUSS SAMPLE":"MATERIAL");
  text("scale-high",show?fmt(d.stress_cmax_mpa,2)+" MPa":"");
  text("visual-disclaimer",d.visual_deformation.toUpperCase());
- text("model-fidelity",state.workspace==="solid"?"3D TET10 / ASSUMED LOAD":"2D BEAM FEM / PUBLISHED MODES");
+ text("model-fidelity",state.workspace==="solid"?"3D TET10 / ASSUMED LOAD":d.view==="static"?"1D BEAM STATIC FEA / HYPOTHETICAL LOAD":"2D BEAM FEM / PUBLISHED MODES");
 }
 function renderInspector(){
  const d=state.data;if(!d)return;
@@ -216,6 +218,22 @@ function renderInspector(){
   text("action-footnote","Nine independently solved 3D mesh candidates.");
   text("inspector-source","Original computed specimen. No measured static deflection or certified material properties.");
  }else{
+  if(d.view==="static"){
+    text("primary-metric-title","CALCULATED STATIC TIP MOVEMENT");
+    text("primary-metric-value",fmt(d.static_tip_mm,3));text("primary-metric-unit","mm");
+    text("primary-metric-foot","Illustrative load "+fmt(d.static_force_n,2)+" N · not measured in the source experiment");
+    text("secondary-a-title","ASSUMED STATIC FORCE");text("secondary-a-value",fmt(d.static_force_n,2)+" N");
+    text("secondary-b-title","MODEL BEAM MASS");text("secondary-b-value",fmt(d.mass_kg,3)+" kg");
+    text("comparison-heading","STATIC FEM / ASSUMED INPUT");
+    text("comparison-badge","SIMULATED");text("meter-title","Validation status");
+    text("meter-value","NOT MEASURED");$("meter-bar").style.width="0%";$("meter-bar").classList.remove("over");
+    text("meter-foot","The laboratory provides modal observations; this static load is a separate prediction.");
+    visible("mode-comparisons",false);
+    text("primary-action-label","Return to measured modal analysis");
+    text("action-footnote","Calibration applies to Mode 1 only, not this hypothetical static test.");
+    text("inspector-source","Static tip displacement is computed, not physically observed. The laboratory measurements concern natural frequencies.");
+    return;
+  }
   const i=d.mode-1,e=d.error_percent[i];text("primary-metric-title","COMPUTED MODE B"+d.mode+"x");text("primary-metric-value",fmt(d.frequencies_hz[i],3));text("primary-metric-unit","Hz");
   text("primary-metric-foot","Physical measurement: "+fmt(d.measured_hz[i],3)+" Hz; signed error "+fmt(e,2)+"%");
   text("secondary-a-title","OBSERVED MODE 1");text("secondary-a-value",fmt(d.measured_hz[0],3)+" Hz");
@@ -268,6 +286,10 @@ function renderDrawer(){
 }
 async function primaryAction(){
  const workspace=state.workspace;
+ if(workspace==="lab"&&state.params.lab.view==="static"){
+  state.params.lab.view="modes";$("lab-view").value="modes";
+  changed();notify("Switched to measured modal comparison; calibration is now available.");return;
+ }
  const original=JSON.stringify(state.params[workspace]);
  $("primary-action").disabled=true;status("COMPUTING");
  try{
