@@ -30,3 +30,17 @@ def test_homepage_source_keeps_real_modal_benchmark_and_new_link():
     assert "3D stress / failure / redesign" in s
     assert "Measured first frequency" in s
     assert "Calibrate using measured Mode 1" in s
+
+
+def test_changed_load_never_displays_outdated_redesign_as_current():
+    app = AppTest.from_file("../pages/10_3D_CAD_Simulation.py", default_timeout=90).run()
+    assert not app.exception
+    next(b for b in app.button if b.label == "Find the lightest design that meets the modeled limits").click().run()
+    assert not app.exception
+    assert any(x.label == "Redesigned thickness / reference" for x in app.metric)
+    previous = dict(app.session_state["static_redesign"]["inputs"])
+    load = next(x for x in app.sidebar.slider if x.label == "Tip side load (N)")
+    load.set_value(.26).run()
+    assert not app.exception
+    assert app.session_state["static_redesign"]["inputs"] == previous
+    assert not any(x.label == "Redesigned thickness / reference" for x in app.metric)
