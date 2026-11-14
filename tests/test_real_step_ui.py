@@ -55,3 +55,20 @@ def test_changed_force_hides_old_fe_results_until_explicit_rerun():
     assert not any(x.label == "3D tetrahedra" for x in app.metric)
     # The snapshot is preserved for diagnostics, but cannot be shown as new FEA.
     assert app.session_state["stable_initial"]["result"].mesh.source_sha256 == first_hash
+
+
+def test_mesh_evidence_is_opt_in_and_has_three_actual_fea_levels():
+    app = AppTest.from_file(
+        "../pages/13_Real_STEP_Engineering.py", default_timeout=220
+    ).run()
+    assert not app.exception
+    assert "stable_mesh_evidence" not in app.session_state
+    button(app, "Run CAD import + 3D FEA").click().run()
+    assert not app.exception
+    assert "stable_mesh_evidence" not in app.session_state
+    button(app, "Run mesh-sensitivity study (2 additional FE solves)").click().run()
+    assert not app.exception
+    verified = app.session_state["stable_mesh_evidence"]
+    assert len(verified["study"].ordered_rows) == 3
+    assert all(r.reaction_residual < 1e-5
+               for r in verified["study"].ordered_rows)
