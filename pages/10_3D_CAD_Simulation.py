@@ -63,7 +63,7 @@ else:
 
 left,right=st.columns([7,3])
 with left:
-    st.plotly_chart(plotly_surface(current,exaggeration=zoom),use_container_width=True)
+    st.plotly_chart(plotly_surface(current,exaggeration=zoom),width="stretch",key="current_surface_main")
     st.caption('Color = axial bending stress magnitude computed from the beam FE section forces. The surface is shown in 3D; the underlying stiffness model is 1D.')
 with right:
     st.subheader('What is physically happening?')
@@ -78,7 +78,7 @@ st.divider()
 st.subheader('2. Generate a revised CAD section and re-run FEM')
 st.write('The search varies the beam thickness, changes its section stiffness/mass, and recomputes displacements and stress for every candidate.')
 
-if st.button('Find the lightest design that meets the modeled limits',type='primary',use_container_width=True):
+if st.button('Find the lightest design that meets the modeled limits',type='primary',width="stretch"):
     st.session_state['static_redesign']={'inputs':asdict(case),'output':redesign(case)}
 result=st.session_state.get('static_redesign')
 if result is not None:
@@ -98,15 +98,15 @@ if result is not None:
         a,b=st.columns(2)
         with a:
             st.markdown('**Original**')
-            st.plotly_chart(plotly_surface(current,exaggeration=zoom),use_container_width=True)
+            st.plotly_chart(plotly_surface(current,exaggeration=zoom),width="stretch",key="original_surface_comparison")
         with b:
             st.markdown('**Redesigned section — independently re-solved**')
-            st.plotly_chart(plotly_surface(optimum,exaggeration=zoom),use_container_width=True)
+            st.plotly_chart(plotly_surface(optimum,exaggeration=zoom),width="stretch",key="redesigned_surface_comparison")
         st.dataframe(pd.DataFrame({
             'Check':['Tip movement (mm)','Peak bending stress (MPa)','Mass (kg)','Modeled limit use (%)'],
             'Original':[current.tip_mm,current.stress_max_mpa,current.mass_kg,100*current.governing_utilization],
             'Improved':[optimum.tip_mm,optimum.stress_max_mpa,optimum.mass_kg,100*optimum.governing_utilization]
-        }),hide_index=True,use_container_width=True)
+        }),hide_index=True,width="stretch")
         payload={'source':'Published Hannover beam geometry reconstructed from article; load simulated',
                  'validation':'Published modal frequencies are measured; static loading is NOT experimentally validated.',
                  'original':{**asdict(case),'tip_mm':current.tip_mm,'mass_kg':current.mass_kg},
