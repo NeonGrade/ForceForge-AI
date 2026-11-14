@@ -215,7 +215,7 @@ class ForgeViewport {
      const shader=this.program;
      gl.useProgram(shader);gl.bindVertexArray(this.vao);
      gl.uniformMatrix4fv(gl.getUniformLocation(shader,"uMVP"),false,m);
-     const mode=global.forceForgeViz==="wire"?2:global.forceForgeViz==="stress"&&this.workspace==="solid"?1:0;
+     const mode=global.forceForgeViz==="wire"?2:global.forceForgeViz==="stress"&&(this.workspace==="solid"||this.workspace==="cad")?1:0;
      gl.uniform1i(gl.getUniformLocation(shader,"uMode"),mode);
      gl.uniform1f(gl.getUniformLocation(shader,"uMaximum"),this.max);
      gl.uniform1f(gl.getUniformLocation(shader,"uOpacity"),1);
