@@ -127,3 +127,19 @@ def test_redesign_rechecks_3d_volume_mesh_candidates(monkeypatch):
     assert len({round(t, 6) for t in calls}) >= 9
     assert out["best"] is not None
     assert out["best"]["passes_assumed_limit"] is True
+
+def test_lab_static_mode_is_explicitly_computed_not_measured():
+    baseline = studio.lab_analysis({"workspace": "lab", "elements": 16,
+                                    "view": "static", "tip_force_n": 0.2})
+    changed = studio.lab_analysis({"workspace": "lab", "elements": 16,
+                                   "view": "static", "tip_force_n": 0.4})
+    assert baseline["view"] == "static"
+    assert baseline["static_force_n"] == pytest.approx(0.2)
+    assert baseline["static_tip_mm"] is not None
+    assert changed["static_tip_mm"] == pytest.approx(
+        baseline["static_tip_mm"] * 2, rel=1e-5
+    )
+    assert baseline["measured_hz"] == [1.569, 10.389, 29.619]
+    modal = studio.lab_analysis({"workspace": "lab", "elements": 16,
+                                 "view": "modes"})
+    assert modal["static_tip_mm"] is None
