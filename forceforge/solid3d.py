@@ -235,11 +235,20 @@ def solve_solid(c: SolidCase=SolidCase()) -> SolidResult:
                    max(1.,c.force_n))
     vm=[];stress=[]
     for tet in conn:
-        B,_=_B(points[tet[:4]],np.array([.25]*4))
+        outer=points[tet[:4]]
         dofs=(3*tet[:,None]+np.arange(3)).reshape(-1)
-        sigma=D@(B@u[dofs])
-        vm.append(_von_mises(sigma))
-        stress.append(sigma)
+        u_local=u[dofs]
+        B_center,_=_B(outer,np.array([.25]*4))
+        center_sigma=D@(B_center@u_local)
+        # Quadratic tet strains vary linearly. The centroid alone misses
+        # extreme bending stress: report the maximum of the actual 4
+        # quadrature-point von Mises values for this volume element.
+        gauss_mises=[]
+        for gauss in GAUSS:
+            B,_=_B(outer,np.array(gauss))
+            gauss_mises.append(_von_mises(D@(B@u_local)))
+        vm.append(max(gauss_mises))
+        stress.append(center_sigma)
     tip=np.isclose(points[:,2],c.length_m)
     tip_disp=float(u.reshape(-1,3)[tip,1].mean())
     return SolidResult(
@@ -258,8 +267,8 @@ def surface_figure(r: SolidResult, *, deformation_scale: float=60,
                    stress_cmax_mpa: float|None=None):
     """Display genuine 3D volumetric-element von Mises data on external facets.
 
-    Each visible triangle takes the stress recovered at its adjacent quadratic
-    volume element centroid. This is a discontinuous elementwise FE stress
+    Each visible triangle uses the maximum of four von Mises values actually
+    recovered at integration points of its adjacent quadratic volume element. This is a discontinuous elementwise FE stress
     display, not a smoothed CAD illustration.
     """
     import plotly.graph_objects as go
