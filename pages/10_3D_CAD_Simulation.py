@@ -81,9 +81,10 @@ st.write('The search varies the beam thickness, changes its section stiffness/ma
 if st.button('Find the lightest design that meets the modeled limits',type='primary',width="stretch"):
     st.session_state['static_redesign']={'inputs':asdict(case),'output':redesign(case)}
 result=st.session_state.get('static_redesign')
+if result is not None and result['inputs']!=asdict(case):
+    st.warning('Inputs changed after the last redesign. The previous comparison is hidden to avoid mixing results from two loading conditions. Press the redesign button to recalculate.')
+    result=None
 if result is not None:
-    if result['inputs']!=asdict(case):
-        st.warning('Inputs have changed since the last redesign. Press the redesign button to update the comparison.')
     optimum,search=result['output']
     st.caption(f'{len(search)} physically re-solved candidate thicknesses; constraints were assessed by the FEM for each.')
     if optimum is None:
@@ -92,16 +93,39 @@ if result is not None:
         before_mass=current.mass_kg
         st.subheader('Before and After')
         b1,b2,b3=st.columns(3)
-        b1.metric('Thickness factor',f'{optimum.case.thickness_ratio:.2f}×')
+        b1.metric('Redesigned thickness / reference',f'{optimum.case.thickness_ratio:.2f}×',
+                  delta=f'{(optimum.case.thickness_ratio/case.thickness_ratio-1)*100:+.1f}% vs current design',
+                  delta_color='off')
         b2.metric('FE tip displacement',f'{optimum.tip_mm:.3f} mm')
         b3.metric('Mass change',f'{(optimum.mass_kg/before_mass-1)*100:+.1f}%')
+        before_state='EXCEEDS' if current.governing_utilization>1 else 'WITHIN'
+        after_state='EXCEEDS' if optimum.governing_utilization>1 else 'WITHIN'
+        st.markdown(
+            f"**Modeled displacement target ({deflection_limit:.2f} mm):** "
+            f"original {current.tip_mm:.3f} mm (**{before_state}** target) → "
+            f"redesigned {optimum.tip_mm:.3f} mm (**{after_state}** target)."
+        )
+        shared_stress=max(current.stress_max_mpa,optimum.stress_max_mpa)*1.001
+        x_extent=max(40.,1.25*(max(abs(current.tip_mm),abs(optimum.tip_mm))*zoom
+                                 + max(current.case.thickness_ratio,optimum.case.thickness_ratio)*5.2/2))
+        st.caption(
+            f"Both 3D plots use the same 0–{shared_stress:.2f} MPa absolute stress color range, "
+            "camera orientation and transverse axis range. The section aspect ratio and "
+            "displacements are visually exaggerated; numerical coordinates are in mm."
+        )
         a,b=st.columns(2)
         with a:
-            st.markdown('**Original**')
-            st.plotly_chart(plotly_surface(current,exaggeration=zoom),width="stretch",key="original_surface_comparison")
+            st.markdown(f'**Original · {case.thickness_ratio:.2f}× reference thickness**')
+            st.plotly_chart(plotly_surface(
+                current,exaggeration=zoom,shared_stress_max_mpa=shared_stress,
+                view_x_limit_mm=x_extent
+            ),width="stretch",key="original_surface_comparison")
         with b:
-            st.markdown('**Redesigned section — independently re-solved**')
-            st.plotly_chart(plotly_surface(optimum,exaggeration=zoom),width="stretch",key="redesigned_surface_comparison")
+            st.markdown(f'**Redesigned · {optimum.case.thickness_ratio:.2f}× reference thickness**')
+            st.plotly_chart(plotly_surface(
+                optimum,exaggeration=zoom,shared_stress_max_mpa=shared_stress,
+                view_x_limit_mm=x_extent
+            ),width="stretch",key="redesigned_surface_comparison")
         st.dataframe(pd.DataFrame({
             'Check':['Tip movement (mm)','Peak bending stress (MPa)','Mass (kg)','Modeled limit use (%)'],
             'Original':[current.tip_mm,current.stress_max_mpa,current.mass_kg,100*current.governing_utilization],
