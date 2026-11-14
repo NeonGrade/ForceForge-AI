@@ -22,6 +22,45 @@ previous docs/CHANGELOG.md on 2026-11-14. Exact tests for past branches were
 reported by their authors; no retroactive browser validation is claimed.
 
 ========================================================================
+UI VERSION 0.2.1 — 2026-11-14
+Branch: ui/v0.2-adaptive-spatial | Draft PR #13
+Engineering foundation: v0.8, unchanged
+Type: Spatial coordinates, reference grid and context-aware surface probing
+========================================================================
+- Restored a clear model-aligned X/Y reference grid and three distinct
+  world-coordinate axes in the actual WebGL scene with depth testing.
+- Added a view-responsive XYZ orientation compass for reliable camera
+  interpretation after rotation and zoom.
+- Added hover inspection of rendered 3D triangle surfaces with actual
+  perspective-aware barycentric sampling and frontmost face selection.
+- On cursor hover, show reference-position XYZ in millimeters, plus
+  available computed local state, in a compact, cursor-near data card.
+- For true volumetric 3D solid and actual STEP/Gmsh tetra10 models,
+  expose the FEM reference mesh and unscaled nodal displacement separately
+  from display-only exaggerated deformation. Inspectors interpolate
+  nodal displacement and show per-surface-face stress sampled from the
+  original finite-element result (MPa).
+- For the published real laboratory modal beam, the original undeformed
+  geometry is shown as the coordinate reference. Frequencies remain
+  global measured/computed modal values, not fabricated local measurements.
+- In the hypothetical static beam case, expose FEM nodal displacement
+  without the visualization multiplier; modal display-amplitude values are
+  never labeled as real local displacements.
+- Grid, axis labels and hover cards remain readable and compact in smaller
+  browser windows; hover does not replace existing physical model controls.
+- Added JavaScript syntax coverage for the new studio/inspection.js module,
+  tests for FEM reference/displacement fidelity, and original data linkage.
+- Preserved all engineering v0.8 STEP import, CAD revision, lab, industry,
+  robust optimization and ML modules; solver algorithms are unchanged.
+- No arbitrary-point stress interpolation or physical measurement at the
+  hovered location is claimed. Stress is an originating face/element sample.
+- Kept this CHANGELOG.txt as the only permanent English version log.
+  Every earlier version entry is retained without deletion.
+Verification notes:
+- Python numerical regression and Linux/macOS Gmsh integration CI should
+  pass on this commit. No Safari visual check is asserted without review.
+
+========================================================================
 UI VERSION 0.2.0 — 2026-11-14
 Branch: ui/v0.2-adaptive-spatial
 Base: feature/real-step-import-fea-v8 (engineering v0.8)
