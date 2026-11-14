@@ -407,6 +407,7 @@ class StudioHandler(BaseHTTPRequestHandler):
             "/studio/viewport3d.js": ("viewport3d.js", "text/javascript; charset=utf-8"),
             "/studio/adaptive.js": ("adaptive.js", "text/javascript; charset=utf-8"),
             "/studio/adaptive.css": ("adaptive.css", "text/css; charset=utf-8"),
+            "/studio/inspection.js": ("inspection.js", "text/javascript; charset=utf-8"),
         }
         if route in assets:
             filename, mimetype = assets[route]
