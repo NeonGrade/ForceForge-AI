@@ -1,0 +1,32 @@
+name: Official NIST STEP Source Audit
+on:
+  push:
+    paths:
+      - 'scripts/audit_nist_brep.py'
+      - 'scripts/fetch_nist_step.py'
+      - '.github/workflows/nist-brep-audit.yml'
+jobs:
+  official-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install source verification dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libglu1-mesa
+          python -m pip install numpy 'gmsh>=4.12,<5'
+      - name: Download and inspect actual NIST PDR original STEP
+        run: python -m scripts.audit_nist_brep
+      - name: Export source geometry audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nist-source-geometry-audit
+          path: nist_cad_import_audit.json
+          if-no-files-found: ignore
+          retention-days: 7
