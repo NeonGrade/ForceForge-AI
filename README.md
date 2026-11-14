@@ -35,6 +35,47 @@ address directly.
 
 UI releases use their own sequence beginning with **UI v0.1**; engineering releases remain separately numbered. The UI and engineering version histories are both retained in the sole root-level `CHANGELOG.txt`.
 
+## UI v0.1 rebuild: Precision × Immersion × Simplicity
+
+The redesigned first UI release now emphasizes **professional CAD controls,
+an authored industrial sci-fi visual identity, and discoverable interaction**.
+It does not copy graphical assets from SolidWorks, NX, games, or Apple.
+
+- `studio/viewport3d.js` renders actual FEM geometry using WebGL2, with
+  model-space normals, interactive camera orbit/zoom, GPU mesh outlines and
+  physically sourced stress sample coloring for the 3D solid solver.
+- `studio/app.js` retains the prior Canvas renderer as a compatibility
+  fallback when WebGL2 is unavailable.
+- A CAD-style model tree switches between geometry, finite element mesh
+  and analysis/measurement context. Clicking published laboratory sensor
+  markers reveals their documented elevation and instrumentation type.
+- The compact immersive mode hides side panels without replacing or
+  recomputing the engineering model. Press **F** to toggle this layout,
+  **R** to reset the camera, **1 / 2** to switch workspaces.
+- Camera views include isometric, front, right, and top; each workspace
+  exposes only visualization modes meaningful to its physics.
+- The slender real laboratory beam remains dimensionally correct in the
+  source mesh. Its *displayed cross-section* is enlarged **24× by default
+  solely for inspection**, visibly labelled; a button returns to true
+  proportions. Computed frequencies and sensor heights are unchanged.
+- The UI uses local rendering and the existing Python solver; no external
+  image, typography, or UI dependencies are required for scientific accuracy.
+
+### Acceptance before merging
+
+1. Open Safari, confirm full-height model visualization without page scrolling
+   at a typical Mac desktop viewport.
+2. Rotate/zoom both specimens and test all standard views.
+3. Verify real-lab Mode 1/2/3 frequency and calibrated holdout results.
+4. Change 3D load and thickness, confirm recomputation and source units.
+5. Test model tree, measured sensor selection, evidence drawer, and
+   immersive mode; verify no viewport text overlaps.
+6. Confirm true/proportional beam section toggle is visually explained.
+7. Run `python3 -m pytest -q` and JavaScript syntax checks.
+
+The versioned record of this design revision is in root `CHANGELOG.txt`.
+Earlier records are preserved. A draft PR is not a merged release.
+
 ## Experience and interaction
 
 - Main canvas: drag to rotate the real solver's displayed 3D surface mesh;
