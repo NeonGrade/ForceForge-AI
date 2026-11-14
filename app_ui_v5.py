@@ -1,4 +1,4 @@
-"""ForceForge X v0.5 UI — a single-screen workstation for the real lab benchmark.
+"""ForceForge X v0.5.1 UI — a readable, viewport-first real laboratory workstation.
 
 Launch:
     python -m streamlit run app_ui_v5.py
@@ -108,6 +108,93 @@ st.markdown("""
 @media (max-width:1119px), (max-height:734px) {
   [data-testid="stMain"] { overflow:auto!important; }
 }
+/* v0.5.1 visual QA: readable controls and viewport-filling workspace. */
+[data-testid="stToolbar"],[data-testid="stStatusWidget"] { visibility:hidden!important; }
+[data-testid="stSidebar"] { background:#0d1c2d!important; color:#eaf4ff!important; }
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] label p,
+[data-testid="stSidebar"] a,
+[data-testid="stSidebar"] a p,
+[data-testid="stSidebar"] span:not(.ff-brand-mark) {
+  color:#e0edfb!important; opacity:1!important;
+}
+[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p {
+  color:#c0d8ed!important; font-weight:650!important;
+  font-size:.88rem!important; opacity:1!important;
+}
+[data-testid="stSidebar"] [data-testid="stRadio"] label p {
+  color:#eef6ff!important; font-size:.91rem!important;
+}
+[data-testid="stSidebar"] [data-testid="stPageLink"] a,
+[data-testid="stSidebar"] [data-testid="stPageLink"] p {
+  color:#dbefff!important; font-size:.86rem!important;
+}
+[data-testid="stSidebar"] [data-testid="stExpander"] summary,
+[data-testid="stSidebar"] [data-testid="stExpander"] summary p {
+  color:#f0f8ff!important;
+}
+[data-testid="stSidebar"] [data-testid="stSlider"] p,
+[data-testid="stSidebar"] [data-testid="stNumberInput"] p { color:#d7e8f6!important; }
+[data-testid="stSidebar"] [data-baseweb="slider"] [role="slider"] {
+  background:#5ce0cd!important; border-color:#5ce0cd!important;
+}
+[data-testid="stMain"] [data-testid="stRadio"] label p {
+  color:#d5e6f9!important; font-weight:650!important;
+  font-size:.91rem!important;
+}
+[data-testid="stMain"] [data-testid="stRadio"] [role="radiogroup"] {
+  gap:.65rem!important; flex-wrap:wrap!important;
+}
+[data-testid="stMain"] [data-testid="stRadio"] [role="radiogroup"] label {
+  border:1px solid #334a64; background:#14263a;
+  border-radius:9px; padding:.44rem .85rem;
+}
+[data-testid="stMain"] [data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) {
+  border-color:#5ad8ca!important; background:#183b47!important;
+}
+[data-testid="stMain"] [data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) p {
+  color:#90fff0!important;
+}
+[data-testid="stMain"] [data-testid="stMetric"] {
+  min-height:72px; padding:.76rem .92rem!important;
+}
+[data-testid="stMain"] [data-testid="stMetricLabel"] p {
+  color:#b8cde1!important; font-size:.84rem!important;
+}
+[data-testid="stMain"] [data-testid="stMetricValue"] {
+  font-size:1.62rem!important; letter-spacing:-.02em;
+}
+[data-testid="stVerticalBlockBorderWrapper"] {
+  box-shadow:0 8px 25px rgba(0,0,0,.13);
+  background:#102135!important; border-color:#304961!important;
+}
+.ff-hero { min-height:96px; padding:.22rem 0 .6rem; }
+.ff-hero-title { font-size:1.8rem; font-weight:820; line-height:1.25;
+  letter-spacing:-.035em; color:#f3fbff; }
+.ff-hero .ff-kicker { font-size:.73rem; margin-bottom:.35rem; }
+.ff-hero .ff-sub { color:#bdd3e5; font-size:.91rem;
+  margin-top:.35rem; line-height:1.5; }
+.ff-stage-title { color:#f5fbff; font-size:1.19rem; font-weight:760; line-height:1.25; }
+.ff-note { color:#bed0e1; font-size:.82rem; line-height:1.5; }
+.ff-statline { font-size:.92rem; padding:.76rem 0; color:#c1d3e5; }
+.ff-statline b { color:#f3fbff; font-size:.93rem; }
+.ff-chip { font-size:.75rem; padding:.28rem .54rem; }
+.ff-hero-foot { font-size:.76rem; color:#abc5d9; line-height:1.45; }
+@media (min-width:1120px) and (min-height:735px) {
+  [data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"]:has(.ff-stage-title) {
+    height:calc(100dvh - 270px)!important;
+    min-height:450px!important;
+    max-height:730px!important;
+    overflow-y:auto!important;
+  }
+}
+@media (max-width:1119px), (max-height:734px) {
+  [data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"]:has(.ff-stage-title) {
+    min-height:450px!important; height:auto!important; overflow-y:auto!important;
+  }
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -202,7 +289,7 @@ def _beam_figure(heights, offsets, mode_label, gauges):
         hovertemplate="%{text}: %{z:.0f} mm<extra>Published sensor height</extra>",
     ))
     fig.update_layout(
-        margin={"l": 0, "r": 0, "t": 0, "b": 0}, height=365,
+        margin={"l": 0, "r": 0, "t": 0, "b": 0}, height=500,
         paper_bgcolor="rgba(0,0,0,0)",
         font={"size": 10, "color": "#b7cede"},
         scene={
@@ -214,8 +301,11 @@ def _beam_figure(heights, offsets, mode_label, gauges):
             "zaxis": {"title": "Height (mm)", "range": [-60, 1575],
                       "showbackground": False, "gridcolor": "#294059"},
             "aspectmode": "manual",
-            "aspectratio": {"x": .72, "y": .42, "z": 2.55},
-            "camera": {"eye": {"x": 1.65, "y": 1.45, "z": .75}},
+            "aspectratio": {"x": .7, "y": .5, "z": 1.55},
+            "camera": {
+                "eye": {"x": 2.5, "y": 1.5, "z": .9},
+                "projection": {"type": "orthographic"},
+            },
         },
         showlegend=False,
     )
@@ -279,7 +369,7 @@ with st.sidebar:
         '<div class="ff-brand"><span class="ff-brand-mark">F</span> '
         'ForceForge X</div>', unsafe_allow_html=True,
     )
-    st.caption("REAL EXPERIMENT WORKSTATION · v0.4")
+    st.caption("REAL EXPERIMENT WORKSTATION · UI v0.5.1")
     st.markdown('<div class="ff-kicker">PHYSICS CONTROLS</div>', unsafe_allow_html=True)
     st.radio(
         "Analysis type", ["Natural vibration", "Lateral loading"],
@@ -343,11 +433,11 @@ with st.sidebar:
     st.caption("Engineering screening only. No certification or service-life claim.")
 
 st.markdown(
-    '<div class="ff-kicker">PUBLIC LABORATORY BENCHMARK · MEASURED DATA</div>'
-    '<div class="ff-brand">A physical test. A model you can challenge.</div>'
-    '<div class="ff-sub">Rotate the reconstructed steel specimen, adjust its '
-    'support stiffness, and compare independent FE predictions with '
-    'published measurements.</div>',
+    '<div class="ff-hero">'
+    '<div class="ff-kicker">REAL LABORATORY BENCHMARK · PUBLISHED MEASUREMENTS</div>'
+    '<div class="ff-hero-title">From physical experiment to validated model.</div>'
+    '<div class="ff-sub">Reconstructed 3D steel beam · Live finite-element analysis · '
+    'Measured frequency correlation</div></div>',
     unsafe_allow_html=True,
 )
 
@@ -376,7 +466,7 @@ section = st.radio(
 
 left, right = st.columns([1.75, 1.0], gap="medium")
 with left:
-    with st.container(height=440, border=True):
+    with st.container(height=600, border=True):
         if section == "3D Specimen":
             st.markdown(
                 '<div class="ff-stage-title">3D specimen &amp; FE mode shape</div>'
@@ -469,7 +559,7 @@ with left:
                      "Attached sensor/magnet masses and exact clamp geometry are not modeled.")
 
 with right:
-    with st.container(height=440, border=True):
+    with st.container(height=600, border=True):
         st.markdown(
             '<div class="ff-stage-title">Live engineering inspector</div>'
             '<span class="ff-chip">LIVE FEA · NO CERTIFICATION</span>',
@@ -483,6 +573,13 @@ with right:
             _row("Observed frequency",
                  f"{MEASURED_HZ[st.session_state['lab_mode']-1]:.3f} Hz")
             _row("Model beam mass", f"{result.mass_kg:.3f} kg")
+            st.markdown('<div class="ff-kicker">LIVE THREE-MODE CORRELATION</div>',
+                        unsafe_allow_html=True)
+            for j in range(3):
+                _row(
+                    f"B{j+1}x · FEM / measured",
+                    f"{result.frequencies_hz[j]:.3f} / {MEASURED_HZ[j]:.3f} Hz",
+                )
             st.button(
                 "Calibrate using measured Mode 1", type="primary",
                 on_click=_calibrate, use_container_width=True,
