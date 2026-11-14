@@ -20,6 +20,7 @@ INDUSTRY_LABELS = {
     "Automotive": "Automotive · Suspension-link load path",
 }
 
+st.markdown("[← Back to Decision Studio](/)")
 st.title("ForceForge X | Industry Mission Control")
 st.caption("One engineering platform · three application domains · physics-driven simulations · auditable evidence gates")
 st.warning(

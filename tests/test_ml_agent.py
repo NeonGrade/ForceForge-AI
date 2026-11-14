@@ -76,7 +76,7 @@ def test_failed_candidate_is_not_described_as_passing():
 
 def test_ui_invalidates_ml_results():
     from streamlit.testing.v1 import AppTest
-    app = AppTest.from_file("../app.py", default_timeout=90).run()
+    app = AppTest.from_file("../pages/7_Engineering_Workbench.py", default_timeout=90).run()
     assert not app.exception
     next(b for b in app.button if b.label == "Propose with ML and verify with FEA").click().run()
     assert not app.exception

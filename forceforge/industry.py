@@ -33,6 +33,7 @@ class CaseInputs:
     temperature_change_k: float = 50.0
     joint_stiffness_nm_rad: float = 200_000.0
     service_cycles: int = 200_000
+    section_scale: float = 1.0  # dimensionless uniform section radius ratio
 
     def __post_init__(self) -> None:
         if self.sector not in SECTORS:
@@ -45,6 +46,8 @@ class CaseInputs:
             raise ValueError("Rotational joint stiffness must be positive")
         if not (1 <= self.service_cycles <= 100_000_000):
             raise ValueError("Service cycles must be 1..100 million")
+        if not (0.55 <= self.section_scale <= 3.0):
+            raise ValueError("Section radius ratio must be in [0.55, 3.0]")
 
 
 @dataclass
@@ -116,7 +119,7 @@ def _building(inputs: CaseInputs) -> CaseReport:
     # Generic roof-truss point-load *example*, not full roof wind/snow analysis.
     E, rho, sy = 200e9, 7850., 250e6
     truss = make_truss("Warren-2", span_m=6.0, height_m=2.0,
-                       area_mm2=1000., load_n=5_000*inputs.load_scale,
+                       area_mm2=1000.*inputs.section_scale**2, load_n=5_000*inputs.load_scale,
                        material=Material(E, rho, sy))
     load_node = int(np.argmin(truss.forces_n[:, 1]))
     case_patterns = [
@@ -162,7 +165,8 @@ def _building(inputs: CaseInputs) -> CaseReport:
         description="2D pin-jointed truss subjected to hypothetical point-load cases.",
         solver="2D linear truss FEA / ideal Euler compression screen",
         fidelity="Reduced-order global axial load paths; no real roof wind/snow distribution",
-        design_inputs={"span_m": 6.0, "height_m": 2.0, "area_mm2": 1000.0,
+        design_inputs={"span_m": 6.0, "height_m": 2.0, "area_mm2": 1000.0*inputs.section_scale**2,
+                       "section_radius_ratio": inputs.section_scale,
                        "point_load_n": 5_000.0*inputs.load_scale, "E_gpa": 200.0,
                        "yield_mpa": 250.0, "illustrative_displacement_limit_mm": 12.0},
         scenarios=rows, governing=governing, figures=fig,
@@ -188,7 +192,7 @@ def _industrial(inputs: CaseInputs) -> CaseReport:
     rows, governing, fig = [], None, None
     for name, load_factor, delta_t in scenarios:
         model = cantilever_demo(
-            length_m=1.2, radius_m=.030,
+            length_m=1.2, radius_m=.030*inputs.section_scale,
             tip_force_n=1_200. * inputs.load_scale * load_factor,
             axial_force_n=-7_000. * inputs.load_scale * load_factor,
             temp_rise_k=delta_t,
@@ -232,7 +236,8 @@ def _industrial(inputs: CaseInputs) -> CaseReport:
         description="2D semi-rigid cantilever under mechanical, compressive and thermal loads.",
         solver="2D Euler–Bernoulli frame FEA + P–Δ + thermal + illustrative fatigue",
         fidelity="Global beam and equivalent rotational joint spring; no bolt/contact model",
-        design_inputs={"length_m": 1.2, "solid_round_radius_mm": 30.0,
+        design_inputs={"length_m": 1.2, "solid_round_radius_mm": 30.0*inputs.section_scale,
+                       "section_radius_ratio": inputs.section_scale,
                        "joint_stiffness_nm_rad": inputs.joint_stiffness_nm_rad,
                        "thermal_delta_k": inputs.temperature_change_k,
                        "reference_lateral_n": 1_200*inputs.load_scale,
@@ -254,7 +259,7 @@ def _automotive_proxy(inputs: CaseInputs) -> CaseReport:
     E, rho, yield_pa = 70e9, 2700.0, 260e6
     mat = FrameMaterial(E_pa=E, rho_kg_m3=rho, alpha_per_k=23e-6,
                         yield_pa=yield_pa, ultimate_pa=330e6)
-    area, inertia = circular_section(.018)
+    area, inertia = circular_section(.018*inputs.section_scale)
     nodes = np.array([[0.0, -0.20], [0., 0.20], [0.70, 0.]], float)
     members = [FrameMember(0, 2, area, inertia, inputs.temperature_change_k),
                FrameMember(1, 2, area, inertia, inputs.temperature_change_k),
@@ -308,7 +313,8 @@ def _automotive_proxy(inputs: CaseInputs) -> CaseReport:
         solver="2D frame FEA / elastic bending / projected road loads / illustrative S–N",
         fidelity="Planar structural surrogate only; not a validated 3D suspension component model",
         design_inputs={"projection_span_m": 0.70,"mount_spacing_m":0.40,
-                       "equivalent_rod_radius_mm":18.0,"E_gpa":70.0,"yield_mpa":260,
+                       "equivalent_rod_radius_mm":18.0*inputs.section_scale,
+                       "section_radius_ratio": inputs.section_scale,"E_gpa":70.0,"yield_mpa":260,
                        "joint_stiffness_nm_rad":inputs.joint_stiffness_nm_rad,
                        "thermal_delta_k":inputs.temperature_change_k,
                        "service_cycles":inputs.service_cycles,
@@ -334,6 +340,7 @@ def platform_summary(inputs: CaseInputs) -> list[dict]:
             temperature_change_k=inputs.temperature_change_k,
             joint_stiffness_nm_rad=inputs.joint_stiffness_nm_rad,
             service_cycles=inputs.service_cycles,
+            section_scale=inputs.section_scale,
         ))
         rows.append({"sector":report.sector,"solver":report.solver,
                      "case":report.title,"model_mass_kg":round(report.figures["mass_kg"],3),

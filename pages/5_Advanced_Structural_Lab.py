@@ -8,6 +8,7 @@ from forceforge.advanced_frame import cantilever_demo, solve_frame
 from forceforge.fatigue import SNModel, StressBlock, miner_damage
 
 st.set_page_config(page_title="ForceForge X | Advanced Structural Lab", layout="wide")
+st.markdown("[← Back to Decision Studio](/)")
 st.title("ForceForge X — Advanced Structural Lab")
 st.caption("2D Euler–Bernoulli frame FEA | semi-rigid support joints | thermal stress | second-order P–Δ | fatigue spectrum")
 st.warning(
