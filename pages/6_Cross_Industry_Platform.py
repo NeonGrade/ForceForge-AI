@@ -20,6 +20,7 @@ INDUSTRY_LABELS = {
     "Automotive": "Automotive · Suspension-link load path",
 }
 
+st.page_link("app.py",label="Back to Decision Studio",icon="🏠")
 st.title("ForceForge X | Industry Mission Control")
 st.caption("One engineering platform · three application domains · physics-driven simulations · auditable evidence gates")
 st.warning(
