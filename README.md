@@ -1,4 +1,4 @@
-# ForceForge X — Adaptive Spatial UI v0.2 / Engineering v0.8
+# ForceForge X — Adaptive Spatial UI v0.2.1 / Engineering v0.8
 
 **Current integration preview:** UI v0.2 is based on the latest available
 engineering v0.8 branch. It preserves the immersive Spatial Engineering
@@ -32,6 +32,30 @@ loopback-only local website, not a public server. Stop with Control+C.
 The optional Gmsh package is required for actual STEP CAD meshing. Without
 it, the solid and laboratory modules remain available; CAD meshing reports
 the real dependency error instead of inventing a solution.
+
+## Spatial inspection and coordinate context — UI v0.2.1
+
+The model workspace now includes a legible depth-tested 3D reference grid,
+true world X/Y/Z axis markers, and a camera-relative XYZ orientation indicator.
+Hover over any rendered triangle to inspect the **undeformed reference
+coordinates (mm)** at the cursor. In a 3D solid or real STEP specimen, the
+probe also reports the solver's original **per-face sampled von Mises
+stress (MPa)** and a perspective-correct interpolation of actual FEA nodal
+displacement magnitude (mm). The displayed mesh can be deformation-exaggerated
+but these local values remain tied to original solver coordinates and results.
+
+The laboratory modal case shows its computed frequency as a **global mode
+quantity**, not a local measured result; experimental sensor markers retain
+their own published locations. In illustrative static loading, actual nodal
+displacement is provided separately from the display multiplier. Probes are
+hidden while a newer solver result is pending. This is not independently
+measured local stress or experimental validation.
+
+Hover inspection is mouse/pointer-based; keyboard-accessible core load,
+geometry and result controls remain available through the spatial UI. The
+grid and compass adjust when a laboratory beam's displayed cross-section
+is returned to its true proportions. Safari performance and layout need
+direct user acceptance.
 
 ## New experience
 
