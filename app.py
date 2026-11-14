@@ -91,15 +91,40 @@ with tab1:
         area=st.slider("Uniform solid round-bar area (mm²)",60.,800.,180.,10.)
         truss=make_truss(topology,span,height,area,force,req.material)
         result=solve(truss)
-        metrics_row(truss,result)
-        st.dataframe(pd.DataFrame({"Member":range(len(truss.elements)),
-                                   "Axial force (N)":result.force_n,
-                                   "Stress (MPa)":result.stress_pa/1e6,
-                                   "Euler Pcr (N)":result.buckling_critical_n}),
-                     hide_index=True)
     with right:
         st.plotly_chart(draw_truss(truss,result),width="stretch")
         st.caption("Ideal pin-jointed rods. Orange=compression, teal=tension. Displacement in drawing is exaggerated.")
+
+    # Keep engineering metrics in the full-width section. In the narrow input
+    # column their values were clipped on a standard Mac laptop display.
+    st.subheader("FEA results | nominal load")
+    metrics_row(truss,result)
+
+    member_table = pd.DataFrame({
+        "Member": range(len(truss.elements)),
+        "Axial force (N)": result.force_n,
+        "Stress (MPa)": result.stress_pa / 1e6,
+        "Euler Pcr (N)": result.buckling_critical_n,
+    })
+    reaction_table = pd.DataFrame([
+        {
+            "Support node": int(node),
+            "Rx (N)": float(result.reactions_n[node, 0]) if fix_x else None,
+            "Ry (N)": float(result.reactions_n[node, 1]) if fix_y else None,
+        }
+        for node, fix_x, fix_y in truss.supports
+    ])
+    members_col, reactions_col = st.columns([3, 2])
+    with members_col:
+        st.markdown("**Member forces and ideal buckling loads**")
+        st.dataframe(member_table.round(4), hide_index=True, width="stretch")
+    with reactions_col:
+        st.markdown("**Support reactions**")
+        st.dataframe(reaction_table.round(4), hide_index=True, width="stretch")
+        residual_n = np.linalg.norm(
+            np.sum(result.reactions_n, axis=0) + np.sum(truss.forces_n, axis=0)
+        )
+        st.caption(f"Global force equilibrium residual: {residual_n:.3e} N")
     st.write("Current design across all uncertainty scenarios:")
     st.json(evaluate(topology,height,area,req))
 
