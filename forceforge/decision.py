@@ -82,9 +82,22 @@ def model_margin(report: CaseReport) -> float:
     return 1.0 - float(report.governing["max_utilization"])
 
 
+
+PLAIN_LIMITS = {
+    "Axial yield": "a member is carrying too much pulling or pushing stress",
+    "Nodal displacement": "the roof-truss support is moving too far",
+    "Ideal bar buckling": "a compressed rod may bend sideways",
+    "Nominal axial+bending stress": "combined bending and pulling stress is too high",
+    "Illustrative nodal displacement": "the machine mounting point is moving too far",
+    "Illustrative component displacement": "the suspension-link end moves too far",
+}
+
+def plain_failure_name(technical: str) -> str:
+    return PLAIN_LIMITS.get(technical, technical.lower())
+
 def failure_explanation(report: CaseReport) -> str:
     limit = float(report.governing["max_utilization"])
-    check = report.governing["controlling_check"]
+    check = plain_failure_name(report.governing["controlling_check"])
     if limit > 1.0:
         return f"Modeled limit exceeded ({check}, {limit:.2f}x of the illustrative allowance)."
     return f"Within modeled limits ({check} is controlling, {limit:.2f}x of the illustrative allowance)."
