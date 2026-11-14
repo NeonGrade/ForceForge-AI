@@ -180,35 +180,87 @@ def _surface_grid(nz:int=101,ratio:float=1.0):
 
 
 def plotly_surface(result: StaticResult, *, exaggeration: float=18,
-                   normalized_stress_color: bool=False):
+                   normalized_stress_color: bool=False,
+                   shared_stress_max_mpa: float | None=None,
+                   view_x_limit_mm: float | None=None):
+    """Render FE-derived bending stress on a 3D CAD-dimension surface.
+
+    With `shared_stress_max_mpa` and `view_x_limit_mm`, two views use the
+    same stress colors, camera and transverse coordinate range. Manual
+    display aspect ratio intentionally enlarges the small cross-section
+    for viewing; coordinate values retain true units.
+    """
     import plotly.graph_objects as go
     vertices,faces=_surface_grid(ratio=result.case.thickness_ratio)
-    z=vertices[:,2];local_x=vertices[:,0]
-    # Deformed 3D surface: axial stress is from beam-section recovery, not 3D solid FE.
+    z=vertices[:,2]
+    local_x=vertices[:,0]
+
     vertices_deformed=vertices.copy()
     vertices_deformed[:,0]+=exaggeration*displacement_at(result,z)
     stress=np.abs(axial_stress_at(result,z,local_x))/1e6
-    cmax=max(float(stress.max()),1e-9)
-    scale=[[0.,'#10273b'],[.2,'#2675b4'],[.48,'#1ad8c7'],[.7,'#f6d54c'],[.86,'#fd6c4b'],[1.,'#ef43b4']]
-    fmt=dict(i=faces[:,0],j=faces[:,1],k=faces[:,2],flatshading=False,
-             lighting=dict(ambient=.56,diffuse=.68,roughness=.42,specular=.2))
+    actual_max=max(float(np.max(stress)),1e-9)
+    if shared_stress_max_mpa is not None:
+        if shared_stress_max_mpa+1e-7 < actual_max:
+            raise ValueError('Shared stress scale must include the modeled peak stress')
+        cmax=float(shared_stress_max_mpa)
+    else:
+        cmax=actual_max
+    if view_x_limit_mm is None:
+        xextent=max(40.0,1.25*(abs(result.tip_mm)*exaggeration
+                                 +NOMINAL_THICKNESS_M*result.case.thickness_ratio*500))
+    else:
+        xextent=float(view_x_limit_mm)
+        if xextent<=0:
+            raise ValueError('View transverse limit must be positive')
+
+    scale=[[0.,'#16344f'],[.2,'#327bb7'],[.48,'#1bbfb5'],
+           [.7,'#edd343'],[.86,'#f26d48'],[1.,'#d63b8f']]
+    fmt=dict(i=faces[:,0],j=faces[:,1],k=faces[:,2],
+             flatshading=False,
+             lighting=dict(ambient=.65,diffuse=.65,roughness=.50,specular=.15))
     fig=go.Figure()
-    fig.add_trace(go.Mesh3d(x=vertices[:,0]*1000,y=vertices[:,1]*1000,z=vertices[:,2]*1000,
-                            color='#718b9d',opacity=.12,name='Unloaded geometry',
-                            showlegend=True,showscale=False,**fmt))
-    fig.add_trace(go.Mesh3d(x=vertices_deformed[:,0]*1000,y=vertices_deformed[:,1]*1000,
-                            z=vertices_deformed[:,2]*1000,intensity=stress,colorscale=scale,
-                            cmin=0,cmax=cmax,opacity=1.0,
-                            name='FE-derived axial bending stress',showlegend=True,
-                            colorbar=dict(title='|σzz| MPa',len=.70,thickness=16),**fmt))
+    fig.add_trace(go.Mesh3d(
+        x=vertices[:,0]*1000,y=vertices[:,1]*1000,z=vertices[:,2]*1000,
+        color='#718b9d',opacity=.12,name='Original unloaded geometry',
+        showlegend=False,showscale=False,**fmt
+    ))
+    fig.add_trace(go.Mesh3d(
+        x=vertices_deformed[:,0]*1000,y=vertices_deformed[:,1]*1000,
+        z=vertices_deformed[:,2]*1000,intensity=stress,colorscale=scale,
+        cmin=0,cmax=cmax,opacity=1.0,
+        name='FE-derived bending stress',showlegend=False,
+        colorbar=dict(title=dict(text='|Bending stress|<br>MPa',
+                                 font=dict(color='#20394b',size=11)),
+                      len=.64,thickness=14,x=1.02,
+                      tickfont=dict(color='#20394b',size=10)),**fmt
+    ))
+
+    axis=dict(showbackground=True,backgroundcolor='#f8fafc',
+              gridcolor='#d7e2e9',zerolinecolor='#bdccd6',
+              tickfont=dict(color='#425c6a',size=10),
+              title=dict(font=dict(color='#425c6a',size=11)))
     fig.update_layout(
-        height=575,margin=dict(l=2,r=2,b=0,t=40),template='plotly_dark',
-        paper_bgcolor='#091624',plot_bgcolor='#091624',
-        title=dict(text=f'3D CAD surface + FE stress  ·  deformation ×{exaggeration:g}',font=dict(size=17)),
-        scene=dict(aspectmode='data',xaxis_title='thickness X (mm)',
-                   yaxis_title='width Y (mm)',zaxis_title='beam height Z (mm)',
-                   bgcolor='#091624',
-                   camera=dict(eye=dict(x=1.6,y=2.1,z=.95))),
-        legend=dict(orientation='h',y=.02,x=.05)
+        height=585,margin=dict(l=2,r=50,b=0,t=35),
+        template='plotly_white',font=dict(color='#173747'),
+        paper_bgcolor='#ffffff',plot_bgcolor='#ffffff',
+        title=dict(text=f'FEM bending stress  ·  deformation shown ×{exaggeration:g}',
+                   font=dict(size=14,color='#173747')),
+        scene=dict(
+            aspectmode='manual',
+            aspectratio=dict(x=.60,y=.42,z=2.45),
+            xaxis=dict(**axis,range=[-xextent,xextent],
+                       title=dict(text='Transverse X (mm)',
+                                  font=dict(color='#425c6a',size=11))),
+            yaxis=dict(**axis,range=[-25,25],
+                       title=dict(text='Width Y (mm)',
+                                  font=dict(color='#425c6a',size=11))),
+            zaxis=dict(**axis,range=[-40,LENGTH_M*1000+40],
+                       title=dict(text='Beam height Z (mm)',
+                                  font=dict(color='#425c6a',size=11))),
+            bgcolor='#ffffff',
+            camera=dict(eye=dict(x=1.65,y=1.85,z=1.20),
+                        center=dict(x=0,y=0,z=0),up=dict(x=0,y=0,z=1)),
+        ),
+        showlegend=False,
     )
     return fig
