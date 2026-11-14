@@ -62,3 +62,12 @@ def test_isolated_real_step_generation_and_full_tetra10_solve():
     assert revision.mesh.cad_volume_m3 > base.mesh.cad_volume_m3
     assert revision.mesh.source_sha256 != base.mesh.source_sha256
     assert base.peak_von_mises_mpa > 0
+
+
+def test_duplicate_browser_tabs_cannot_launch_parallel_native_fea():
+    from forceforge.isolated_cad import _ACTIVE_WORKER
+    with _ACTIVE_WORKER:
+        with pytest.raises(CadJobError, match="already running"):
+            _invoke("generate", {"web_mm": 8}, None, 10)
+    # The UI can immediately recover when the existing job releases the lock.
+    assert not _ACTIVE_WORKER.locked()
