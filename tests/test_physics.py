@@ -35,3 +35,14 @@ def test_linear_load_scaling():
     a = solve(t)
     b = solve(t, load_factor=1.2)
     assert b.disp_m[2,1] / a.disp_m[2,1] == pytest.approx(1.2)
+
+
+@pytest.mark.parametrize("topology", TOPOLOGIES)
+def test_topology_candidates_have_identical_load_application_location(topology):
+    """Competing topologies must solve the same external load location."""
+    truss = make_truss(topology, span_m=2.0, height_m=1.0, load_n=1000.)
+    nonzero_load_nodes = np.where(np.abs(truss.forces_n[:, 1]) > 1e-8)[0]
+    assert len(nonzero_load_nodes) == 1
+    load_node = int(nonzero_load_nodes[0])
+    assert np.allclose(truss.nodes_m[load_node], [1.0, 1.0])
+    assert truss.forces_n[load_node, 1] == pytest.approx(-1000.)
