@@ -93,3 +93,32 @@
  .spatial-editor,.quick-result{max-height:calc(100dvh - 160px);overflow-y:auto;bottom:72px}
  .field-legend{display:none}
 }
+
+/* UI v0.2.1 · Mesh probe and axis reference overlay */
+.surface-probe{
+ position:absolute;z-index:18;pointer-events:none;
+ width:min(275px,calc(100vw - 20px));padding:12px 14px;
+ border-radius:9px;border:1px solid rgba(158,207,189,.68);
+ background:rgba(9,23,32,.96);color:#eaf6ea;
+ box-shadow:0 14px 40px rgba(0,0,0,.50);backdrop-filter:blur(18px);
+ font-variant-numeric:tabular-nums;
+}
+.probe-heading{color:#d8f2a2;font-size:9px;letter-spacing:1.5px;font-weight:850;margin-bottom:8px}
+.probe-cross{font-size:13px;margin-right:5px}
+.probe-coords{display:block;font-size:10px;font-weight:750;white-space:normal;line-height:1.65;padding-bottom:8px;color:#e5efe9}
+.probe-measure{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:6px 0;border-top:1px solid rgba(165,208,194,.14);font-size:10px}
+.probe-measure span{color:#a5c2c8}.probe-measure strong{font-size:11px;color:#f3f7e9;text-align:right}
+.probe-note{color:#a2b8c0;font-size:9px;line-height:1.4;margin-top:8px}
+.spatial-grid-label{position:absolute;left:34px;bottom:114px;z-index:6;pointer-events:none;color:#b1ced0;font-size:9px;font-weight:800;letter-spacing:1.25px;text-shadow:0 1px 7px #08141f}
+.axis-indicator{position:absolute;right:18px;bottom:85px;width:112px;height:105px;z-index:7;pointer-events:none;opacity:.97}
+.axis-indicator svg{width:100%;height:100%;overflow:visible;filter:drop-shadow(0 2px 5px #08121a)}
+@media(max-width:1080px),(max-height:710px){
+ .spatial-grid-label{left:17px;bottom:102px;font-size:8px}
+ .axis-indicator{right:5px;bottom:75px;width:90px;height:86px}
+}
+@media(max-width:760px){
+ .spatial-grid-label{left:11px;bottom:81px;font-size:8px}
+ .axis-indicator{bottom:60px;right:0;width:80px;height:78px;opacity:.86}
+ .surface-probe{padding:10px 11px}
+}
+@media(max-height:580px){.axis-indicator{bottom:55px;width:72px;height:68px}}
