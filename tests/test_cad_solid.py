@@ -62,3 +62,36 @@ def test_reject_wrong_source_and_units_before_optional_import():
     valid=b'ISO-10303-21;'+b' '*300
     with pytest.raises(ValueError,match='Units'):
         mesh_step_bytes(valid,unit='inch')
+
+
+def test_gmsh_import_error_preserves_actual_missing_module(monkeypatch):
+    """ImportError may be native library load failure, not absent package."""
+    import builtins
+    from forceforge.step_mesh import _require_gmsh
+    original=builtins.__import__
+
+    def failed_import(name, *args, **kwargs):
+        if name == "gmsh":
+            raise ImportError("dlopen: Library not loaded: libgmsh.dylib")
+        return original(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", failed_import)
+    with pytest.raises(RuntimeError, match="libgmsh.dylib"):
+        _require_gmsh()
+
+
+def test_gmsh_not_installed_message_identifies_running_interpreter(monkeypatch):
+    import builtins
+    import sys
+    from forceforge.step_mesh import _require_gmsh
+    original=builtins.__import__
+
+    def failed_import(name, *args, **kwargs):
+        if name == "gmsh":
+            raise ModuleNotFoundError("No module named 'gmsh'", name="gmsh")
+        return original(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", failed_import)
+    with pytest.raises(RuntimeError, match="not installed") as error:
+        _require_gmsh()
+    assert sys.executable in str(error.value)
