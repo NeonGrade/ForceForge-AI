@@ -49,6 +49,10 @@ req = Requirements(span_m=span, base_load_n=force, material_E_pa=E,
                    load_uncertainty=load_unc, e_uncertainty=e_unc,
                    area_uncertainty=area_unc)
 
+if st.session_state.get("ml_requirements") != req:
+    st.session_state.pop("ml_verified", None)
+    st.session_state["ml_requirements"] = req
+
 
 def draw_truss(t, r, exaggeration: float = 250.0):
     nodes = t.nodes_m
@@ -254,10 +258,12 @@ with tab3:
     st.caption("FEA generates labels → Random Forest learns approximate scenario utilization → candidates are FEA-verified again.")
     with st.spinner("Training and validating Random Forest surrogate..."):
         model,feature_cols,metrics=surrogate_cached(req)
-    mdf=pd.DataFrame([{"Target":name,"MAE (utilization)":x["mae"],"Test R²":x["r2"]}
+    mdf=pd.DataFrame([{"Target":name,"MAE (utilization)":x["mae"],"Test R²":x["r2"],
+                       "Mean baseline MAE": x["baseline_mae"]}
                       for name,x in metrics.items()])
     st.dataframe(mdf,hide_index=True)
-    st.warning("Random split of FEA-generated design combinations. Test accuracy does not prove extrapolation to unseen topologies/materials. Always FEA-verify proposed designs.")
+    st.caption(model.forceforge_validation_["method"])
+    st.warning("Duplicate design combinations stay in the same split. Metrics estimate interpolation under current requirements, not generalization to new topologies or materials. Proposals stay within sampled feature bounds and are FEA-verified.")
     if st.button("Propose with ML and verify with FEA"):
         with st.spinner("Screening random candidates, then verifying shortlisted designs..."):
             vdf=propose_and_verify(model,feature_cols,req,n=300)
@@ -283,3 +289,4 @@ with tab4:
 
 st.divider()
 st.caption("ForceForge AI 2.0 | Hack the Nest 2026 prototype | Not intended for real-world structural safety decisions")
+

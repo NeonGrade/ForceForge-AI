@@ -83,6 +83,13 @@ utilizations. It is not a replacement for physics. The default hold-out test
 contains unseen design rows but can share a topology with training examples;
 that is **not** evidence of generalization to new structure families.
 
+Validation now groups identical topology/height/area combinations into the same
+holdout partition, reports a training-mean baseline MAE, and keeps proposals
+inside the sampled height/area bounds and observed topologies. This remains an
+interpolation check under the current engineering requirements; it does not
+validate new topologies, materials, or changed load cases. Changing sidebar
+requirements clears previous ML recommendations.
+
 Future work for a more defensible ML claim:
 - Group-based holdout by height intervals or by topology, with appropriate
   domain-matching feature encoding;
@@ -91,6 +98,10 @@ Future work for a more defensible ML claim:
 
 Optional LLM calls interpret a design request into **bounded**, typed values.
 The model cannot write directly into a solver state or declare a structure safe.
+API failures use the deterministic offline parser with an explicit fallback
+message. Offline parsing supports m/cm, N/kN and mm (plus 米/牛顿/千牛/毫米),
+rejects conflicting recognized values, and lists defaults for omitted values.
+Review all extracted values before entering them in the sidebar.
 
 ## 6. Team split
 
@@ -149,3 +160,4 @@ measurements, proof of arbitrary-topology optimality, or structural certificatio
 - scikit-learn RandomForestRegressor: https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html
 - Streamlit: https://docs.streamlit.io/develop/api-reference/charts/st.plotly_chart
 - OpenAI Structured Outputs: https://developers.openai.com/api/docs/guides/structured-outputs
+

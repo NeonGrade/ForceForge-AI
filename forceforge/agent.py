@@ -9,9 +9,9 @@ from pydantic import BaseModel, Field
 
 
 class ProposedRequirements(BaseModel):
-    span_m: float = Field(description="Bridge span in metres")
-    load_n: float = Field(description="Vertical applied load in Newtons")
-    max_displacement_mm: float = Field(description="Allowable node displacement in millimetres")
+    span_m: float = Field(ge=0.25, le=5, allow_inf_nan=False, description="Bridge span in metres")
+    load_n: float = Field(ge=10, le=5000, allow_inf_nan=False, description="Vertical applied load in Newtons")
+    max_displacement_mm: float = Field(ge=0.1, le=20, allow_inf_nan=False, description="Allowable node displacement in millimetres")
     rationale: str = Field(description="One-sentence interpretation of the requirement")
 
 
@@ -26,24 +26,49 @@ def _validate(x: ProposedRequirements) -> ProposedRequirements:
 
 
 def parse_offline(prompt: str) -> ProposedRequirements:
-    def search(pattern: str, default: float) -> float:
-        m = re.search(pattern, prompt, re.I)
-        return float(m.group(1)) if m else default
-    span = search(r"(\d+(?:\.\d+)?)\s*(?:metres?|meters?|m\b)", 2.0)
-    load = search(r"(\d+(?:\.\d+)?)\s*(?:n\b|newtons?)", 1000.0)
-    displacement = search(r"(?:deflection|displacement|limit|deformation)[^\d]{0,30}(\d+(?:\.\d+)?)\s*mm", 2.0)
+    number = r"(?<![\w.])([-+]?(?:\d+(?:\.\d*)?|\.\d+))\s*"
+    defaults = []
+
+    def read(pattern, factors, default, label):
+        found = [(float(m.group(1)) * factors[m.group(2).lower()])
+                 for m in re.finditer(pattern, prompt, re.I)]
+        if not found:
+            defaults.append(label)
+            return default
+        if len(set(found)) != 1:
+            raise ValueError(f"Ambiguous {label}; supply one value")
+        return found[0]
+
+    span = read(number + r"(metres?|meters?|cm|m|米)(?![A-Za-z])",
+                {"metre":1, "metres":1, "meter":1, "meters":1, "cm":.01, "m":1, "米":1},
+                2.0, "span=2 m")
+    load = read(number + r"(kn|newtons?|n|千牛|牛顿)(?![A-Za-z])",
+                {"kn":1000, "newton":1, "newtons":1, "n":1, "千牛":1000, "牛顿":1},
+                1000.0, "load=1000 N")
+    displacement = read(number + r"(mm|毫米)(?![A-Za-z])", {"mm":1, "毫米":1},
+                        2.0, "displacement=2 mm")
     return _validate(ProposedRequirements(
         span_m=span, load_n=load,
         max_displacement_mm=displacement,
-        rationale="Offline deterministic parser. Verify values against manual inputs before optimization.",
+        rationale=("Offline deterministic parser. Defaults: " + (", ".join(defaults) or "none")
+                   + ". Verify values against manual inputs before optimization."),
     ))
 
 
 def interpret(prompt: str, *, use_api: bool = False) -> ProposedRequirements:
     if not use_api or not os.environ.get("OPENAI_API_KEY"):
         return parse_offline(prompt)
-    from openai import OpenAI
-    client = OpenAI()
+    try:
+        from openai import OpenAI
+        client = OpenAI(timeout=15.0, max_retries=0)
+        return _interpret_api(client, prompt)
+    except Exception:
+        parsed = parse_offline(prompt)
+        parsed.rationale = "API unavailable or returned invalid parameters; " + parsed.rationale
+        return parsed
+
+
+def _interpret_api(client, prompt: str) -> ProposedRequirements:
     response = client.responses.parse(
         model=os.getenv("FORCEFORGE_MODEL", "gpt-4o-mini"),
         input=[
@@ -72,10 +97,12 @@ def explain_design(design: dict | None) -> str:
     }
     limiting = max(util_names, key=lambda name: design[name])
     return (
-        f"FEA-verified {design['topology']} design: height {design['height_m']:.3f} m, "
+        f"FEA-evaluated {design['topology']} design: height {design['height_m']:.3f} m, "
         f"uniform round-bar section {design['area_mm2']:.1f} mm^2, "
         f"nominal mass {design['mass_kg']:.3f} kg. "
         f"Controlling scenario check: {util_names[limiting]} "
         f"at utilization {design[limiting]:.3f} (<= 1 passes). "
+        f"Scenario constraints: {'PASS' if design['worst_utilization'] <= 1.0 + 1e-10 else 'FAIL'}. "
         "This is a preliminary linear-elastic truss screen, not a certified safe design."
     )
+
