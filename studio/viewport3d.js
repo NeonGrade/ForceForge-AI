@@ -260,7 +260,7 @@ class ForgeViewport {
    }
    this.selected=nearest?nearest.id:null;
    this.draw();
-   if(typeof this.onSelect==="function")this.onSelect(nearest?{type:"sensor",...nearest}:{type:"model",name:this.sourceTitle});
+   if(typeof this.onSelect==="function")this.onSelect(nearest?{...nearest,type:"sensor"}:{type:"model",name:this.sourceTitle});
  }
 }
 global.ForgeViewport=ForgeViewport;
