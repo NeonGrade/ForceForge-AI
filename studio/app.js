@@ -120,7 +120,7 @@ function layoutPins(){
  const matrix=view.matrices(),anchors=pinAnchors(),out=[];
  const world=$("world"),width=world.clientWidth,height=world.clientHeight;
  for(const [name,point] of Object.entries(anchors)){
-  const pin=$("pin-"+name);if(pin.hidden)continue;
+  const pin=$("pin-"+name);if(pin.hidden||getComputedStyle(pin).display==="none")continue;
   const p=view.projectRaw(point,matrix);if(!p)continue;
   let [dx,dy]=pinLayout[ui.workspace][name];
   const narrow=width<1080||height<710;
