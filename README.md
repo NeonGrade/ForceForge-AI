@@ -1,3 +1,35 @@
+# ForceForge X — Engineering Decision Studio (v0.3)
+
+**One product problem, three industry examples:** What happens when a structure faces a higher load, and which design changes improve its modeled performance?
+
+The primary app now guides a non-engineer through **Choose a problem → Challenge the conditions → Find an FEA-verified improvement**. Every numerical candidate is re-solved with the corresponding physical solver. The original advanced FEM, robust truss optimizer, machine-learning surrogate, and AI requirement-parser are preserved in separate Engineering Workspace pages rather than deleted.
+
+## Launch the new version (Mac)
+
+Stop the previous Streamlit instance with Ctrl+C, then:
+
+    cd ~/ForceForge-AI
+    git fetch origin
+    git switch --track origin/feature/decision-studio-v3
+    python -m pip install -r requirements.txt
+    python -m pytest -q
+    python -m streamlit run app.py
+
+If this branch already exists locally, use `git switch feature/decision-studio-v3` instead of the track command. Expected test count for this version: **48** (local verification; GitHub CI/Mac acceptance may still be pending).
+
+The browser opens a single decision workflow with three examples:
+- **Building:** Steel roof-truss load path and ideal axial/buckling limits
+- **Industrial:** Machine bracket, semi-rigid connection, second-order frame response
+- **Automotive:** Planar suspension-link *proxy* and projected road loads
+
+**Illustrative model screening does not establish actual safety, code compliance or certification.** Domain-specific loads, joint geometry, materials, manufacturing and physical test evidence are missing. The interface exposes these evidence gaps.
+
+For traceability see [Product Scope](docs/PRODUCT_V3.md), [Version History](docs/CHANGELOG.md), [90-Second Demo](docs/JUDGES_DEMO.md).
+
+---
+
+## Previous technical reference (preserved for engineering work)
+
 # ForceForge AI 2.0 — Physics-Verified Generative Truss Design
 
 Hack the Nest 2026 | Eastern Michigan University | Computer Aided Engineering
@@ -11,7 +43,7 @@ natural-language requirement interpretation; the offline path works without it.
 ## 1. Quick Start (macOS)
 
 ```bash
-cd ForceForge_AI_2_Starter
+cd ForceForge-AI
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
