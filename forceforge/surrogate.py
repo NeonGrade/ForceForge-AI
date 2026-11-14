@@ -7,8 +7,9 @@ report that limitation and avoid claiming universal prediction accuracy.
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.dummy import DummyRegressor
 from sklearn.metrics import mean_absolute_error, r2_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GroupShuffleSplit
 
 from .robust import Requirements, evaluate
 from .design import TOPOLOGIES
@@ -26,22 +27,42 @@ def _features(df: pd.DataFrame, columns=None):
 
 def train(df: pd.DataFrame, *, seed: int = 42):
     samples = df.dropna(subset=FEATURES+TARGETS).copy()
+    numeric = ["height_m", "area_mm2"] + TARGETS
+    samples = samples[np.isfinite(samples[numeric]).all(axis=1)]
     if len(samples) < 25:
         raise ValueError("Need at least 25 valid FEA samples to train a surrogate")
     # Hold out entire design combinations, not duplicate runs.
-    train_ids, test_ids = train_test_split(np.arange(len(samples)), test_size=0.25,
-                                           random_state=seed)
+    groups = samples.groupby(FEATURES, sort=True).ngroup().to_numpy()
+    if len(np.unique(groups)) < 4:
+        raise ValueError("Need at least four distinct design combinations")
+    train_ids, test_ids = next(GroupShuffleSplit(
+        n_splits=1, test_size=0.25, random_state=seed
+    ).split(samples, groups=groups))
     X = _features(samples)
     y = samples[TARGETS]
     model = RandomForestRegressor(n_estimators=130, min_samples_leaf=2,
                                   random_state=seed, n_jobs=-1)
     model.fit(X.iloc[train_ids], y.iloc[train_ids])
     pred = model.predict(X.iloc[test_ids])
+    baseline = DummyRegressor(strategy="mean").fit(X.iloc[train_ids], y.iloc[train_ids])
+    baseline_pred = baseline.predict(X.iloc[test_ids])
+    model.forceforge_domain_ = {
+        "height_m": (float(samples.height_m.min()), float(samples.height_m.max())),
+        "area_mm2": (float(samples.area_mm2.min()), float(samples.area_mm2.max())),
+        "topologies": sorted(samples.topology.unique()),
+    }
+    model.forceforge_validation_ = {
+        "method": "Grouped holdout by topology, height and area; interpolation only",
+        "train_rows": len(train_ids), "test_rows": len(test_ids),
+        "train_groups": sorted(set(groups[train_ids].tolist())),
+        "test_groups": sorted(set(groups[test_ids].tolist())),
+    }
     metrics = {}
     for i, target in enumerate(TARGETS):
         metrics[target] = {
             "mae": float(mean_absolute_error(y.iloc[test_ids,i], pred[:,i])),
             "r2": float(r2_score(y.iloc[test_ids,i], pred[:,i])),
+            "baseline_mae": float(mean_absolute_error(y.iloc[test_ids,i], baseline_pred[:,i])),
         }
     return model, list(X.columns), metrics
 
@@ -49,10 +70,14 @@ def train(df: pd.DataFrame, *, seed: int = 42):
 def propose_and_verify(model, columns, req: Requirements, *, n: int = 300, seed: int = 99):
     """Stage 1 ML screens broad designs; Stage 2 exact FEA rechecks recommendations."""
     rng = np.random.default_rng(seed)
+    if n < 1:
+        raise ValueError("Candidate count must be positive")
+    req.validate()
+    domain = model.forceforge_domain_
     candidates = pd.DataFrame({
-        "height_m": rng.uniform(.35*req.span_m, .85*req.span_m, n),
-        "area_mm2": rng.uniform(100, 800, n),
-        "topology": rng.choice(TOPOLOGIES, n),
+        "height_m": rng.uniform(*domain["height_m"], n),
+        "area_mm2": rng.uniform(*domain["area_mm2"], n),
+        "topology": rng.choice(domain["topologies"], n),
     })
     pred = model.predict(_features(candidates, columns))
     candidates["predicted_worst_util"] = pred.max(axis=1)
@@ -73,3 +98,4 @@ def propose_and_verify(model, columns, req: Requirements, *, n: int = 300, seed:
                 for _, row in ranked.iterrows()]
     return pd.DataFrame(verified).sort_values(["feasible", "mass_kg"],
                                                ascending=[False, True])
+
