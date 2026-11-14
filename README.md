@@ -1,3 +1,27 @@
+# ForceForge X v0.9 — Stable CAD Studio
+
+**New: click-to-run real STEP → tetra10 3D FEA → CAD redesign**, with native Gmsh and sparse FEA isolated in bounded Python subprocesses so a native worker failure does not automatically terminate the Streamlit server.
+
+The previous v0.8 CAD tools, real published NIST geometry, experimental modal benchmark, robust optimization, industry demos and ML tools are retained.
+
+[Stable CAD runtime / Mac setup and recovery](docs/STABLE_CAD_RUNTIME.md)
+
+```bash
+cd ~/ForceForge-AI
+git status --short
+git fetch origin
+git switch --track origin/feature/stable-cad-runtime-v9
+source .venv/bin/activate
+python -m pip install -r requirements.txt 'gmsh>=4.12,<5'
+python -m streamlit run app.py --server.fileWatcherType none
+```
+
+If the local branch already exists: `git switch feature/stable-cad-runtime-v9 && git pull --ff-only`.
+
+In the sidebar choose **Real STEP → 3D FEA / CAD redesign**. Page opening should not invoke Gmsh or solve FEM. Click **Run CAD import + 3D FEA** to compute the current case, then **Re-mesh revised CAD and re-run 3D FEA** to compare a changed real STEP.
+
+---
+
 # ForceForge X v0.8 — Real STEP → 3D Solid FEA → CAD Redesign
 
 **This is the current development branch, preserving all earlier numerical, real modal, robust, ML and cross-industry modules.**
