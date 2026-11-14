@@ -48,6 +48,10 @@ Type: Spatial coordinates, reference grid and context-aware surface probing
   never labeled as real local displacements.
 - Grid, axis labels and hover cards remain readable and compact in smaller
   browser windows; hover does not replace existing physical model controls.
+- The XYZ triad is anchored at the actual world origin (0, 0, 0), and
+  reference grid lines align to integer multiples of the displayed step.
+- Toggling true laboratory cross-section proportions rebuilds the grid;
+  pending FEA updates hide hover cards until the new solve is complete.
 - Added JavaScript syntax coverage for the new studio/inspection.js module,
   tests for FEM reference/displacement fidelity, and original data linkage.
 - Preserved all engineering v0.8 STEP import, CAD revision, lab, industry,
