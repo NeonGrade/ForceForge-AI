@@ -4,6 +4,11 @@
  */
 "use strict";
 (function () {
+  // When opened as the sixth mode of the main workspace, keep only the
+  // study UI; the parent retains the shared brand/header and tool rail.
+  if (new URLSearchParams(window.location.search).has("embedded")) {
+    document.body.classList.add("embedded");
+  }
   const $ = (id) => document.getElementById(id);
   const form = $("studyForm");
   const canvas = $("solidCanvas");
