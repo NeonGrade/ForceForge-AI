@@ -40,6 +40,7 @@ st.markdown(
     "[Open the existing Real STEP / dual-hotspot / Design Copilot study]"
     "(./Real_STEP_Engineering)"
 )
+st.markdown("[Try the real OpenFOAM rotating-fan transient CFD reference lab](./Transient_Rotating_CFD)")
 
 examples={
     "Wall fan (Chinese)": (
