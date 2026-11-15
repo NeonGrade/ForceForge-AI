@@ -180,11 +180,9 @@ def make_loop_html(source:dict,actual:dict) -> str:
             name="Original source STL rotor, geometry-only",
             hovertemplate="Actual rotating STL geometry<extra>No intermediate CFD field</extra>",
         )
-    fig=go.Figure(
-        data=[cloud,blade(0)],
-        frames=[go.Frame(name=str(k),traces=[1],data=[blade(k)])
-                for k in range(1,len(times))],
-    )
+    # The browser computes rigid rotation directly from source vertices.
+    # Avoid including 48 redundant Plotly frame copies in every rerender.
+    fig=go.Figure(data=[cloud,blade(0)])
     centre=source["origin_m"]
     rad=extent*1.7
     fig.update_layout(

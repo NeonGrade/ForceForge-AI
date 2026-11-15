@@ -20,3 +20,16 @@ def test_custom_cfd_mode_requires_actual_source_step_rotor_geometry():
     assert not app.exception
     assert "forceforge_reference_cfd_job" not in app.session_state
     assert not any("actual_openfoam_dynamic_animation" in str(k) for k in app.session_state)
+
+
+def test_restore_old_custom_job_allowed_without_step_session_input():
+    app=AppTest.from_file(
+        "../pages/15_Transient_Rotating_CFD.py",default_timeout=45
+    ).run()
+    radio=next(x for x in app.radio if x.label=="Select provenance / geometry scope")
+    radio.set_value("My STEP-derived rotor in the official OpenFOAM reference room").run()
+    assert not app.exception
+    assert any(x.label=="Restore existing CFD results" for x in app.button)
+    custom_run=next(x for x in app.button if "source-STEP rotor CFD" in x.label)
+    assert custom_run.disabled
+    assert "forceforge_reference_cfd_job" not in app.session_state

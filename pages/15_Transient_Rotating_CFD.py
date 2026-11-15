@@ -46,24 +46,24 @@ mode=st.radio(
     ],index=0,
 )
 use_custom=mode.startswith("My STEP-derived")
+custom_input_loaded=isinstance(rotor_source,dict)
 if use_custom:
-    if not isinstance(rotor_source,dict):
-        st.error(
-            "CUSTOM ROTOR NOT LOADED: open Natural Language Engineering, "
-            "generate the fan STEP, then click Extract actual rotating blades. "
-            "This workflow does not accept the earlier actuator-only air .msh "
-            "as a blade-resolved CFD mesh."
+    if not custom_input_loaded:
+        st.warning(
+            "CUSTOM ROTOR INPUT NOT LOADED: generate a new STEP on the "
+            "Natural Language Engineering page to start another custom CFD. "
+            "Existing custom STEP CFD jobs CAN still be restored by Job ID "
+            "below without rebuilding or resolving their geometry."
         )
-        st.stop()
+    else:
+        st.caption(
+            "Current STEP SHA-256: "+str(rotor_source["cad_source_sha256"])
+            +" · rotor STL SHA-256: "+str(rotor_source["rotor_stl_sha256"])
+        )
     st.warning(
-        "CUSTOM ROTOR + REFERENCE ROOM: the real rotating blade and hub "
-        "surfaces come from the exact CAD STEP, but the air domain, static "
-        "room, moving-cylinder AMI geometry and supports remain the official "
-        "OpenFOAM tutorial. This is NOT validated wall-fan installation CFD."
-    )
-    st.caption(
-        "Source STEP SHA-256: "+str(rotor_source["cad_source_sha256"])
-        +" · rotor STL SHA-256: "+str(rotor_source["rotor_stl_sha256"])
+        "CUSTOM ROTOR + REFERENCE ROOM: genuine user STEP rotor blades, "
+        "but the surrounding air domain and AMI zone remain the official "
+        "tutorial. This is not the verified wall/guard/bolt installation."
     )
 else:
     st.info(
@@ -100,7 +100,7 @@ a,b,c=st.columns(3)
 rpm=a.number_input(
     "Reference fan rotational speed (RPM)",
     min_value=100,max_value=2400,
-    value=(int(rotor_source["rpm"]) if use_custom else 600),step=100,
+    value=(int(rotor_source["rpm"]) if use_custom and custom_input_loaded else 600),step=100,
 )
 end=b.number_input(
     "Real transient duration (s)",
@@ -125,7 +125,7 @@ st.write(
     f"**Revolutions requested:** {controls.end_time_s*controls.rpm/60:.2f} · "
     f"**Angular velocity:** {controls.angular_velocity_rad_s:.2f} rad/s"
 )
-if use_custom:
+if use_custom and custom_input_loaded:
     with st.expander("Real STEP blade rotation · GEOMETRY ONLY (not CFD)",expanded=True):
         st.caption(
             "Exact source-STEP rotor STL geometry, rigidly rotated about "
@@ -210,8 +210,12 @@ st.caption(
 )
 
 if st.button(
-    "Run genuine OpenFOAM rotating-mesh transient CFD (reference geometry)",
-    disabled=(not ok or bool(active_jobs)),type="primary",key="reference_cfd_run",
+    ("Run genuine source-STEP rotor CFD (official reference room)"
+     if use_custom else
+     "Run genuine OpenFOAM rotating-mesh transient CFD (reference geometry)"),
+    disabled=(not ok or bool(active_jobs) or
+              (use_custom and not custom_input_loaded)),
+    type="primary",key="reference_cfd_run",
 ):
     try:
         if use_custom:
@@ -261,7 +265,9 @@ if job:
         st.write("**Stage:**",status.get("stage","UNKNOWN"))
         if status.get("warning"):
             st.warning(str(status["warning"]))
-        st.caption("Reference geometry: "+str(status.get("geometry_origin")))
+        st.caption("Solved geometry provenance: "+str(status.get("geometry_origin")))
+        if status.get("geometry_origin")=="USER_STEP_ROTOR_IN_OFFICIAL_REFERENCE_ROOM":
+            st.info("Recovered exact source-STEP rotor in official reference room; wall mounting not modeled.")
         with st.expander("Local CFD job diagnostic files"):
             st.code(
                 'cat "$HOME/.forceforge_x/transient_cfd/'+job+'/status.json"\n'
