@@ -384,9 +384,87 @@ def _file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+
+def _read_native_polyhedron_vtk(path: Path) -> tuple[np.ndarray,np.ndarray,np.ndarray]:
+    """Sample real U/p from VTK polyhedral volume cells, including type 42."""
+    try:
+        from vtkmodules.vtkIOLegacy import vtkUnstructuredGridReader
+        from vtkmodules.util.numpy_support import vtk_to_numpy
+    except ImportError as exc:
+        raise RuntimeError("Install the VTK reader: python -m pip install 'vtk>=9.6,<10'") from exc
+    reader=vtkUnstructuredGridReader()
+    reader.SetFileName(str(path))
+    reader.ReadAllScalarsOn()
+    reader.ReadAllVectorsOn()
+    reader.Update()
+    mesh=reader.GetOutput()
+    if mesh is None or mesh.GetNumberOfPoints()<20 or mesh.GetNumberOfCells()<1:
+        raise ValueError("Native VTK reader did not find a valid mesh")
+    points=np.asarray(vtk_to_numpy(mesh.GetPoints().GetData()),dtype=float)
+    def field(attrs,name):
+        for i in range(attrs.GetNumberOfArrays()):
+            key=attrs.GetArrayName(i)
+            if key and key.lower()==name:
+                return attrs.GetArray(i)
+        return None
+    u=field(mesh.GetCellData(),"u")
+    p=field(mesh.GetCellData(),"p")
+    if u is not None and p is not None:
+        n=mesh.GetNumberOfCells()
+        if n<20:
+            raise ValueError("Too few real volume cells")
+        ids=np.linspace(0,n-1,min(n,MAX_POINTS_PER_FRAME)).astype(int)
+        xyz=[]
+        for index in ids:
+            cell_ids=mesh.GetCell(int(index)).GetPointIds()
+            if cell_ids is None or cell_ids.GetNumberOfIds()<4:
+                raise ValueError("Invalid original volume-cell topology")
+            original_ids=[cell_ids.GetId(i) for i in range(cell_ids.GetNumberOfIds())]
+            xyz.append(points[original_ids].mean(axis=0))
+        xyz=np.asarray(xyz,dtype=float)
+        vel=np.asarray(vtk_to_numpy(u)[ids],dtype=float)
+        pres=np.asarray(vtk_to_numpy(p)[ids],dtype=float).reshape(-1)
+    else:
+        u=field(mesh.GetPointData(),"u")
+        p=field(mesh.GetPointData(),"p")
+        if u is None or p is None:
+            raise ValueError("Native VTK missing genuine U/p fields")
+        ids=np.linspace(0,len(points)-1,min(len(points),MAX_POINTS_PER_FRAME)).astype(int)
+        xyz=points[ids]
+        vel=np.asarray(vtk_to_numpy(u)[ids],dtype=float)
+        pres=np.asarray(vtk_to_numpy(p)[ids],dtype=float).reshape(-1)
+    if (xyz.ndim!=2 or xyz.shape[1]!=3 or vel.shape!=xyz.shape
+            or pres.shape!=(len(xyz),) or len(xyz)<20
+            or not all(np.isfinite(a).all() for a in (xyz,vel,pres))):
+        raise ValueError("Invalid genuine OpenFOAM U/p samples")
+    return xyz,vel,pres
+
+
+def _legacy_vtk_records(
+    root: Path, solver_times: list[float]
+) -> list[tuple[Path,float]]:
+    """Map old case_N.vtk step indices through verified pimpleFoam time log."""
+    directory=root/"case"/"VTK"
+    if not directory.is_dir():
+        return []
+    found={}
+    for path in directory.glob("case_*.vtk"):
+        match=re.fullmatch(r"case_([0-9]+)\.vtk",path.name)
+        if match and path.is_file():
+            index=int(match.group(1))
+            if 1<=index<=len(solver_times):
+                found[index]=path
+    if len(found)<2:
+        return []
+    indices=sorted(found)
+    chosen=sorted({0,len(indices)//2,len(indices)-1})
+    return [(found[indices[i]],solver_times[indices[i]-1]) for i in chosen]
+
+
 def _collect_vtk(
     root: Path, *, selected_time_names: list[str] | None = None,
     export_name: str = "VTK",
+    source_records: list[tuple[Path,float]] | None = None,
 ) -> dict:
     """Read ONLY actual OpenFOAM foamToVTK outputs. No synthetic fallback."""
     import meshio
@@ -404,7 +482,21 @@ def _collect_vtk(
         raise ValueError("Invalid OpenFOAM VTK output directory")
     # Constrain import to this conversion attempt: legacy case/VTK may
     # contain an initial unsolved 0/ field or unsupported polyhedral files.
-    paths=sorted((case/export_name).rglob("*.vtk"),key=vtk_sort_key)
+    if source_records is not None:
+        if not 2<=len(source_records)<=MAX_FRAMES:
+            raise ValueError("At least two authentic VTK records needed")
+        records=sorted(source_records,key=lambda item:item[1])
+        for path,t in records:
+            if (path.parent.resolve()!=(case/"VTK").resolve()
+                    or not path.is_file() or path.suffix!=".vtk"
+                    or not np.isfinite(t) or t<=0):
+                raise ValueError("Invalid original VTK path or physical time")
+        if any(b[1]<=a[1] for a,b in zip(records,records[1:])):
+            raise ValueError("Original CFD time sequence is not increasing")
+        paths=[p for p,t in records]
+        selected_time_names=[str(t) for p,t in records]
+    else:
+        paths=sorted((case/export_name).rglob("*.vtk"),key=vtk_sort_key)
     if len(paths)<2:
         raise ValueError("No real time-dependent OpenFOAM VTK snapshots available")
     if selected_time_names is not None and len(paths)!=len(selected_time_names):
@@ -418,40 +510,45 @@ def _collect_vtk(
     p_frames=[]
     files=[]
     read_errors=[]
+    used_native=False
     for path in paths:
         if len(times)>=MAX_FRAMES:
             break
-        # Skip boundary-only/patch VTK, require both vector U and scalar p.
+        native=False
         try:
             obj=meshio.read(path)
-        except (Exception, SystemExit) as exc:
-            # meshio's legacy reader can call sys.exit on unhandled VTK
-            # POLYHEDRON (type 42); never leave a stale RUNNING manifest.
-            read_errors.append(f"{path.name}: {type(exc).__name__}: {exc}")
-            continue
-        fields={k.lower():v for k,v in obj.point_data.items()}
-        if "u" in fields and "p" in fields:
-            pts=np.asarray(obj.points,dtype=float)
-            vel=np.asarray(fields["u"],dtype=float)
-            pres=np.asarray(fields["p"],dtype=float).reshape(-1)
-        else:
-            # foamToVTK frequently writes cell-centred finite-volume
-            # fields rather than nodal fields. Sample actual cell centres,
-            # never fill absent solver values with zeros or approximations.
-            blocks=obj.cell_data
-            names={k.lower():v for k,v in blocks.items()}
-            if "u" not in names or "p" not in names:
+        except (Exception,SystemExit) as exc:
+            try:
+                pts,vel,pres=_read_native_polyhedron_vtk(path)
+                native=True
+                used_native=True
+            except (Exception,SystemExit) as vtk_exc:
+                read_errors.append(
+                    f"{path.name}: meshio={type(exc).__name__}: {exc}; "
+                    f"VTK={type(vtk_exc).__name__}: {vtk_exc}"
+                )
                 continue
-            if len(names["u"])!=len(obj.cells) or len(names["p"])!=len(obj.cells):
-                continue
-            pts=np.concatenate([
-                np.asarray(obj.points,dtype=float)[cell.data].mean(axis=1)
-                for cell in obj.cells
-            ])
-            vel=np.concatenate([np.asarray(v,dtype=float) for v in names["u"]])
-            pres=np.concatenate([
-                np.asarray(v,dtype=float).reshape(-1) for v in names["p"]
-            ])
+        if not native:
+            fields={k.lower():v for k,v in obj.point_data.items()}
+            if "u" in fields and "p" in fields:
+                pts=np.asarray(obj.points,dtype=float)
+                vel=np.asarray(fields["u"],dtype=float)
+                pres=np.asarray(fields["p"],dtype=float).reshape(-1)
+            else:
+                blocks=obj.cell_data
+                names={k.lower():v for k,v in blocks.items()}
+                if "u" not in names or "p" not in names:
+                    continue
+                if len(names["u"])!=len(obj.cells) or len(names["p"])!=len(obj.cells):
+                    continue
+                pts=np.concatenate([
+                    np.asarray(obj.points,dtype=float)[cell.data].mean(axis=1)
+                    for cell in obj.cells
+                ])
+                vel=np.concatenate([np.asarray(v,dtype=float) for v in names["u"]])
+                pres=np.concatenate([
+                    np.asarray(v,dtype=float).reshape(-1) for v in names["p"]
+                ])
         if (pts.ndim!=2 or pts.shape[1]!=3 or vel.shape!=pts.shape
                 or pres.shape!=(len(pts),) or len(pts)<20):
             continue
@@ -498,13 +595,18 @@ def _collect_vtk(
     np.savez_compressed(root/"actual_cfd_frames.npz",**payload)
     return {
         "frame_count":len(times),
-        "polyhedron_handling":"OpenFOAM-native -poly-decomp (tet/pyramid VTK export)",
+        "polyhedron_handling":(
+            "Native Python VTK reads VTK_POLYHEDRON type 42"
+            if used_native else "meshio reads supported VTK cell types"
+        ),
         "export_directory":export_name,
         "sample_points_per_frame":length,
         "source_vtk_files":files,
         "fields":["U [m/s]","p [m2/s2] (kinematic)"],
         "time_axis_note":(
-            "Physical seconds checked against selected OpenFOAM U/p directories"
+            ("Physical time from SHA-verified pimpleFoam step records"
+             if source_records is not None else
+             "Physical seconds checked against OpenFOAM U/p directories")
             if selected_time_names is not None else
             "VTK record indices only; physical time unverified"
         ),
@@ -526,7 +628,7 @@ def _export_verified_fields(root: Path, data: dict) -> dict:
     _manifest(root,data)
     export_script=(
         "set -eu\ncd /workspace/case\n"
-        "foamToVTK -legacy -ascii -poly-decomp -no-boundary "
+        "foamToVTK -legacy -ascii -no-boundary "
         "-no-point-data -no-lagrangian -name "+folder_name+" "
         "-time '"+",".join(selected)+"' "
         "-fields '(U p)' > /workspace/foamToVTK.log\n"
@@ -604,15 +706,21 @@ def recover_fields_only(job_id: str) -> dict:
                 "Courant Number" not in solver_log or
                 "End" not in solver_log[-4000:]):
             raise ValueError("Original OpenFOAM transient completion not verified")
-        ok,why=docker_ready()
-        if not ok:
-            raise RuntimeError(why)
         data["status"]="SOLVER_FINISHED_UNVERIFIED_FIELDS"
         data["stage"]="POSTPROCESS_REAL_FIELDS"
         data["recovery_attempted_epoch_s"]=time.time()
         _manifest(root,data)
         try:
-            summary=_export_verified_fields(root,data)
+            records=_legacy_vtk_records(root,steps)
+            if records:
+                summary=_collect_vtk(root,source_records=records)
+                data["recovery_method"]="EXISTING_VTK_NO_DOCKER"
+            else:
+                ok,why=docker_ready()
+                if not ok:
+                    raise RuntimeError(why)
+                summary=_export_verified_fields(root,data)
+                data["recovery_method"]="EXPORT_ORIGINAL_FIELDS_ONLY"
             data.update({
                 "status":"COMPLETED",
                 "stage":"REAL_TRANSIENT_FIELDS_READY",
