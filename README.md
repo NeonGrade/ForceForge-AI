@@ -11,6 +11,15 @@ FEA/CFD evidence.
 
 **CI evidence:** [custom STEP rotor into real OpenFOAM](https://github.com/NeonGrade/ForceForge-AI/actions/runs/43674796795) · [Chromium continuous rotor animation](https://github.com/NeonGrade/ForceForge-AI/actions/runs/43675405969) · [macOS/Linux native CAD/FEA](https://github.com/NeonGrade/ForceForge-AI/actions/runs/43675409014)
 
+## Demo-first launcher
+
+For judges, use **`sh scripts/run_hackathon_demo.sh`** instead of the legacy
+research home screen. It opens a dedicated ForceForge X page with navigation
+to Natural Language CAD, genuine FEA and rotating OpenFOAM CFD, and can
+restore a locally completed SHA-verified CFD job in one click.
+
+[Detailed demo instructions](docs/DEMO_LAUNCH_2026.md) · No rerun of OpenFOAM.
+
 ## Working engineering capabilities
 
 | Workflow | Real and tested | Limitations |

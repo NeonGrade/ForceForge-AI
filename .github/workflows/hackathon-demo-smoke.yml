@@ -1,0 +1,29 @@
+name: Hackathon demo landing and replay smoke
+
+on:
+  push:
+    paths:
+      - 'hackathon_app.py'
+      - 'scripts/run_hackathon_demo.sh'
+      - 'tests/test_hackathon_demo.py'
+      - '.github/workflows/hackathon-demo-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  judge-demo-entry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install fast UI test dependencies
+        run: python -m pip install numpy 'meshio>=5.3,<6' 'streamlit>=1.35,<2' 'plotly>=5.22,<7' pytest
+      - name: Compile judge homepage and check no Docker requirement
+        run: |
+          python -m compileall -q hackathon_app.py
+          python -m pytest -q tests/test_hackathon_demo.py
