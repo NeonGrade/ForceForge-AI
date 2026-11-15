@@ -108,3 +108,93 @@ jobs:
           path: qa/rotating_cfd_proof/
           retention-days: 7
           if-no-files-found: ignore
+
+
+  custom-step-rotor-openfoam:
+    needs: actual-blade-resolved-openfoam
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Native OpenCASCADE and Gmsh loader
+        run: sudo apt-get update -qq && sudo apt-get install -y libglu1-mesa
+      - name: Install real STEP, tetra and VTK dependencies
+        run: python -m pip install -r requirements.txt 'gmsh>=4.12,<5'
+      - name: Pull official OpenFOAM dynamic-mesh runtime
+        run: docker pull opencfd/openfoam-default:2512
+      - name: REAL 300 mm STEP rotor -> STL -> AMI remesh -> OpenFOAM pimpleFoam
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import shutil
+          import time
+          from forceforge.engineering_schema import interpret_text,approve_demo_assumptions
+          from forceforge.product_cad import generate_product
+          from forceforge.rotor_surface import extract_rotor_from_step
+          from forceforge.rotating_cfd import (
+              ROOT,ReferenceControls,launch_reference_job,job_status,load_actual_frames
+          )
+
+          study=approve_demo_assumptions(interpret_text(
+              "做一个直径300mm转速600RPM的壁挂风扇，分析叶片实际旋转CFD"
+          ).request)
+          cad=generate_product(study)
+          rotor=extract_rotor_from_step(study,cad.step_bytes)
+          assert cad.sha256==rotor.cad_source_sha256
+          controls=ReferenceControls(rpm=600,end_time_s=.008,write_interval_s=.002)
+          job_id=launch_reference_job(
+              controls,custom_rotor_stl=rotor.stl_bytes,
+              custom_source_sha256=cad.sha256,
+              custom_diameter_mm=float(study.geometry.diameter_mm),
+          )
+          print("REAL CUSTOM ROTOR OPENFOAM JOB:",job_id,flush=True)
+          deadline=time.time()+780
+          previous=None
+          while time.time()<deadline:
+              status=job_status(job_id)
+              stage=status.get("stage")
+              if stage!=previous:
+                  print(json.dumps({
+                      "stage":stage,"status":status.get("status"),
+                      "message":status.get("message"),
+                  }),flush=True)
+                  previous=stage
+              if status.get("status") in ("COMPLETED","FAILED"):
+                  break
+              time.sleep(4)
+          root=ROOT/job_id
+          dest=Path("qa/custom_rotor_cfd_proof")
+          dest.mkdir(parents=True,exist_ok=True)
+          for name in ("status.json","copy_openfoam.log","checkMesh.log",
+                       "log.pimpleFoam","solver_console.log","foamToVTK.log",
+                       "source_rotor_mesh_sha256"):
+              entry=root/name
+              if entry.is_file():
+                  shutil.copy2(entry,dest/name)
+          (dest/"original_step_source_sha256.txt").write_text(cad.sha256)
+          (dest/"derived_rotor_stl_sha256.txt").write_text(rotor.stl_sha256)
+          if status.get("status")!="COMPLETED":
+              raise RuntimeError(
+                  "Actual USER STEP -> rotating OpenFOAM CFD not yet verified: "+
+                  str(status.get("message",status.get("stage")))
+              )
+          assert status["geometry_origin"]=="USER_STEP_ROTOR_IN_OFFICIAL_REFERENCE_ROOM"
+          assert status["verified_mesh_input_rotor_stl_sha256"]==rotor.stl_sha256
+          frames=load_actual_frames(job_id)
+          assert frames["velocity_m_s"].shape[0]>=2
+          assert frames["velocity_m_s"].max()>0
+          shutil.copy2(root/"actual_cfd_frames.npz",dest/"actual_cfd_frames.npz")
+          print("PASS REAL CUSTOM STEP ROTOR TRANSIENT CFD:",status["result"],flush=True)
+          PY
+      - name: Save actual source-STEP CFD solver evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-step-rotating-blade-openfoam-evidence
+          path: qa/custom_rotor_cfd_proof/
+          retention-days: 7
+          if-no-files-found: ignore
