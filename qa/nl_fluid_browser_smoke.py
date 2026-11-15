@@ -53,7 +53,11 @@ def main():
         OUTPUT.mkdir(parents=True,exist_ok=True)
         with sync_playwright() as pw:
             browser=pw.chromium.launch(headless=True,args=["--no-sandbox"])
-            context=browser.new_context(viewport={"width":1440,"height":900})
+            context=browser.new_context(
+                viewport={"width":1440,"height":900},
+                record_video_dir=str(OUTPUT),
+                record_video_size={"width":1440,"height":900},
+            )
             page=context.new_page()
             js_errors=[]
             page.on("pageerror",lambda exc:js_errors.append(str(exc)))
@@ -95,6 +99,7 @@ def main():
                 page.screenshot(
                     path=str(OUTPUT/"01_real_fan_step.png"),full_page=True,
                 )
+                page.wait_for_timeout(2500)
 
                 mesher=page.get_by_role(
                     "button",
@@ -118,6 +123,7 @@ def main():
                 page.screenshot(
                     path=str(OUTPUT/"02_real_fan_air_tetra_mesh.png"),full_page=True,
                 )
+                page.wait_for_timeout(3500)
                 with urlopen(base+"/_stcore/health",timeout=4) as response:
                     assert response.status==200
                 assert not page.get_by_text("Connection error").is_visible()
