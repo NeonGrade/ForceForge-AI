@@ -26,7 +26,7 @@ jobs:
           python -m pip install numpy 'plotly>=5.22,<7' playwright
           python -m playwright install --with-deps chromium
       - name: Verify repeated Play/Pause real WebGL rotor motion
-        run: python qa/rotor_loop_browser_smoke.py
+        run: python -m qa.rotor_loop_browser_smoke
       - name: Store QA-only browser screenshots
         if: always()
         uses: actions/upload-artifact@v4
