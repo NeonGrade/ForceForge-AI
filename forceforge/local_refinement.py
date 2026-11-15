@@ -16,7 +16,7 @@ from typing import Callable
 import math
 import numpy as np
 
-from .stress_probe import probe_stress
+from .stress_probe import probe_stress, probe_physical_hotspot
 from .mesh_verification import _fractional_difference
 
 
@@ -48,6 +48,9 @@ class LocalRefinementEvidence:
     region_mean_change_percent: float
     region_p90_change_percent: float
     hotspot_move_mm: float
+    matched_physical_hotspot_regions: tuple[dict, ...]
+    maximum_fixed_site_mean_change_percent: float | None
+    maximum_fixed_site_p90_change_percent: float | None
     peak_near_fixed_boundary: bool
     refinement_mono: bool
     status: str
@@ -110,6 +113,49 @@ def assess_hotspot_refinement(original, refined1, refined2,
         and records[1].mesh_tetra_count>=1.1*records[0].mesh_tetra_count
         and records[2].mesh_tetra_count>=1.1*records[1].mesh_tetra_count
     )
+    # If two meshes report different global maxima, compare EACH physical
+    # candidate location independently using a FIXED 7 mm Gauss-volume
+    # integration region on both refined meshes. Without this, a harmless
+    # switch between two competing stress hotspots looks like FE divergence.
+    matched_regions=[]
+    matched_error=None
+    if moved>.08*extent_mm:
+        for center in (
+            np.asarray(refined1.sampled_peak_location_m,dtype=float),
+            np.asarray(refined2.sampled_peak_location_m,dtype=float),
+        ):
+            try:
+                a=probe_physical_hotspot(refined1,center,radius_mm=7.)
+                b=probe_physical_hotspot(refined2,center,radius_mm=7.)
+                matched_regions.append({
+                    "center_xyz_mm":a.center_mm,
+                    "radius_mm":7.,
+                    "mesh_A_gauss_samples":a.gauss_samples,
+                    "mesh_B_gauss_samples":b.gauss_samples,
+                    "mesh_A_volume_weighted_mean_mpa":a.weighted_mean_mpa,
+                    "mesh_B_volume_weighted_mean_mpa":b.weighted_mean_mpa,
+                    "mean_change_percent":_fractional_difference(
+                        b.weighted_mean_mpa,a.weighted_mean_mpa
+                    ),
+                    "mesh_A_weighted_p90_mpa":a.weighted_p90_mpa,
+                    "mesh_B_weighted_p90_mpa":b.weighted_p90_mpa,
+                    "p90_change_percent":_fractional_difference(
+                        b.weighted_p90_mpa,a.weighted_p90_mpa
+                    ),
+                })
+            except ValueError as exc:
+                matched_error=str(exc)
+                matched_regions=[]
+                break
+    maximum_site_mean=(
+        max(p["mean_change_percent"] for p in matched_regions)
+        if len(matched_regions)==2 else None
+    )
+    maximum_site_p90=(
+        max(p["p90_change_percent"] for p in matched_regions)
+        if len(matched_regions)==2 else None
+    )
+
     if not monotone:
         status="REFINEMENT_INSUFFICIENT"
         reason=(
@@ -123,19 +169,41 @@ def assess_hotspot_refinement(original, refined1, refined2,
             "A hard fixed face/corner may produce a nonconvergent stress maximum. "
             "Real attachment geometry/contact must be characterized and modeled."
         )
-    elif peak_change>5. or mean_change>5. or p90_change>5. or moved>.08*extent_mm:
+    elif peak_change>5. or mean_change>5. or p90_change>5.:
         status="LOCAL_STRESS_NOT_CONVERGED"
         reason=(
-            "Under actual targeted tetra refinement, global peak / "
-            "fixed-region stress / physical hotspot location changes too much. "
-            "Additional physical fixture detail or refined numerical runs required."
+            "Under actual targeted tetra refinement, at least one global "
+            "peak or finite-region stress change exceeds the 5% numerical "
+            "screen. Do not claim local-stress convergence."
         )
+    elif moved>.08*extent_mm:
+        # The top Gauss point moved to another candidate physical hotspot.
+        # Check whether both FIXED spatial regions give consistent stress.
+        if (len(matched_regions)==2
+                and maximum_site_mean<=5. and maximum_site_p90<=5.):
+            status="PRELIMINARY_COMPETING_HOTSPOT_STABILITY"
+            reason=(
+                "The global maximum moved between two distinct physical "
+                "hotspots, but both fixed 7 mm spherical regions have "
+                "<=5% change in weighted mean and P90 stress between the "
+                "last two independently solved meshes. The two locations "
+                "remain separate critical regions. This is a preliminary "
+                "multi-site *numerical* stress screen, NOT an approval."
+            )
+        else:
+            status="MULTIPLE_HOTSPOTS_NOT_CORRELATED"
+            reason=(
+                "The maximum stress moved to another physical site and "
+                "matching fixed-region stresses did not meet the 5% "
+                "screen or could not be reliably sampled. "
+                + (matched_error or "Site stress changes exceed limits.")
+            )
     else:
         status="PRELIMINARY_LOCAL_STRESS_SCREEN_MET"
         reason=(
-            "Three mesh solutions pass a heuristic 5% sampled-stress "
-            "sensitivity screen and location consistency. This is a "
-            "preliminary numerical check, NOT a stress or safety certificate."
+            "The sampled maximum, physical region stresses and hotspot "
+            "location passed conservative numerical sensitivity checks. "
+            "This is preliminary FE evidence, NOT a structural certificate."
         )
     return LocalRefinementEvidence(
         source_sha256=source_hash,
@@ -147,6 +215,9 @@ def assess_hotspot_refinement(original, refined1, refined2,
         region_mean_change_percent=mean_change,
         region_p90_change_percent=p90_change,
         hotspot_move_mm=moved,
+        matched_physical_hotspot_regions=tuple(matched_regions),
+        maximum_fixed_site_mean_change_percent=maximum_site_mean,
+        maximum_fixed_site_p90_change_percent=maximum_site_p90,
         peak_near_fixed_boundary=near_clamp,
         refinement_mono=monotone,
         status=status,explanation=reason,
