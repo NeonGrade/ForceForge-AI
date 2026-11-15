@@ -234,8 +234,8 @@ def _sourced_velocity_plot(fields:dict)->go.Figure:
             size=3.2,color=v,cmin=0,cmax=top,colorscale="Turbo",
             opacity=.84,
             colorbar=dict(
-                title="|U| m/s",thickness=12,len=.75,tickfont=dict(color="#afcfdd"),
-                titlefont=dict(color="#afcfdd")
+                title=dict(text="|U| m/s",font=dict(color="#afcfdd")),
+                thickness=12,len=.75,tickfont=dict(color="#afcfdd")
             )
         ),
         customdata=v,
