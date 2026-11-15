@@ -1,5 +1,6 @@
 name: Real STEP / OpenCASCADE Integration
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'forceforge/step_mesh.py'
