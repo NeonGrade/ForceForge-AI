@@ -40,7 +40,7 @@ st.set_page_config(
 )
 
 st.title("Real CAD → 3D Solid FEA → CAD Revision")
-st.page_link("pages/14_Natural_Language_Engineering.py",label="Try the new natural-language product modeling studio")
+st.markdown("[Try the natural-language product modeling studio](./Natural_Language_Engineering)")
 st.caption(
     "Stable mode · CAD and FEA start only when you press Run · native "
     "Gmsh and sparse 3D FEM run in separate bounded worker processes."
