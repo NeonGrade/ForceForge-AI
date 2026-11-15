@@ -8,9 +8,9 @@ st.set_page_config(page_title="ForceForge | 3D Solid FEA", layout="wide")
 st.title("ForceForge | 3D Solid FEA")
 st.warning("Educational linear-elastic tetrahedral prototype. No contacts, thermal stress, fatigue or certification. Verify boundary conditions and mesh convergence.")
 st.caption("STEP import uses Gmsh OpenCASCADE. CAD coordinate units must be selected explicitly.")
-source = st.radio("Geometry", ["Built-in solid cantilever", "Upload STEP assembly"], horizontal=True)
+source = st.radio("Geometry", ["Built-in rectangular solid", "Upload STEP solid geometry (experimental)"], horizontal=True)
 mesh_size_mm = st.slider("Target tetrahedral size (mm)", 2.0, 25.0, 8.0, 1.0)
-if source == "Built-in solid cantilever":
+if source == "Built-in rectangular solid":
     length = st.number_input("Length (mm)", 20., 500., 100.)
     width = st.number_input("Width (mm)", 5., 150., 20.)
     height = st.number_input("Height (mm)", 5., 150., 20.)
@@ -29,6 +29,8 @@ amplification = st.slider("Deformation display amplification", 0, 300, 100)
 run = st.button("Generate mesh and solve 3D FEA", type="primary")
 
 if run:
+    # Never display an old result if the new meshing/solve attempt fails.
+    st.session_state.pop("solid3d_result", None)
     if geometry[0] == "step" and geometry[1] is None:
         st.error("Upload a STEP file first.")
         st.stop()
@@ -45,7 +47,7 @@ if run:
             result = solve(mesh, E=E_gpa*1e9, poisson=nu, force_n=force,
                            axis=["X","Y","Z"].index(axis))
         st.session_state["solid3d_result"] = (mesh, result)
-    except (ValueError, RuntimeError, ImportError, Exception) as exc:
+    except Exception as exc:
         st.error(f"3D solve failed: {exc}")
         st.stop()
 
