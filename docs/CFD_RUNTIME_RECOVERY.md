@@ -57,3 +57,15 @@ This release **does not** by itself prove a full transient CFD
 solution. The v0.3 integration requires a successful native OpenFOAM
 pimpleFoam + actual U/p field-export test and separate source-STEP
 sliding-AMI acceptance.
+
+## Bounded export and failure evidence
+
+- Postprocessing picks at most three actual nonzero solver write times
+  containing both `U` and `p`; the unsolved initial `0/` is excluded.
+- `foamToVTK -legacy -ascii -no-point-data -no-boundary -time ...`
+  avoids interpolating and exporting all solver time steps.
+- Exactly one validated VTK U/p field frame per selected source time
+  is required before physical seconds are presented in the UI.
+- GitHub Actions uploads `status.json`, `foamToVTK.log`,
+  `export_console.log`, and worker/solver logs on polling timeout.
+- Full dynamic CFD still requires successful real OpenFOAM CI acceptance.

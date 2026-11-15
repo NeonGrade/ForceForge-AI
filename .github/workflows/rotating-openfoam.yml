@@ -64,29 +64,36 @@ jobs:
           print("REAL OPENFOAM JOB:",job_id,flush=True)
           end=time.time()+780
           last=""
-          while time.time()<end:
-              d=job_status(job_id)
-              step=d.get("stage")
-              if step!=last:
-                  print(json.dumps({
-                      "stage":step,
-                      "status":d.get("status"),
-                      "message":d.get("message"),
-                  }),flush=True)
-                  last=step
-              if d.get("status") in ("FAILED","COMPLETED"):
-                  break
-              time.sleep(4)
-          else:
-              raise RuntimeError("Native OpenFOAM transient solve timed out")
           root=ROOT/job_id
           target=Path("qa/rotating_cfd_proof")
           target.mkdir(parents=True,exist_ok=True)
-          for fn in ("status.json","copy_openfoam.log","log.pimpleFoam","checkMesh.log",
-                     "foamToVTK.log","solver_console.log","launcher.log"):
-              src=root/fn
-              if src.exists():
-                  shutil.copy2(src,target/fn)
+          try:
+              while time.time()<end:
+                  d=job_status(job_id)
+                  step=d.get("stage")
+                  if step!=last:
+                      print(json.dumps({
+                          "stage":step,
+                          "status":d.get("status"),
+                          "message":d.get("message"),
+                      }),flush=True)
+                      last=step
+                  if d.get("status") in ("FAILED","COMPLETED"):
+                      break
+                  time.sleep(4)
+              else:
+                  raise RuntimeError("Native OpenFOAM transient solve timed out")
+          finally:
+              # Retain logs and status even if the polling deadline expires.
+              for fn in ("status.json","copy_openfoam.log","log.pimpleFoam",
+                         "checkMesh.log","foamToVTK.log","export_console.log",
+                         "solver_console.log","launcher.log"):
+                  src=root/fn
+                  if src.exists():
+                      shutil.copy2(src,target/fn)
+                      if fn in ("foamToVTK.log","export_console.log","launcher.log"):
+                          print("DIAGNOSTIC "+fn+": "+src.read_text(
+                              errors="replace")[-1000:],flush=True)
           if d.get("status")!="COMPLETED":
               raise AssertionError(
                   "Actual OpenFOAM rotating-mesh/AMI CFD verification failed: "
@@ -155,29 +162,37 @@ jobs:
           print("REAL CUSTOM ROTOR OPENFOAM JOB:",job_id,flush=True)
           deadline=time.time()+780
           previous=None
-          while time.time()<deadline:
-              status=job_status(job_id)
-              stage=status.get("stage")
-              if stage!=previous:
-                  print(json.dumps({
-                      "stage":stage,"status":status.get("status"),
-                      "message":status.get("message"),
-                  }),flush=True)
-                  previous=stage
-              if status.get("status") in ("COMPLETED","FAILED"):
-                  break
-              time.sleep(4)
           root=ROOT/job_id
           dest=Path("qa/custom_rotor_cfd_proof")
           dest.mkdir(parents=True,exist_ok=True)
-          for name in ("status.json","copy_openfoam.log","checkMesh.log",
-                       "log.pimpleFoam","solver_console.log","foamToVTK.log",
-                       "source_rotor_mesh_sha256"):
-              entry=root/name
-              if entry.is_file():
-                  shutil.copy2(entry,dest/name)
-          (dest/"original_step_source_sha256.txt").write_text(cad.sha256)
-          (dest/"derived_rotor_stl_sha256.txt").write_text(rotor.stl_sha256)
+          try:
+              while time.time()<deadline:
+                  status=job_status(job_id)
+                  stage=status.get("stage")
+                  if stage!=previous:
+                      print(json.dumps({
+                          "stage":stage,"status":status.get("status"),
+                          "message":status.get("message"),
+                      }),flush=True)
+                      previous=stage
+                  if status.get("status") in ("COMPLETED","FAILED"):
+                      break
+                  time.sleep(4)
+              else:
+                  raise RuntimeError("Native custom STEP rotor CFD timed out")
+          finally:
+              for name in ("status.json","copy_openfoam.log","checkMesh.log",
+                           "log.pimpleFoam","solver_console.log","foamToVTK.log",
+                           "export_console.log","launcher.log",
+                           "source_rotor_mesh_sha256"):
+                  entry=root/name
+                  if entry.is_file():
+                      shutil.copy2(entry,dest/name)
+                      if name in ("foamToVTK.log","export_console.log","launcher.log"):
+                          print("DIAGNOSTIC "+name+": "+entry.read_text(
+                              errors="replace")[-1000:],flush=True)
+              (dest/"original_step_source_sha256.txt").write_text(cad.sha256)
+              (dest/"derived_rotor_stl_sha256.txt").write_text(rotor.stl_sha256)
           if status.get("status")!="COMPLETED":
               raise RuntimeError(
                   "Actual USER STEP -> rotating OpenFOAM CFD not yet verified: "+

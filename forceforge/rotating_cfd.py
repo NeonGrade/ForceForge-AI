@@ -348,7 +348,43 @@ def _parse_time(s: str) -> float | None:
     return val if np.isfinite(val) and val > 0 else None
 
 
-def _collect_vtk(root: Path) -> dict:
+
+def _select_export_time_names(case: Path) -> list[str]:
+    """Bound VTK to real nonzero solver writes with both computed U and p."""
+    available=[]
+    for directory in case.iterdir():
+        name=directory.name
+        if (not directory.is_dir() or not re.fullmatch(
+            r"(?:0|[1-9][0-9]*)(?:[.][0-9]+)?(?:[eE][+-]?[0-9]+)?",name
+        )):
+            continue
+        when=float(name)
+        if not np.isfinite(when) or when<=0:
+            continue
+        if all(
+            (directory/field).is_file() or (directory/(field+".gz")).is_file()
+            for field in ("U","p")
+        ):
+            available.append((when,name))
+    available.sort()
+    if len(available)<2:
+        raise ValueError(
+            "Fewer than two genuine nonzero OpenFOAM write directories "
+            "contain both solved U and p fields"
+        )
+    selected=sorted({0,len(available)//2,len(available)-1})
+    return [available[index][1] for index in selected]
+
+
+def _file_sha256(path: Path) -> str:
+    digest=sha256()
+    with path.open("rb") as reader:
+        for chunk in iter(lambda:reader.read(1024*1024),b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _collect_vtk(root: Path, *, selected_time_names: list[str] | None = None) -> dict:
     """Read ONLY actual OpenFOAM foamToVTK outputs. No synthetic fallback."""
     import meshio
 
@@ -419,28 +455,40 @@ def _collect_vtk(root: Path) -> dict:
         u_frames.append(vel[sel])
         p_frames.append(pres[sel])
         files.append({"path":str(path.relative_to(root)),
-                      "sha256":sha256(path.read_bytes()).hexdigest()})
+                      "sha256":_file_sha256(path)})
     if len(times)<2:
         raise ValueError(
             "Unable to validate at least two snapshots with real U/p fields "
             "and extractable time labels. CFD status remains unverified."
         )
-    # Store dimensions explicitly. VTK indices are not assumed physical
-    # seconds unless a genuine time mapping is recorded elsewhere.
+    if selected_time_names is not None and len(times)!=len(selected_time_names):
+        raise ValueError(
+            f"Export yielded {len(times)} verified U/p frames, expected "
+            f"{len(selected_time_names)} genuine solver write times"
+        )
+    # Only a one-to-one mapping to solver write directories licenses seconds.
     length=min(map(len,xyz_frames))
-    np.savez_compressed(
-        root/"actual_cfd_frames.npz",
-        sample_points=np.stack([a[:length] for a in xyz_frames]),
-        velocity_m_s=np.stack([a[:length] for a in u_frames]),
-        kinematic_pressure_m2_s2=np.stack([a[:length] for a in p_frames]),
-        vtk_record_indices=np.asarray(times),
-    )
+    payload={
+        "sample_points":np.stack([a[:length] for a in xyz_frames]),
+        "velocity_m_s":np.stack([a[:length] for a in u_frames]),
+        "kinematic_pressure_m2_s2":np.stack([a[:length] for a in p_frames]),
+        "vtk_record_indices":np.asarray(times),
+    }
+    if selected_time_names is not None:
+        payload["physical_time_s"]=np.asarray(
+            [float(name) for name in selected_time_names],dtype=float
+        )
+    np.savez_compressed(root/"actual_cfd_frames.npz",**payload)
     return {
         "frame_count":len(times),
         "sample_points_per_frame":length,
         "source_vtk_files":files,
         "fields":["U [m/s]","p [m2/s2] (kinematic)"],
-        "time_axis_note":"VTK file indices; physical time requires case postProcessing mapping",
+        "time_axis_note":(
+            "Physical seconds checked against selected OpenFOAM U/p directories"
+            if selected_time_names is not None else
+            "VTK record indices only; physical time unverified"
+        ),
         "file_sha256":sha256((root/"actual_cfd_frames.npz").read_bytes()).hexdigest(),
     }
 
@@ -604,13 +652,21 @@ pimpleFoam > /workspace/log.pimpleFoam
             "steps":len(times),
             "solver_log_sha256":sha256(log.encode()).hexdigest(),
         });_manifest(root,data)
-        export_script=r'''
-set -eu
-cd /workspace/case
-foamToVTK -legacy -ascii -no-boundary -fields '(U p)' > /workspace/foamToVTK.log
-'''
-        _docker(root,export_script,100,"export_console.log")
-        summary=_collect_vtk(root)
+        selected_time_names=_select_export_time_names(root/"case")
+        data["selected_export_source_times_s"]=[
+            float(name) for name in selected_time_names
+        ]
+        _manifest(root,data)
+        # Restrict export to at most three *actual* solver writes. Cell
+        # data only avoids costly nodal interpolation of the full mesh.
+        export_script=(
+            "set -eu\ncd /workspace/case\n"
+            "foamToVTK -legacy -ascii -no-boundary -no-point-data "
+            "-no-lagrangian -time '"+",".join(selected_time_names)+"' "
+            "-fields '(U p)' > /workspace/foamToVTK.log\n"
+        )
+        _docker(root,export_script,120,"export_console.log")
+        summary=_collect_vtk(root,selected_time_names=selected_time_names)
         data.update({
             "status":"COMPLETED","stage":"REAL_TRANSIENT_FIELDS_READY",
             "source_type":data["geometry_origin"],
@@ -638,10 +694,13 @@ def load_actual_frames(job_id: str):
     if sha256(path.read_bytes()).hexdigest()!=status["result"]["file_sha256"]:
         raise ValueError("Corrupted actual CFD output; refuse to display")
     with np.load(path,allow_pickle=False) as a:
-        return {k:a[k].copy() for k in (
+        fields={k:a[k].copy() for k in (
             "sample_points","velocity_m_s","kinematic_pressure_m2_s2",
             "vtk_record_indices",
         )}
+        if "physical_time_s" in a.files:
+            fields["physical_time_s"]=a["physical_time_s"].copy()
+        return fields
 
 
 if __name__=="__main__":

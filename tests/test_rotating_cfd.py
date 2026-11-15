@@ -12,7 +12,7 @@ import pytest
 
 from forceforge.rotating_cfd import (
     ReferenceControls, _replace_scalar, adapt_reference_case,
-    _valid_job_root, _collect_vtk, SCENE_KIND,
+    _valid_job_root, _collect_vtk, _select_export_time_names, SCENE_KIND,
 )
 
 
@@ -67,6 +67,52 @@ def test_dictionary_requires_single_entry_for_every_control():
 def test_job_path_rejects_traversal_and_unapproved_location(value):
     with pytest.raises(ValueError):
         _valid_job_root(value)
+
+
+
+def test_vtk_export_only_selects_written_nonzero_u_and_p_times(tmp_path):
+    for name in ("0","0.002","0.004","0.006","0.008","notes"):
+        folder=tmp_path/name
+        folder.mkdir()
+        (folder/"U").write_text("fixture")
+        if name!="0.004":
+            (folder/"p").write_text("fixture")
+    assert _select_export_time_names(tmp_path)==[
+        "0.002","0.006","0.008"
+    ]
+
+
+def test_vtk_export_refuses_missing_real_solver_times(tmp_path):
+    folder=tmp_path/"0.002"
+    folder.mkdir()
+    (folder/"U").write_text("fixture")
+    (folder/"p").write_text("fixture")
+    with pytest.raises(ValueError,match="Fewer than two"):
+        _select_export_time_names(tmp_path)
+
+
+def test_reject_vtk_frame_count_mismatch_and_preserve_real_seconds(tmp_path):
+    meshio=pytest.importorskip("meshio")
+    out=tmp_path/"case"/"VTK"
+    out.mkdir(parents=True)
+    pts=np.column_stack([np.linspace(0,1,30),np.zeros(30),np.zeros(30)])
+    for k in (1,2):
+        meshio.write(
+            out/f"fan_{k:04d}.vtk",
+            meshio.Mesh(
+                points=pts,
+                cells=[("triangle",np.array([[0,1,2]],dtype=int))],
+                point_data={"U":np.tile([1.,0.,0.],(30,1)),
+                            "p":np.full(30,k*.01)},
+            ),file_format="vtk",binary=False,
+        )
+    with pytest.raises(ValueError,match="expected 3 genuine solver"):
+        _collect_vtk(tmp_path,selected_time_names=["0.002","0.004","0.008"])
+    assert not (tmp_path/"actual_cfd_frames.npz").exists()
+    evidence=_collect_vtk(tmp_path,selected_time_names=["0.002","0.008"])
+    assert "Physical seconds" in evidence["time_axis_note"]
+    with np.load(tmp_path/"actual_cfd_frames.npz",allow_pickle=False) as saved:
+        assert saved["physical_time_s"].tolist()==[.002,.008]
 
 
 def test_parser_reads_numeric_fields_only_from_real_vtk_files(tmp_path):

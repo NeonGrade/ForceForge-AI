@@ -289,6 +289,7 @@ if job:
                 velocity=fields["velocity_m_s"]
                 pressure=fields["kinematic_pressure_m2_s2"]
                 ids=fields["vtk_record_indices"]
+                physical_times=fields.get("physical_time_s")
                 if xyz.shape!=velocity.shape or (
                     pressure.shape!=xyz.shape[:2]
                 ) or xyz.shape[0]<2:
@@ -380,7 +381,8 @@ if job:
                     sliders=[{
                         "active":select,"pad":{"t":24},
                         "steps":[{
-                            "label":str(i),
+                            "label":(f"{physical_times[i]:.4f} s"
+                                     if physical_times is not None else str(i)),
                             "method":"animate",
                             "args":[[str(i)],{
                                 "mode":"immediate",
@@ -408,12 +410,14 @@ if job:
                 mean_speed=np.mean(speed,axis=1)
                 chart=go.Figure()
                 chart.add_trace(go.Scatter(
-                    x=np.arange(n),y=mean_speed,mode="lines+markers",
+                    x=(physical_times if physical_times is not None else np.arange(n)),
+                    y=mean_speed,mode="lines+markers",
                     name="Average sampled speed",
                 ))
                 chart.update_layout(
                     title="Computed sampled velocity evolution",
-                    xaxis_title="VTK record index (NOT physical time)",
+                    xaxis_title=("Simulation time (s)" if physical_times is not None
+                                 else "VTK record index (NOT physical time)"),
                     yaxis_title="Mean |U| (m/s)",
                     height=270,margin=dict(l=40,r=20,t=50,b=40),
                 )
@@ -430,8 +434,9 @@ if job:
                 )
                 st.caption(
                     "Field values are actual OpenFOAM outputs. Display samples "
-                    "up to 500 real mesh vertices per frame, not every CFD cell. "
-                    "VTK index labels are NOT claimed physical timestamps. "
+                    "up to 500 real mesh points or cell centres per frame. "
+                    "Physical seconds are shown only after matching exported "
+                    "frames to genuine OpenFOAM solver write directories. "
                     "This is a reference fan / room case, with no "
                     "ForceForge STEP-to-CFD geometry identity or mesh-convergence proof."
                 )
