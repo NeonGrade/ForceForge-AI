@@ -11,8 +11,10 @@ from dataclasses import asdict, dataclass
 from hashlib import sha256
 from typing import Callable, Sequence
 import math
+import numpy as np
 
 from .cad_solid import CADFEAResult, CadLoad
+from .stress_probe import probe_stress
 
 
 @dataclass(frozen=True)
@@ -26,6 +28,15 @@ class MeshEvidenceRow:
     peak_sampled_mises_mpa: float
     strain_energy_mj: float
     reaction_residual: float
+    probe_weighted_mean_mpa: float
+    probe_weighted_p90_mpa: float
+    probe_gauss_samples: int
+    probe_volume_percent: float
+    hotspot_x_mm: float
+    hotspot_y_mm: float
+    hotspot_z_mm: float
+    hotspot_support_fraction: float
+    hotspot_zone: str
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -42,6 +53,12 @@ class MeshEvidence:
     fine_vs_medium_stress_percent: float | None
     medium_vs_coarse_displacement_percent: float | None
     limitations: str
+    local_peak_status: str
+    physical_band_stress_status: str
+    engineering_evidence_status: str
+    fine_medium_probe_mean_percent: float
+    fine_medium_probe_p90_percent: float
+    fine_medium_hotspot_drift_mm: float
 
     def as_dict(self) -> dict:
         data = asdict(self)
@@ -103,6 +120,11 @@ def assess_mesh_evidence(results: Sequence[CADFEAResult],
     if any(x.load != expected_load for x in results):
         raise ValueError("Load/material/constraint mismatch between mesh solves")
     ordered = sorted(results, key=lambda x: x.mesh.mesh_size_mm, reverse=True)
+    # A physically fixed 5–30% support-to-load band is sampled in
+    # millimetre coordinates, independent of mesh node / element numbering.
+    # Exact Gauss-volume weights make these finite-region integrals
+    # meaningful even when mesh sizes differ.
+    probes = [probe_stress(x) for x in ordered]
     rows = tuple(
         MeshEvidenceRow(
             target_size_mm=float(x.mesh.mesh_size_mm),
@@ -114,7 +136,16 @@ def assess_mesh_evidence(results: Sequence[CADFEAResult],
             peak_sampled_mises_mpa=x.peak_von_mises_mpa,
             strain_energy_mj=1000 * x.strain_energy_j,
             reaction_residual=x.relative_reaction_residual,
-        ) for x in ordered
+            probe_weighted_mean_mpa=p.mean_von_mises_mpa,
+            probe_weighted_p90_mpa=p.p90_von_mises_mpa,
+            probe_gauss_samples=p.gauss_samples,
+            probe_volume_percent=p.volume_fraction_percent,
+            hotspot_x_mm=p.global_peak_location_mm[0],
+            hotspot_y_mm=p.global_peak_location_mm[1],
+            hotspot_z_mm=p.global_peak_location_mm[2],
+            hotspot_support_fraction=p.global_peak_support_distance_fraction,
+            hotspot_zone=p.global_peak_zone,
+        ) for x,p in zip(ordered,probes)
     )
     if any(
         not math.isfinite(value)
@@ -168,6 +199,68 @@ def assess_mesh_evidence(results: Sequence[CADFEAResult],
                 "Global tip displacement has not met the preliminary "
                 "mesh-stability screen. Refine again or review discretization.",
             )
+    # Separate the actual engineering quantities. A stable *global*
+    # displacement never implies a stable local Gauss stress extremum.
+    normal_refinement = (
+        rows[0].tetrahedra < rows[1].tetrahedra < rows[2].tetrahedra
+        and rows[1].tetrahedra >= 1.1 * rows[0].tetrahedra
+        and rows[2].tetrahedra >= 1.1 * rows[1].tetrahedra
+    )
+    probe_mean_diff = _fractional_difference(
+        rows[2].probe_weighted_mean_mpa, rows[1].probe_weighted_mean_mpa
+    )
+    probe_p90_diff = _fractional_difference(
+        rows[2].probe_weighted_p90_mpa, rows[1].probe_weighted_p90_mpa
+    )
+    peak_difference = _fractional_difference(
+        rows[2].peak_sampled_mises_mpa, rows[1].peak_sampled_mises_mpa
+    )
+    hotspot_drift_mm = float(np.linalg.norm(
+        np.array(probes[2].global_peak_location_mm)
+        - np.array(probes[1].global_peak_location_mm)
+    ))
+    span_mm=float(
+        (ordered[2].mesh.bbox_m[1,expected_load.boundary_axis] -
+         ordered[2].mesh.bbox_m[0,expected_load.boundary_axis])*1000
+    )
+    # This is an explicit conservative *screen*, not ASTM or code approval:
+    # 5% differences, same physical neighbourhood, and no mesh-count
+    # problems are necessary but are not sufficient for local stress proof.
+    peak_wanders = hotspot_drift_mm > 0.08*span_mm
+    near_ideal_fixture = (
+        probes[1].global_peak_support_distance_fraction<=.05
+        or probes[2].global_peak_support_distance_fraction<=.05
+    )
+    if not normal_refinement or decision=="INVALID_MODEL_EVIDENCE":
+        peak_status="UNVERIFIED_MESH_REFINEMENT"
+        probe_status="UNVERIFIED_MESH_REFINEMENT"
+    else:
+        finite_stable = (
+            probe_mean_diff is not None and probe_mean_diff<=5.
+            and probe_p90_diff is not None and probe_p90_diff<=5.
+        )
+        peak_stable = (
+            peak_difference is not None and peak_difference<=5.
+            and not peak_wanders and not near_ideal_fixture
+        )
+        probe_status = (
+            "PRELIMINARY_FINITE_REGION_STRESS_STABILITY"
+            if finite_stable else "FINITE_REGION_STRESS_UNRESOLVED"
+        )
+        peak_status = (
+            "PRELIMINARY_PEAK_STRESS_STABILITY"
+            if peak_stable else "PEAK_STRESS_UNRESOLVED"
+        )
+    if (decision=="PRELIMINARY_GLOBAL_DISPLACEMENT_STABILITY"
+            and peak_status=="PRELIMINARY_PEAK_STRESS_STABILITY"
+            and probe_status=="PRELIMINARY_FINITE_REGION_STRESS_STABILITY"):
+        overall="PRELIMINARY_NUMERICAL_SCREENS_MET_NOT_CERTIFIED"
+    elif decision=="INVALID_MODEL_EVIDENCE":
+        overall="INVALID_NUMERICAL_EVIDENCE"
+    elif decision=="PRELIMINARY_GLOBAL_DISPLACEMENT_STABILITY":
+        overall="GLOBAL_DISPLACEMENT_STABLE_LOCAL_STRESS_UNVERIFIED"
+    else:
+        overall="MESH_DEPENDENT_OR_INSUFFICIENT_EVIDENCE"
     return MeshEvidence(
         source_sha256=source_sha256,
         load=expected_load,
@@ -179,6 +272,12 @@ def assess_mesh_evidence(results: Sequence[CADFEAResult],
             rows[2].peak_sampled_mises_mpa, rows[1].peak_sampled_mises_mpa
         ),
         medium_vs_coarse_displacement_percent=_fractional_difference(rows[1].tip_mm, rows[0].tip_mm),
+        local_peak_status=peak_status,
+        physical_band_stress_status=probe_status,
+        engineering_evidence_status=overall,
+        fine_medium_probe_mean_percent=float(probe_mean_diff),
+        fine_medium_probe_p90_percent=float(probe_p90_diff),
+        fine_medium_hotspot_drift_mm=hotspot_drift_mm,
         limitations=(
             "Three grid sizes are a preliminary sensitivity SCREEN, not an "
             "asymptotic convergence proof. Peak sampled von Mises near "
