@@ -115,3 +115,63 @@ def probe_stress(result, *, start: float=PROBE_START_FRACTION,
         global_peak_support_distance_fraction=peak_fraction,
         global_peak_zone=category
     )
+
+
+@dataclass(frozen=True)
+class FixedHotspotRegion:
+    """Finite physical sphere around one candidate stress hotspot."""
+    center_mm: tuple[float,float,float]
+    radius_mm: float
+    gauss_samples: int
+    sampled_volume_percent: float
+    weighted_mean_mpa: float
+    weighted_p90_mpa: float
+    sampled_peak_mpa: float
+
+    def as_dict(self):
+        return asdict(self)
+
+
+def probe_physical_hotspot(result, center_m, *, radius_mm=7.0) -> FixedHotspotRegion:
+    """Stress within a physically fixed 3D ball, not selected mesh elements.
+
+    The same center, radius, source STEP and load must be used across all FE
+    meshes being compared. Reject insufficient quadrature support instead
+    of extrapolating a fabricated stress at an unsampled point.
+    """
+    center=np.asarray(center_m,dtype=float)
+    loc=np.asarray(result.gauss_points_m,dtype=float)
+    vm=np.asarray(result.gauss_von_mises_pa,dtype=float)
+    volume=np.asarray(result.gauss_weights_m3,dtype=float)
+    if center.shape!=(3,) or not np.isfinite(center).all():
+        raise ValueError("Invalid physical hotspot XYZ center")
+    if not 3.<=radius_mm<=15.:
+        raise ValueError("Hotspot probe radius must be within 3–15 mm")
+    if (loc.ndim!=2 or loc.shape[1]!=3 or len(loc)!=len(vm)
+            or len(loc)!=len(volume)
+            or not np.isfinite(loc).all() or
+            not np.isfinite(vm).all() or
+            not np.isfinite(volume).all() or np.any(volume<=0)):
+        raise ValueError("Corrupt 3D Gauss stress quadrature samples")
+    distance=np.linalg.norm(loc-center[None,:],axis=1)
+    mask=distance<=radius_mm*.001
+    count=int(mask.sum())
+    total=float(volume.sum())
+    inside=float(volume[mask].sum()) if count else 0.
+    if count<MIN_GAUSS_SAMPLES or inside/total<MIN_PROBE_VOLUME_FRACTION:
+        raise ValueError(
+            "Physical 3D hotspot probe is undersampled by this mesh "
+            f"(n={count}, volume={inside/total:.2%}); "
+            "cannot compare different mesh local peaks reliably."
+        )
+    a=vm[mask]
+    w=volume[mask]
+    return FixedHotspotRegion(
+        center_mm=tuple(float(x*1000) for x in center),
+        radius_mm=float(radius_mm),
+        gauss_samples=count,
+        sampled_volume_percent=100*inside/total,
+        weighted_mean_mpa=float(np.dot(a,w)/inside)/1e6,
+        weighted_p90_mpa=weighted_percentile(a,w,.90)/1e6,
+        sampled_peak_mpa=float(a.max())/1e6,
+    )
