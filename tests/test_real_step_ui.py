@@ -109,3 +109,33 @@ def test_opt_in_hotspot_refinement_is_physical_and_survives_streamlit_rerun():
     assert len(study.steps)==3
     assert study.source_sha256==app.session_state["stable_initial"]["result"].mesh.source_sha256
     assert all(r.reaction_residual<1e-5 for r in study.steps)
+
+
+def test_dual_hotspot_ui_is_opt_in_and_keeps_previous_fea_results():
+    """End-to-end Streamlit click through real STEP/Gmsh/tetra10 workers."""
+    app=AppTest.from_file(
+        "../pages/13_Real_STEP_Engineering.py",default_timeout=360
+    ).run()
+    assert not app.exception
+    assert "stable_dual_hotspot" not in app.session_state
+    button(app,"Run CAD import + 3D FEA").click().run()
+    assert not app.exception
+    assert "stable_dual_hotspot" not in app.session_state
+    button(app,"Run two local hotspot refinements").click().run()
+    assert not app.exception
+    original=app.session_state["stable_initial"]
+    first=app.session_state["stable_hotspot_study"]["study"]
+    assert len(first.matched_physical_hotspot_regions)==2
+    button(app,"Run dual-hotspot re-mesh + 2 independent 3D FEA solves").click().run()
+    assert not app.exception
+    evidence=app.session_state["stable_dual_hotspot"]["study"]
+    assert len(evidence.steps)==2
+    assert len(evidence.site_rows)==2
+    assert evidence.source_sha256==original["result"].mesh.source_sha256
+    assert "PEAK" in evidence.global_peak_status
+    assert app.session_state["stable_hotspot_study"]["study"] is first
+    # Changing a force should hide, rather than mislabel, stale dual-site data.
+    next(x for x in app.sidebar.slider if x.label == "Transverse force (N)").set_value(310).run()
+    assert not app.exception
+    assert "stable_dual_hotspot" in app.session_state
+    assert not any(x.label == "Largest fixed-site P90 difference" for x in app.metric)
