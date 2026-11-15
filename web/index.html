@@ -40,7 +40,6 @@
       </div>
       <div class="header-divider"></div>
       <div class="breadcrumb"><span class="crumb-muted">Workspace</span><span class="crumb-sep">/</span><span class="crumb-current">Truss Study 01</span><span class="file-tag">2D · STATIC</span></div>
-      <a class="top-button secondary" href="/solid3d" title="Open the HTTP-based 3D solid engineering workspace">3D SOLID FEA</a>
       <div class="header-spacer"></div>
       <div class="status-pill" id="connectionStatus"><span class="status-dot pending"></span><span id="connectionText">Connecting solver</span></div>
       <button class="top-icon-button mobile-only" id="mobileLeft" aria-label="Toggle design settings"><svg class="icon"><use href="#i-menu"/></svg></button>
@@ -58,9 +57,12 @@
         <div class="rail-separator"></div>
         <button class="rail-item" data-panel="ml" title="ML Surrogate (4)" aria-label="ML Surrogate"><svg class="icon"><use href="#i-brain"/></svg><span>ML Verify</span></button>
         <button class="rail-item" data-panel="agent" title="Requirement Agent (5)" aria-label="Requirement Agent"><svg class="icon"><use href="#i-chat"/></svg><span>AI Brief</span></button>
+        <div class="rail-separator"></div>
+        <button class="rail-item" data-panel="solid3d" title="3D Solid FEA (experimental, 6)" aria-label="3D Solid FEA"><svg class="icon"><use href="#i-box"/></svg><span>3D Solid</span></button>
         <div class="rail-spacer"></div>
         <div class="rail-bottom" title="2D pin-jointed research prototype"><svg class="icon"><use href="#i-box"/></svg><span>2D</span></div>
       </nav>
+      <iframe id="solidWorkspaceFrame" class="solid-workspace-frame" title="3D Solid FEA experimental study" data-src="/solid3d?embedded=1" loading="lazy" hidden></iframe>
 
       <aside class="inspector" id="leftPanel" aria-label="Design controls">
         <div class="panel-titlebar"><div><div class="eyebrow">MODEL SETUP</div><h2>Design parameters</h2></div><span class="titlebar-glyph"><svg class="icon"><use href="#i-settings"/></svg></span></div>
@@ -115,7 +117,7 @@
     </div>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <dialog class="help-dialog" id="helpDialog"><div class="dialog-head"><div><span class="eyebrow">QUICK GUIDE</span><h2>Workspace shortcuts</h2></div><button id="closeHelp" class="top-icon-button" aria-label="Close"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="dialog-body"><div><kbd>1</kbd> <span>Analyze</span></div><div><kbd>2</kbd> <span>Optimize</span></div><div><kbd>3</kbd> <span>Challenge</span></div><div><kbd>4</kbd> <span>ML Verify</span></div><div><kbd>5</kbd> <span>AI Brief</span></div><div><kbd>F</kbd> <span>Fit structure to viewport</span></div><div><kbd>Esc</kbd> <span>Clear selection</span></div><div><kbd>Drag</kbd> <span>Pan model</span></div><div><kbd>Scroll</kbd> <span>Zoom model</span></div><div><kbd>Click</kbd> <span>Inspect member or node</span></div></div><p>FEA outputs come from the Python solver in this repository. The grid and coordinates are in meters; rendered deformation is intentionally exaggerated.</p></dialog>
+  <dialog class="help-dialog" id="helpDialog"><div class="dialog-head"><div><span class="eyebrow">QUICK GUIDE</span><h2>Workspace shortcuts</h2></div><button id="closeHelp" class="top-icon-button" aria-label="Close"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="dialog-body"><div><kbd>1</kbd> <span>Analyze</span></div><div><kbd>2</kbd> <span>Optimize</span></div><div><kbd>3</kbd> <span>Challenge</span></div><div><kbd>4</kbd> <span>ML Verify</span></div><div><kbd>5</kbd> <span>AI Brief</span></div><div><kbd>6</kbd> <span>3D Solid FEA (experimental)</span></div><div><kbd>F</kbd> <span>Fit structure to viewport</span></div><div><kbd>Esc</kbd> <span>Clear selection</span></div><div><kbd>Drag</kbd> <span>Pan model</span></div><div><kbd>Scroll</kbd> <span>Zoom model</span></div><div><kbd>Click</kbd> <span>Inspect member or node</span></div></div><p>FEA outputs come from the Python solver in this repository. The grid and coordinates are in meters; rendered deformation is intentionally exaggerated.</p></dialog>
   <script src="/app.js" defer></script>
 </body>
 </html>
