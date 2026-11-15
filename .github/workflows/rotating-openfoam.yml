@@ -6,6 +6,7 @@ on:
       - 'forceforge/rotating_cfd.py'
       - 'pages/15_Transient_Rotating_CFD.py'
       - 'tests/test_rotating_cfd.py'
+      - 'tests/test_rotor_visual.py'
       - '.github/workflows/rotating-openfoam.yml'
       - 'requirements.txt'
   workflow_dispatch:
@@ -28,7 +29,7 @@ jobs:
       - name: Static compile and reference CFD provenance/parse tests
         run: |
           python -m compileall -q forceforge/rotating_cfd.py pages/15_Transient_Rotating_CFD.py
-          python -m pytest -q tests/test_rotating_cfd.py
+          python -m pytest -q tests/test_rotating_cfd.py tests/test_rotor_visual.py
 
   actual-blade-resolved-openfoam:
     runs-on: ubuntu-latest
