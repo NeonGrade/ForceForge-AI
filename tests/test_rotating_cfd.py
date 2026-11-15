@@ -108,6 +108,6 @@ def test_missing_genuine_solver_fields_never_yields_fake_animation(tmp_path):
         meshio.Mesh(points=np.zeros((30,3)),cells=[]),
         file_format="vtk",binary=False,
     )
-    with pytest.raises(ValueError,match="Unable to validate"):
+    with pytest.raises(ValueError,match="No real time-dependent|Unable to validate"):
         _collect_vtk(tmp_path)
     assert not (tmp_path/"actual_cfd_frames.npz").exists()
