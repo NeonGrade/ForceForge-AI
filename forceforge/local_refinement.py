@@ -73,7 +73,7 @@ def assess_hotspot_refinement(original, refined1, refined2,
         raise ValueError("Refined mesh violates force, geometry or element-quality safeguards")
     probe=[probe_stress(x) for x in models]
     labels=("Original STEP mesh","Local refinement A","Local refinement B")
-    settings=[1.0,.80,.60]
+    settings=[1.0,.60,.45]
     records=tuple(
         RefinementStep(
             label=label,
@@ -172,7 +172,7 @@ def run_hotspot_refinement(original_step: bytes, baseline, *,
     if center.shape!=(3,) or not np.isfinite(center).all():
         raise ValueError("No finite physical hotspot point to refine")
     solved=[baseline]
-    for factor in (.80,.60):
+    for factor in (.60,.45):
         out=solve_at(
             original_step,source_label=source_label,
             mesh_size_mm=float(baseline.mesh.mesh_size_mm),
@@ -180,7 +180,7 @@ def run_hotspot_refinement(original_step: bytes, baseline, *,
             local_refinement={
                 "center_m":center.tolist(),
                 "size_factor":factor,
-                "radius_fraction":.20,
+                "radius_fraction":.30,
             },
         )
         solved.append(out)
