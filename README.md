@@ -1,3 +1,28 @@
+# ForceForge X v1.1 — Reproducible Local Stress Validation
+
+The 3-mesh STEP study now distinguishes **global displacement stability**, **fixed-region volume-weighted von Mises stability**, and **moving peak stress sensitivity**. Stable displacement no longer appears as a global engineering "PASS" when the local peak stress is unresolved. The original screenshot's 17.52% stress difference is correctly calculated from **18.6683 → 22.6327 MPa**.
+
+The tetra10 solver retains all real integration-point physical locations, stress and Gauss weights. The **Run two local hotspot refinements** button uses actual Gmsh BRep remeshing near the measured peak position and independently reruns 3D FEM in isolated Mac-safe processes under identical loads; an ideal-clamp stress singularity is explicitly rejected as an engineering verification.
+
+[Read the physical stress-reliability specification](docs/LOCAL_STRESS_RELIABILITY.md) · [Stable Mac setup](docs/STABLE_CAD_RUNTIME.md)
+
+```bash
+cd ~/ForceForge-AI
+git status --short
+git fetch origin
+git switch --track origin/feature/stress-local-validation-v11
+source .venv/bin/activate
+python -m pip install -r requirements.txt 'gmsh>=4.12,<5'
+python -m pytest -q
+python -m streamlit run app.py --server.fileWatcherType none
+```
+
+If the branch already exists locally: `git switch feature/stress-local-validation-v11 && git pull --ff-only`.
+
+All previous modes, the genuine NIST STEP source, true tetra10 SOLID FEA, CAD redesign, ML and robustness screens are retained. Numerical mesh checks do **not** replace actual hardware fixture/material correlation or structural safety certification.
+
+---
+
 # ForceForge X v1.0 — Source-Locked Mesh Evidence
 
 The same **actual STEP CAD** is now checked at **three independently generated 3D tetra mesh resolutions**. ForceForge reuses the active FEM solution, runs exactly two additional crash-isolated solves, and reports how actual element counts, global displacement, strain energy, sampled local von Mises, volume preservation and reaction balance vary with mesh refinement.
