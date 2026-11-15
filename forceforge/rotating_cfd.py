@@ -223,6 +223,11 @@ def _active_cfd_job_ids() -> list[str]:
     return active
 
 
+def active_cfd_job_ids() -> list[str]:
+    """Read-only list of live, locally owned OpenFOAM worker jobs."""
+    return _active_cfd_job_ids()
+
+
 def _valid_job_root(job_id: str) -> Path:
     if not re.fullmatch(r"[0-9a-f]{16}",job_id):
         raise ValueError("Invalid CFD job identifier")
@@ -275,29 +280,29 @@ def launch_reference_job(
         if custom_rotor_stl is not None:
             (folder/"user_rotor.stl").write_bytes(custom_rotor_stl)
         data={
-        "status":"RUNNING","stage":"QUEUED",
-        "job_id":job_id,"started_epoch_s":time.time(),
-        "geometry_origin":(
-            "USER_STEP_ROTOR_IN_OFFICIAL_REFERENCE_ROOM"
-            if custom_rotor_stl is not None else SCENE_KIND
-        ),
-        "reference_only":custom_rotor_stl is None,
-        "assumptions":(
-            "Real user STEP rotor wall; official reference room and AMI zone. "
-            "NO user-specific wall-mounted guard, wall or anchors."
-            if custom_rotor_stl is not None else
-            "Official OpenFOAM rotatingFanInRoom geometry, NOT generated ForceForge STEP"
-        ),
-        "custom_source_sha256":custom_source_sha256,
-        "custom_rotor_stl_sha256":(
-            sha256(custom_rotor_stl).hexdigest()
-            if custom_rotor_stl is not None else None
-        ),
-        "custom_diameter_mm":custom_diameter_mm,
-        "controls":controls.as_dict(),
-        "docker_image_id":msg,
-        "solved":False,
-    }
+            "status":"RUNNING","stage":"QUEUED",
+            "job_id":job_id,"started_epoch_s":time.time(),
+            "geometry_origin":(
+                "USER_STEP_ROTOR_IN_OFFICIAL_REFERENCE_ROOM"
+                if custom_rotor_stl is not None else SCENE_KIND
+            ),
+            "reference_only":custom_rotor_stl is None,
+            "assumptions":(
+                "Real user STEP rotor wall; official reference room and AMI zone. "
+                "NO user-specific wall-mounted guard, wall or anchors."
+                if custom_rotor_stl is not None else
+                "Official OpenFOAM rotatingFanInRoom geometry, NOT generated ForceForge STEP"
+            ),
+            "custom_source_sha256":custom_source_sha256,
+            "custom_rotor_stl_sha256":(
+                sha256(custom_rotor_stl).hexdigest()
+                if custom_rotor_stl is not None else None
+            ),
+            "custom_diameter_mm":custom_diameter_mm,
+            "controls":controls.as_dict(),
+            "docker_image_id":msg,
+            "solved":False,
+        }
         _manifest(folder,data)
         with (folder/"launcher.log").open("w",encoding="utf-8") as log:
             worker=subprocess.Popen(
