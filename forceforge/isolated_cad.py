@@ -52,6 +52,10 @@ def _save_result(folder: Path, mesh: CadMesh, result: CADFEAResult) -> None:
         solution_faces=result.surface_faces,
         solution_face_elements=result.surface_element_ids,
         solution_reaction=result.support_reaction_n,
+        gauss_points=result.gauss_points_m,
+        gauss_mises=result.gauss_von_mises_pa,
+        gauss_weights=result.gauss_weights_m3,
+        sampled_peak_location=result.sampled_peak_location_m,
     )
     metadata = {
         "mesh": {
@@ -116,6 +120,10 @@ def _read_result(folder: Path, source: bytes) -> CADFEAResult:
         mass_kg=float(r["mass_kg"]),
         sampled_peak_stress_pa=float(r["sampled_peak_stress_pa"]),
         strain_energy_j=float(r["strain_energy_j"]),
+        gauss_points_m=arrays["gauss_points"],
+        gauss_von_mises_pa=arrays["gauss_mises"],
+        gauss_weights_m3=arrays["gauss_weights"],
+        sampled_peak_location_m=arrays["sampled_peak_location"],
     )
 
 
