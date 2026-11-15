@@ -58,7 +58,12 @@ def main():
         OUTPUT.mkdir(parents=True,exist_ok=True)
         with sync_playwright() as playwright:
             browser=playwright.chromium.launch(headless=True,args=["--no-sandbox"])
-            page=browser.new_page(viewport={"width":1440,"height":900})
+            context=browser.new_context(
+                viewport={"width":1440,"height":900},
+                record_video_dir=str(OUTPUT),
+                record_video_size={"width":1440,"height":900},
+            )
+            page=context.new_page()
             page_errors=[]
             page.on("pageerror",lambda exc:page_errors.append(str(exc)))
             try:
@@ -88,6 +93,9 @@ def main():
                 assert not page_errors, "Browser JS errors: "+"; ".join(page_errors)
                 print("PASS: real browser solved original and 3 rewritten STEP solids; FEA screens rendered")
             finally:
+                # Closing the context finalizes the unedited, no-audio
+                # Chromium session recording for actual demo fallback.
+                context.close()
                 browser.close()
     finally:
         proc.terminate()
