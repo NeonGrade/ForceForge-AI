@@ -88,6 +88,7 @@ class EngineeringExecution:
     cad: CADProduct
     structural_fea: Any | None
     stage_results: tuple[EngineeringTask, ...]
+    fluid_domain: Any | None = None
 
     def evidence(self) -> dict:
         result={
@@ -98,6 +99,7 @@ class EngineeringExecution:
             "assumptions":list(self.plan.assumptions),
             "warnings":list(self.plan.warnings),
             "structural_fea":None,
+            "fluid_domain":self.fluid_domain.as_dict() if self.fluid_domain is not None else None,
             "fluid_cfd":None,
             "thermal":None,
         }
@@ -198,25 +200,57 @@ def plan_engineering(request: EngineeringRequest) -> EngineeringPlan:
     else:
         tasks.append(EngineeringTask("structural_fea",TaskState.NOT_REQUESTED))
     if request.analyses.fluid_cfd:
-        tasks.append(EngineeringTask(
-            "fluid_domain",TaskState.BLOCKED,depends_on=("generate_cad",),
+        if fam=="wall_fan" and cad_status==TaskState.READY and request.concept_assumptions_confirmed:
+            tasks.append(EngineeringTask(
+                "fluid_domain",TaskState.READY,depends_on=("generate_cad",),
+                reason=(
+                    "Real Gmsh idealized 3D farfield + cylindrical rotor actuator "
+                    "zone preprocessor is available. It does NOT resolve blades, "
+                    "the wall or any actual fluid solution."
+                ),
+            ))
+            tasks.append(EngineeringTask(
+                "fluid_mesh",TaskState.READY,
+                depends_on=("fluid_domain",),
+                reason="Isolated Gmsh conforming 3D tetra mesh + physical patch groups; explicit second button",
+            ))
+        else:
             reason=(
-                "A watertight AIR domain and inlet/outlet/rotor conditions "
-                "have not been generated or independently meshed. "
-                "CAD solids alone are not a CFD fluid domain."
+                "Only a user-approved bounded wall-fan diameter can produce "
+                "the current conceptual actuator air-domain mesh. No generic "
+                "blade-resolved or arbitrary STEP-to-CFD geometry yet."
+            )
+            missing=(
+                ("confirmed_concept_geometry",)
+                if fam=="wall_fan" else ("supported_fluid_domain_generator",)
+            )
+            tasks.append(EngineeringTask(
+                "fluid_domain",TaskState.BLOCKED,depends_on=("generate_cad",),
+                reason=reason,missing_inputs=missing,
+            ))
+            tasks.append(EngineeringTask(
+                "fluid_mesh",TaskState.BLOCKED,
+                depends_on=("fluid_domain",),
+                reason="Real air volume must be explicitly generated before meshing",
+                missing_inputs=missing,
+            ))
+        tasks.append(EngineeringTask(
+            "fluid_cfd",TaskState.BLOCKED,
+            depends_on=("fluid_mesh",),
+            reason=(
+                "No validated incompressible Navier-Stokes/OpenFOAM runtime, "
+                "pressure-flow fan curve, momentum source, wall influence, "
+                "boundary conditions or solver residuals are supplied. "
+                "A real 3D air mesh does NOT imply velocities or pressures."
             ),
             missing_inputs=(
-                "fluid_domain","inlet_outlet_conditions",
-                "rotor_geometry_or_pressure_flow_curve",
+                "validated_cfd_solver","fan_curve_or_rotor_source",
+                "boundary_conditions","mesh_convergence",
             ),
-        ))
-        tasks.append(EngineeringTask(
-            "fluid_cfd",TaskState.BLOCKED,depends_on=("fluid_domain",),
-            reason="No verified Navier-Stokes/OpenFOAM solver adapter is connected. No air velocity, pressure or thrust may be reported.",
-            missing_inputs=("validated_cfd_solver","cfd_mesh_convergence"),
         ))
     else:
         tasks.append(EngineeringTask("fluid_domain",TaskState.NOT_REQUESTED))
+        tasks.append(EngineeringTask("fluid_mesh",TaskState.NOT_REQUESTED))
         tasks.append(EngineeringTask("fluid_cfd",TaskState.NOT_REQUESTED))
     if request.analyses.thermal:
         tasks.append(EngineeringTask(
@@ -311,3 +345,48 @@ def run_engineering(request: EngineeringRequest) -> EngineeringExecution:
             ) for t in stage_results
         ]
     return EngineeringExecution(plan,cad,fea,tuple(stage_results))
+
+
+def mesh_registered_fluid_domain(
+    request: EngineeringRequest,
+    execution: EngineeringExecution,
+) -> EngineeringExecution:
+    """Explicit *second* user action, preserving the existing CAD/FEA result.
+
+    Every mesh is provenance-linked to the exact generated STEP. Never
+    schedule CFD without a solver. If a native mesh fails, the original
+    CAD/FEA session stays intact and reports the real exception.
+    """
+    from hashlib import sha256
+    from .fluid_domain import generate_fan_air_domain_safely
+    if request.family.value!=execution.plan.family:
+        raise ValueError("Fluid mesh request does not match the current CAD study")
+    expected=sha256(execution.cad.step_bytes).hexdigest()
+    if expected!=execution.cad.sha256:
+        raise ValueError("CAD source hash changed before air meshing")
+    plan=plan_engineering(request)
+    if plan.task("fluid_mesh").status!=TaskState.READY:
+        raise ValueError(
+            "3D air-domain meshing is BLOCKED until geometry assumptions "
+            "and the fluid-domain stage are explicitly accepted"
+        )
+    result=generate_fan_air_domain_safely(request,execution.cad.step_bytes)
+    if result.cad_source_sha256!=execution.cad.sha256:
+        raise ValueError("3D fluid mesh does not match the generated CAD SHA")
+    execution.fluid_domain=result
+    execution.stage_results=tuple(
+        EngineeringTask(
+            name=t.name,
+            status=(TaskState.COMPLETED if t.name in ("fluid_domain","fluid_mesh") else t.status),
+            depends_on=t.depends_on,
+            reason=(
+                "Genuine 3D Gmsh tetra mesh and named physical patches; "
+                "NO CFD physics were solved"
+                if t.name in ("fluid_domain","fluid_mesh") else t.reason
+            ),
+            missing_inputs=(
+                () if t.name in ("fluid_domain","fluid_mesh") else t.missing_inputs
+            ),
+        ) for t in execution.stage_results
+    )
+    return execution
