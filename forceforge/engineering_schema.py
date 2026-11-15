@@ -10,7 +10,7 @@ from enum import Enum
 import re
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 
 class _Strict(BaseModel):
@@ -109,7 +109,7 @@ _NUMBER = r"([0-9]+(?:\.[0-9]+)?)"
 def _extract_length(text: str, words: str) -> float | None:
     """Extract only dimension numbers literally attributed to a feature."""
     m = re.search(
-        rf"(?:{words})\s*(?:about|around|approximately|大约|约|为|是|:|：|=)?"
+        rf"(?:{words})\s*(?:about|around|approximately|大约|大概|约|为|是|:|：|=)?"
         rf"\s*{_NUMBER}\s*{_LENGTH_UNIT}", text, re.I,
     )
     return _length_mm(m.group(1), m.group(2)) if m else None
@@ -189,12 +189,20 @@ def interpret_text(text: str) -> Interpretation:
     wants_cfd=bool(re.search(r"(流体|流场|风速|气流|风量|吹得|cfd|airflow|velocity field|fluid|flow|pressure|wake)",text,re.I))
     wants_thermal=bool(re.search(r"(温度|散热|热流|thermal|cooling|temperature|heat)",text,re.I))
     force=_extract_force_n(text)
-    req=EngineeringRequest(
-        prompt=text,
-        family=family, geometry=geometry,
-        analyses=AnalysisIntent(structural_fea=wants_fea,fluid_cfd=wants_cfd,thermal=wants_thermal),
-        loads=MechanicalLoads(force_n=force),
-    )
+    try:
+        req=EngineeringRequest(
+            prompt=text,
+            family=family, geometry=geometry,
+            analyses=AnalysisIntent(
+                structural_fea=wants_fea,fluid_cfd=wants_cfd,thermal=wants_thermal
+            ),
+            loads=MechanicalLoads(force_n=force),
+        )
+    except ValidationError as exc:
+        return Interpretation(issues=(
+            "Extracted inputs exceed bounded product/physics schema: "
+            + "; ".join(e["msg"] for e in exc.errors())[:450],
+        ))
     issues=[]
     if isinstance(geometry,FanGeometry):
         if geometry.diameter_mm is None:
