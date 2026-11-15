@@ -106,7 +106,8 @@ def main():
                     )
                 ).to_be_visible(timeout=20000)
                 expect(page.get_by_text("Real fluid tetrahedra")).to_be_visible()
-                expect(page.get_by_text("rotor_interface",exact=True)).to_be_visible()
+                # Streamlit st.dataframe is canvas-rendered; the physical
+                # rotor_interface group is validated by the native MSH test.
                 expect(page.get_by_text("fluid_cfd — BLOCKED:",exact=False)).to_be_visible()
                 page.screenshot(
                     path=str(OUTPUT/"02_real_fan_air_tetra_mesh.png"),full_page=True,
