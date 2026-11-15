@@ -2,6 +2,7 @@
 from hashlib import sha256
 from types import SimpleNamespace
 import pytest
+import numpy as np
 
 from forceforge.cad_solid import CadLoad
 from forceforge.mesh_verification import (
@@ -16,16 +17,31 @@ CASE = CadLoad(force_n=120, force_axis=0, boundary_axis=2)
 def fake(size=12, tets=200, tip=0.1, stress=20.0, *,
          source_hash=DIGEST, load=CASE, nodes=300, volume_error=.015,
          residual=1e-10):
+    cad_volume=.075*.04*.058
     mesh = SimpleNamespace(
         mesh_size_mm=float(size), num_tets=tets,
         source_sha256=source_hash,
         relative_volume_difference=volume_error,
         min_shape_quality=.025,
+        mesh_volume_m3=cad_volume,
+        bbox_m=np.array([[0.,0.,0.],[.075,.04,.058]]),
     )
+    # Deterministic physical positions and exact positive quadrature weights
+    # model the same fixed 3D CAD volume under differently dense FE meshes.
+    n=4*tets
+    points=np.zeros((n,3))
+    points[:,0]=.010
+    points[:,1]=.020
+    points[:,2]=np.linspace(.001,.057,n)
+    gauss=np.full(n,float(stress)*1e6)
+    weights=np.full(n,cad_volume/n)
     return SimpleNamespace(
         mesh=mesh, load=load, nodes_m=[0]*nodes,
         tip_mm=float(tip), peak_von_mises_mpa=float(stress),
         strain_energy_j=.001, relative_reaction_residual=residual,
+        gauss_points_m=points,gauss_von_mises_pa=gauss,
+        gauss_weights_m3=weights,
+        sampled_peak_location_m=points[0],
     )
 
 
@@ -138,3 +154,36 @@ def test_baseline_hash_must_match_original_bytes_before_any_solve():
             ORIGINAL, completed, source_label="BAD SOURCE",
             unit="mm", solve_at=lambda *a, **kw: None,
         )
+
+
+def test_screenshot_stress_percentage_exactly_matches_referenced_rows():
+    # Actual Mac screenshot: coarse 19.2361, medium 18.6683, fine 22.6327 MPa.
+    # Earlier assistant response misread the middle cell as 18.8683.
+    cases=[fake(15,413,.0352,19.2361,nodes=938),
+           fake(12,583,.0358,18.6683,nodes=1294),
+           fake(10,701,.0360,22.6327,nodes=1535)]
+    report=assess_mesh_evidence(cases,DIGEST,CASE)
+    assert report.fine_vs_medium_stress_percent==pytest.approx(17.51625,abs=.002)
+    assert round(report.fine_vs_medium_stress_percent,2)==17.52
+    assert report.decision=="PRELIMINARY_GLOBAL_DISPLACEMENT_STABILITY"
+    assert report.local_peak_status=="PEAK_STRESS_UNRESOLVED"
+    assert report.engineering_evidence_status=="GLOBAL_DISPLACEMENT_STABLE_LOCAL_STRESS_UNVERIFIED"
+
+
+def test_gauss_probe_is_a_physical_region_with_volume_weighting():
+    from forceforge.stress_probe import probe_stress
+    x=fake(12,583,.0358,18.6683)
+    z=probe_stress(x)
+    assert z.gauss_samples>50
+    assert z.volume_fraction_percent>15
+    assert z.mean_von_mises_mpa==pytest.approx(18.6683)
+    assert z.p90_von_mises_mpa==pytest.approx(18.6683)
+    assert z.global_peak_zone=="NEAR_IDEALIZED_FIXED_FACE"
+
+
+def test_weighted_probe_fails_if_quadrature_volume_is_corrupt():
+    from forceforge.stress_probe import probe_stress
+    model=fake()
+    model.gauss_weights_m3*=2
+    with pytest.raises(ValueError,match="integrate"):
+        probe_stress(model)
