@@ -21,7 +21,7 @@ def _valid_step(label=b""):
 
 def test_catalog_exposes_independent_versions_and_preserves_modules():
     c = studio_server.CATALOG
-    assert c["ui_version"] == "0.2.0"
+    assert c["ui_version"] == "0.2.1"
     assert c["engineering_version"] == "0.8"
     assert {"cad", "lab", "solid"} == {m["id"] for m in c["modules"]}
 
