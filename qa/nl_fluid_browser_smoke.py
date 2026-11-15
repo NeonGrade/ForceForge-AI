@@ -71,7 +71,13 @@ def main():
                     name=re.compile("I authorize explicitly labeled DEMO geometry"),
                 )
                 expect(consent).to_be_visible(timeout=20000)
-                consent.check()
+                # Streamlit's checkbox INPUT is covered by a clickable
+                # React-Aria LABEL. Click the visible label instead of using
+                # Playwright input.check() (pointer is intercepted).
+                page.locator("label").filter(
+                    has_text="I authorize explicitly labeled DEMO geometry"
+                ).click()
+                expect(consent).to_be_checked(timeout=10000)
                 plan=page.get_by_role(
                     "button",
                     name="Generate STEP and execute READY engineering stages",
