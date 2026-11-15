@@ -240,8 +240,8 @@ def parse_openfoam_pressure_patch_csv(
     User must verify matching source geometry/time and outward surface
     normals. This interface does NOT create pressure data from samples.
     """
-    if not isinstance(payload,bytes) or not 20<len(payload)<=4_000_000:
-        raise ValueError("Only a 20 B–4 MB UTF-8 pressure patch CSV is allowed")
+    if not isinstance(payload,bytes) or not 0<len(payload)<=4_000_000:
+        raise ValueError("Only a nonempty <=4 MB UTF-8 pressure patch CSV is allowed")
     try:
         content=payload.decode("utf-8-sig")
     except UnicodeError as exc:
