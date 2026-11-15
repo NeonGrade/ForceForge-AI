@@ -74,3 +74,31 @@ jobs:
               gmsh.finalize()
           print("3D Gmsh mesh/FEA regression passed")
           PY
+
+  macos-3d-smoke:
+    runs-on: macos-14
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install Python packages
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-3d.txt
+      - name: Python and JS smoke tests
+        run: |
+          python -m pytest -q tests/test_solid3d.py tests/test_gmsh_lifecycle.py tests/test_solid3d_service.py
+          node --check web/solid3d.js
+      - name: Native macOS Gmsh isolated FEA
+        run: |
+          python - <<'PY'
+          from solid3d_service import run_study
+          out = run_study({"geometry":"box", "length_mm":50, "width_mm":10, "height_mm":10, "mesh_size_mm":10})
+          assert out["ok"]
+          assert out["mesh"]["tetrahedra"] > 0
+          assert out["metrics"]["equilibrium_residual_n"] < 1e-4
+          print("macOS isolated 3D FEA smoke passed")
+          PY
