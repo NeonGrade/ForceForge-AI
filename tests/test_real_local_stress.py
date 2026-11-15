@@ -80,5 +80,17 @@ def test_real_two_stage_hotspot_refinement_has_explicit_non_certifying_status(ca
     assert report.status in {
         "REFINEMENT_INSUFFICIENT","SUPPORT_SINGULARITY_RISK",
         "LOCAL_STRESS_NOT_CONVERGED","PRELIMINARY_LOCAL_STRESS_SCREEN_MET",
+        "PRELIMINARY_COMPETING_HOTSPOT_STABILITY",
+        "MULTIPLE_HOTSPOTS_NOT_CORRELATED",
     }
+    if report.hotspot_move_mm>0.08*58:
+        assert report.status in {
+            "PRELIMINARY_COMPETING_HOTSPOT_STABILITY",
+            "MULTIPLE_HOTSPOTS_NOT_CORRELATED",
+            "LOCAL_STRESS_NOT_CONVERGED",
+        }
+        if report.status=="PRELIMINARY_COMPETING_HOTSPOT_STABILITY":
+            assert len(report.matched_physical_hotspot_regions)==2
+            assert report.maximum_fixed_site_mean_change_percent<=5
+            assert report.maximum_fixed_site_p90_change_percent<=5
     assert "NOT" in report.limitations or "does NOT" in report.limitations
