@@ -283,7 +283,9 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/api/workspace":
             self._json(200, workspace_manifest())
             return
-        if route in ("/", "/index.html", "/workspace", "/workspace/"):
+        if route in ("/", "/index.html"):
+            path = ROOT / "landing" / "index.html"
+        elif route in ("/workspace", "/workspace/"):
             path = STATIC_DIR / "index.html"
         elif route in ("/style.css", "/app.js", "/spatial-theme.css", "/spatial-shell.js"):
             path = STATIC_DIR / route.lstrip("/")
@@ -354,7 +356,8 @@ STUDIO_API_BOOTSTRAP = r"""<script>
 def make_integrated_handler(studio_handler, studio_index: Path | None = None):
     """Compose independent, real 2D/3D solvers without altering their endpoints.
 
-    /                -> 2D Truss Workspace
+    /                -> Project landing page
+    /workspace/      -> 2D Truss Workspace
     /studio/         -> existing WebGL Spatial Studio
     /api/solve       -> 2D truss solver
     /api/3d/solve    -> 3D solid or modal solver
