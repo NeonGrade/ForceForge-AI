@@ -1,3 +1,48 @@
+
+## Next engineering milestone: synchronize mesh refinement at BOTH competing hotspots
+
+The v1.1 audit identified two distinct physical stress peaks in the same
+unchanged 8 mm drilled-bracket STEP, approximately **19.27 mm apart**.
+The earlier refinement placed each new local Gmsh Box field only around the
+*original* peak, then compared two fixed 7 mm stress spheres afterwards.
+That comparison did not ensure **both spheres had locally refined tetrahedra
+in both solutions**.
+
+The continuation on this exact branch now provides a second explicit action,
+**Run dual-hotspot re-mesh + 2 independent 3D FEA solves**, directly under
+Step 3 on the existing Real STEP page:
+
+1. Finish Step 1 and the existing single-hotspot Step 3 first; two distinct
+   physical XYZ peaks must have been found from genuine tetra10 Gauss stresses.
+2. Freeze the two reported physical centers **before** launching the next
+   solves. Do not re-select the centers in hindsight using new results.
+3. Reimport the **identical** STEP bytes twice. Each Gmsh mesh uses a
+   `Min` of **two simultaneous 3D Box size fields** at the frozen centers
+   (target factors 0.80 and 0.65; radius fraction 0.18). Neither new mesh
+   omits the other physical hotspot.
+4. Independently solve both quadratic tetra10 systems in crash-isolated,
+   85-second bounded workers under the same load, material and fixture.
+5. Compare actual tetra count growth, FEM equilibrium, CAD/mesh volume,
+   sampled peak drift, and *each fixed 7 mm sphere's* Gauss-weighted mean
+   and P90. A <=5% fixed-region screen is only a **preliminary numerical
+   trend**. Global peak convergence is reported separately, and real
+   contact, clamp corners, yield/fatigue, material certificates and
+   experimental stress/strain correlation remain outside the model.
+6. Export the dual-hotspot evidence as an independent JSON record;
+   a failed additional run must not erase the earlier completed CAD/FEA
+   and local stress evidence.
+
+**Computational bounds:** one imported closed STEP solid; no assembly contact;
+at most 1,400 input tetrahedra per mesh. If two physical refinement boxes
+create too many tetrahedra or fail the >=10% actual growth screen, the study
+is explicitly INSUFFICIENT/UNRESOLVED rather than promising a false pass.
+
+CI includes unit tests for source and physical center locking, multi-site
+stress regression, clamp risk and fixed-site drift, plus a real Gmsh/
+OpenCASCADE STEP -> two 3D remeshes -> tetra10 FEM test on Linux and
+macOS ARM64. These tests do not replace interactive Mac Safari acceptance.
+
+---
 # ForceForge X v1.1 — Local Stress Validation + Genuine Hotspot Refinement
 
 ## Corrected numerical diagnosis (user's actual Mac screenshot)
