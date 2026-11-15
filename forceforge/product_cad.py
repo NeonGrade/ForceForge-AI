@@ -20,7 +20,8 @@ import tempfile
 import numpy as np
 
 from .engineering_schema import (
-    EngineeringRequest, FanGeometry, BracketGeometry, preflight_missing,
+    EngineeringRequest, FanGeometry, BracketGeometry,
+    HollowShaftGeometry, MountingPlateGeometry, preflight_missing,
 )
 from .step_mesh import MAX_CAD_BYTES, _validate_step
 
@@ -203,6 +204,143 @@ def generate_wall_fan_safely(request: EngineeringRequest) -> CADProduct:
         )
 
 
+
+def _parametric_worker(config: dict, folder: Path) -> None:
+    """Generate real OCC volume for a declared tube/plate family only."""
+    from .step_mesh import _gmsh_session, _require_gmsh
+    kind=config["family"]
+    geom=config["geometry"]
+    gmsh=_require_gmsh()
+    with _gmsh_session(gmsh):
+        gmsh.option.setNumber("General.Terminal",0)
+        gmsh.model.add("ForceForge verified parametric STEP")
+        occ=gmsh.model.occ
+        if kind=="hollow_shaft":
+            outer=float(geom["outer_diameter_mm"])
+            inner=float(geom["inner_diameter_mm"])
+            length=float(geom["length_mm"])
+            if not 10<=outer<=400 or not 2<=inner<=outer-4 or not 15<=length<=1000:
+                raise ValueError("Invalid radial tube dimensions")
+            body=occ.addCylinder(0,0,0,0,0,length,outer/2)
+            bore=occ.addCylinder(0,0,-1,0,0,length+2,inner/2)
+            occ.cut([(3,body)],[(3,bore)],removeObject=True,removeTool=True)
+        elif kind=="mounting_plate":
+            length=float(geom["length_mm"])
+            width=float(geom["width_mm"])
+            thickness=float(geom["thickness_mm"])
+            if not 30<=length<=600 or not 30<=width<=600 or not 3<=thickness<=50:
+                raise ValueError("Invalid plate dimensions")
+            body=occ.addBox(-length/2,-width/2,0,length,width,thickness)
+            if geom["hole_count"]==4:
+                margin=float(geom["hole_edge_margin_mm"])
+                radius=float(geom["hole_diameter_mm"])/2
+                if margin<=radius+2 or 2*margin>=min(length,width):
+                    raise ValueError("Unsupported plate holes or edge clearance")
+                cutters=[]
+                for x in (-length/2+margin,length/2-margin):
+                    for y in (-width/2+margin,width/2-margin):
+                        cutters.append((
+                            3,occ.addCylinder(x,y,-1,0,0,thickness+2,radius)
+                        ))
+                occ.cut([(3,body)],cutters,removeObject=True,removeTool=True)
+            elif geom["hole_count"]!=0:
+                raise ValueError("Only zero/four holes are registered")
+        else:
+            raise ValueError("Only trusted parametric CAD families allowed")
+        occ.synchronize()
+        solids=gmsh.model.getEntities(3)
+        if len(solids)!=1:
+            raise ValueError("Parametric product requires exactly one solid STEP")
+        target=folder/"parametric.step"
+        gmsh.write(str(target))
+        (folder/"solid_count.json").write_text(
+            json.dumps({"solids":len(solids)}),encoding="utf-8"
+        )
+        # Actual native OCC surface triangles, optional visualization only.
+        try:
+            gmsh.option.setNumber("Mesh.MeshSizeMin",2.0)
+            gmsh.option.setNumber("Mesh.MeshSizeMax",max(5.,min(
+                float(geom.get("outer_diameter_mm",geom.get("length_mm")))/10,25
+            )))
+            gmsh.model.mesh.generate(2)
+            tags,coords,_=gmsh.model.mesh.getNodes()
+            vertices=np.asarray(coords,dtype=float).reshape(-1,3)
+            node_lookup={int(t):i for i,t in enumerate(tags)}
+            if 0<len(vertices)<150000:
+                faces=[]
+                for _,face in gmsh.model.getEntities(2):
+                    types,_,connectivity=gmsh.model.mesh.getElements(2,face)
+                    for typ,tri_tags in zip(types,connectivity):
+                        if int(typ)==2:
+                            values=np.asarray(tri_tags,dtype=np.int64).reshape(-1,3)
+                            faces.extend(
+                                [node_lookup[int(v)] for v in row]
+                                for row in values
+                            )
+                if 0<len(faces)<80000:
+                    np.savez_compressed(folder/"surface.npz",
+                        vertices_mm=vertices,faces=np.asarray(faces,dtype=np.int32))
+        except Exception:
+            # Native STEP remains valid if an optional surface preview fails.
+            pass
+
+
+def generate_parametric_product(request: EngineeringRequest) -> CADProduct:
+    if not isinstance(request.geometry,(HollowShaftGeometry,MountingPlateGeometry)):
+        raise ValueError("Validated shaft or plate schema required")
+    missing=preflight_missing(request)
+    if missing:
+        raise ValueError("Exact parametric geometry dimensions missing: "+", ".join(missing))
+    config={
+        "family":request.family.value,
+        "geometry":request.geometry.model_dump(mode="json"),
+    }
+    with tempfile.TemporaryDirectory(prefix="ffparametric_") as tmp:
+        folder=Path(tmp)
+        (folder/"input.json").write_text(json.dumps(config),encoding="utf-8")
+        env=dict(os.environ)
+        for key in ("OMP_NUM_THREADS","OPENBLAS_NUM_THREADS","MKL_NUM_THREADS"):
+            env[key]="1"
+        try:
+            done=subprocess.run(
+                [sys.executable,"-m","forceforge.product_cad",
+                 "--parametric-worker",str(folder)],
+                cwd=_ROOT,env=env,stdin=subprocess.DEVNULL,capture_output=True,
+                text=True,timeout=45,check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError("Isolated parametric CAD generation exceeded 45s") from exc
+        if done.returncode:
+            raise RuntimeError(
+                "Real parametric OpenCASCADE worker failed "
+                f"({done.returncode}): "+(done.stderr or done.stdout or "native failure")[-950:]
+            )
+        content=(folder/"parametric.step").read_bytes()
+        _validate_step(content)
+        if len(content)>MAX_CAD_BYTES:
+            raise ValueError("Parametric CAD source exceeds STEP size budget")
+        info=json.loads((folder/"solid_count.json").read_text())
+        nodes=triangles=None
+        preview=folder/"surface.npz"
+        if preview.is_file():
+            with np.load(preview,allow_pickle=False) as a:
+                nodes=a["vertices_mm"].copy()
+                triangles=a["faces"].copy()
+        shape=request.family.value
+        return CADProduct(
+            family=shape,step_bytes=content,sha256=sha256(content).hexdigest(),
+            description=(
+                "Real OpenCASCADE hollow cylindrical sleeve STEP with explicit "
+                "outer/inner diameters and axial length; FEA/CFD unvalidated"
+                if shape=="hollow_shaft" else
+                "Real OpenCASCADE rectangular mounting plate STEP with explicit "
+                "dimensions and optionally four through-holes; FEA/CFD unvalidated"
+            ),
+            concept_only=True,solid_parts=int(info["solids"]),
+            preview_nodes_mm=nodes,preview_faces=triangles,
+        )
+
+
 def _generate_bracket_product(request: EngineeringRequest) -> CADProduct:
     """Adapter for the already validated bracket STEP generator."""
     if not isinstance(request.geometry,BracketGeometry):
@@ -224,6 +362,8 @@ def _generate_bracket_product(request: EngineeringRequest) -> CADProduct:
 CAD_GENERATORS = {
     "l_bracket": _generate_bracket_product,
     "wall_fan": generate_wall_fan_safely,
+    "hollow_shaft": generate_parametric_product,
+    "mounting_plate": generate_parametric_product,
 }
 
 
@@ -241,12 +381,15 @@ def generate_product(request: EngineeringRequest) -> CADProduct:
 
 
 if __name__=="__main__":
-    if len(sys.argv)!=3 or sys.argv[1]!="--concept-fan-worker":
+    if len(sys.argv)!=3 or sys.argv[1] not in ("--concept-fan-worker","--parametric-worker"):
         raise SystemExit("Internal ForceForge CAD worker; do not run directly")
     folder=Path(sys.argv[2])
     try:
         configuration=json.loads((folder/"input.json").read_text(encoding="utf-8"))
-        _concept_fan_worker(configuration,folder)
+        if sys.argv[1]=="--concept-fan-worker":
+            _concept_fan_worker(configuration,folder)
+        else:
+            _parametric_worker(configuration,folder)
     except Exception:
         import traceback
         traceback.print_exc()
