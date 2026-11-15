@@ -77,3 +77,32 @@ def test_invalid_range_does_not_call_solver():
         parse_config({'material': 'not-real'})
     with pytest.raises(InputError):
         handle_api('/api/challenge', {'challenge_multiplier': 2.2})
+
+
+def test_spatial_style_parity_assets_and_engineering_boundary():
+    """The immersive 2D shell does not replace or fake the existing solver."""
+    from pathlib import Path
+    from web_server import STATIC_DIR
+
+    html = (STATIC_DIR / 'index.html').read_text()
+    js = (STATIC_DIR / 'spatial-shell.js').read_text()
+    css = (STATIC_DIR / 'spatial-theme.css').read_text()
+    solver_ui = (STATIC_DIR / 'app.js').read_text()
+
+    for path in ('style.css', 'app.js', 'spatial-theme.css', 'spatial-shell.js'):
+        assert (STATIC_DIR / path).is_file(), path
+    assert 'href="/spatial-theme.css"' in html
+    assert 'src="/spatial-shell.js"' in html
+    assert 'id="spatialPinLoad"' in html
+    assert 'id="spatialPinArea"' in html
+    assert 'id="spatialPinResult"' in html
+    assert 'id="sceneSelector"' in html
+    assert 'LEVEL 02 · SPATIAL ENGINEERING' in html
+    assert '--accent:#d7efa2' in css
+    assert 'window.ForceForge2D' in solver_ui
+    assert 'window.ForceForge2D' in js
+    assert "api.updateConfig(" in js
+    assert "api.state().config" in js
+    assert "'/api/solve'" in solver_ui
+    assert "'/api/search'" in solver_ui
+    assert 'http://127.0.0.1:8765' in html

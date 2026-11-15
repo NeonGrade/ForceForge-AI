@@ -280,7 +280,7 @@
   function transform() {
     const w=Math.max(250,viewport.clientWidth), h=Math.max(200,viewport.clientHeight);
     const span=state.config.span_m, height=state.config.height_m;
-    const marginX=w<600?48:105, marginY=h<370?65:105;
+    const marginX=w<560?36:w<950?w*.23:w*.25, marginY=h<590?112:145;
     const base=Math.max(15,Math.min((w-2*marginX)/span,(h-2*marginY)/height));
     const scale=base*state.zoom;
     const cx=w/2+state.panX, cy=h/2+state.panY;
@@ -328,11 +328,11 @@
       if(major && Math.abs(y)>0.001){const origin=t.xy(0,0).x; if(origin>26&&origin<t.w-30) labels+=`<text x="${origin-8}" y="${py-4}" fill="#638395" text-anchor="end" font-size="9">${num(y,1)}</text>`;}
     }
     const origin=t.xy(0,0),xAxis=t.xy(1,0),yAxis=t.xy(0,1);
-    lines+=pathLine(0,origin.y,t.w,origin.y,'stroke="#607f8e" stroke-width="1.3" stroke-opacity=".75"');
-    lines+=pathLine(origin.x,0,origin.x,t.h,'stroke="#607f8e" stroke-width="1.3" stroke-opacity=".75"');
+    lines+=pathLine(0,origin.y,t.w,origin.y,'stroke="#86b09b" stroke-width="1.3" stroke-opacity=".75"');
+    lines+=pathLine(origin.x,0,origin.x,t.h,'stroke="#86b09b" stroke-width="1.3" stroke-opacity=".75"');
     // Axis arrowheads and coordinate orientation remain visible when model is panned.
-    if(origin.y>-50&&origin.y<t.h+50) lines+=`<path d="M${t.w-15} ${origin.y-4}l8 4-8 4" stroke="#7ba7b3" fill="none" stroke-width="1.5"/><text x="${t.w-23}" y="${origin.y-11}" fill="#93bdc7" font-size="11" font-weight="700">X</text>`;
-    if(origin.x>-40&&origin.x<t.w+40) lines+=`<path d="M${origin.x-4} 16l4-8 4 8" stroke="#7ba7b3" fill="none" stroke-width="1.5"/><text x="${origin.x+13}" y="20" fill="#93bdc7" font-size="11" font-weight="700">Y</text>`;
+    if(origin.y>-50&&origin.y<t.h+50) lines+=`<path d="M${t.w-15} ${origin.y-4}l8 4-8 4" stroke="#cfe4b2" fill="none" stroke-width="1.5"/><text x="${t.w-23}" y="${origin.y-11}" fill="#c6e3c2" font-size="11" font-weight="700">X</text>`;
+    if(origin.x>-40&&origin.x<t.w+40) lines+=`<path d="M${origin.x-4} 16l4-8 4 8" stroke="#cfe4b2" fill="none" stroke-width="1.5"/><text x="${origin.x+13}" y="20" fill="#c6e3c2" font-size="11" font-weight="700">Y</text>`;
     return `<g aria-hidden="true">${lines}${labels}</g>`;
   }
 
@@ -342,13 +342,13 @@
   }
 
   function memberColor(m, data) {
-    if(!state.solve) return '#6b9a9e';
+    if(!state.solve) return '#86a8ad';
     if(state.visual==='displacement'){
       const a=data.nodes[m.a],b=data.nodes[m.b];
       const d=Math.max(a.displacement_mm,b.displacement_mm)/state.config.max_displacement_mm;
-      return d>.75?'#eeac75':d>.4?'#aedb91':'#5ddbc1';
+      return d>.75?'#f1aa79':d>.4?'#cbdc99':'#71c8bd';
     }
-    return m.state==='compression'?'#f2a16b':m.state==='tension'?'#65ddd4':'#759eac';
+    return m.state==='compression'?'#f1a77b':m.state==='tension'?'#82cec5':'#86a8ad';
   }
 
   function renderLegend() {
@@ -398,7 +398,7 @@
     if(load){
       const p=t.xy(load.x_m,load.y_m),arrowTop=p.y-78,arrowBot=p.y-18;
       labels+=pathLine(p.x,arrowTop,p.x,arrowBot,'stroke="#e5aa79" stroke-width="2.5" marker-end="url(#arrowLoad)"');
-      labels+=`<rect x="${p.x-35}" y="${arrowTop-23}" width="70" height="18" rx="4" fill="#2d2829" stroke="#7b6058"/><text x="${p.x}" y="${arrowTop-10}" fill="#ffce9d" font-size="10" font-weight="750" text-anchor="middle">${num(Math.abs(load.load_y_n),0)} N</text>`;
+      // The on-model spatial marker shows the numerical load; keep only the physical load arrow here.
     }
     // Persistent span and height dimensions, never attached to the exaggerated geometry.
     const left=t.xy(0,0),right=t.xy(data.span_m,0),top=t.xy(0,data.height_m);
@@ -752,6 +752,9 @@
       const modes=['design','optimize','challenge','ml','agent'];setMode(modes[Number(event.key)-1]);
     }
   });
+  // Presentation adapter for the matching 3D Spatial Engineering interface.
+  // No solver values are calculated in this adapter.
+  window.ForceForge2D = Object.freeze({state:()=>state,model,transform,updateConfig,setMode,resetView});
   new ResizeObserver(()=>renderScene()).observe(viewport);
   renderControls();renderMetrics();renderScene();renderPanel();
   runSolve();

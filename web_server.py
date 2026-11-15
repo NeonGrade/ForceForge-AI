@@ -264,7 +264,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if route in ("/", "/index.html"):
             path = STATIC_DIR / "index.html"
-        elif route in ("/style.css", "/app.js"):
+        elif route in ("/style.css", "/app.js", "/spatial-theme.css", "/spatial-shell.js"):
             path = STATIC_DIR / route.lstrip("/")
         else:
             self._json(404, {"error": "Not found"})
