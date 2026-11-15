@@ -147,6 +147,6 @@ def test_runner_uses_same_two_fixed_sites_in_both_new_gmsh_jobs():
         SOURCE_BYTES,baseline,prior,source_label="original STEP",
         unit="mm",solve_at=solve_at,
     )
-    assert calls==[.80,.65]
+    assert calls==[.65,.45]
     assert len(result.steps)==2
     assert result.status=="PRELIMINARY_DUAL_SITE_NUMERICAL_STABILITY"
