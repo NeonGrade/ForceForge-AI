@@ -169,7 +169,7 @@ def extract_rotor_from_step(
         if done.returncode:
             raise RuntimeError(
                 "Real source-STEP rotor extraction failed: "
-                +(done.stderr or done.stdout)[-1000:]
+                +(done.stderr or done.stdout).decode("utf-8",errors="replace")[-1000:]
             )
         blob=(folder/"actual_rotor.stl").read_bytes()
         result=json.loads((folder/"result.json").read_text())
