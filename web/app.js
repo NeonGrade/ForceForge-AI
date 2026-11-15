@@ -782,6 +782,11 @@
   });
   new ResizeObserver(()=>renderScene()).observe(viewport);
   renderControls();renderMetrics();renderScene();renderPanel();
+  // Match the initially highlighted Analyze tool with accessible state,
+  // without opening the mobile results overlay on first load.
+  $('[data-panel]').forEach(el => {
+    el.setAttribute('aria-pressed', el.dataset.panel === 'design' ? 'true' : 'false');
+  });
   if (window.location.hash === '#solid3d') setMode('solid3d');
   runSolve();
 })();
