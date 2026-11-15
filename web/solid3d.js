@@ -322,4 +322,12 @@
   window.addEventListener("resize", scheduleRender);
   if (window.ResizeObserver) new ResizeObserver(scheduleRender).observe($("viewport"));
   scheduleRender();
+  // First-open demo: populate the viewport with REAL calculated FEA results,
+  // avoiding an apparently empty/unfinished screen with the Solve button
+  // below the visible portion of the sidebar. Only the default box runs
+  // automatically; STEP uploads and subsequent input edits require Solve.
+  if (ui.geometry.value === "box") {
+    status("Loading the built-in 3D FEA demonstration...");
+    window.requestAnimationFrame(() => form.requestSubmit());
+  }
 })();
