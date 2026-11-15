@@ -25,7 +25,8 @@ restore a locally completed SHA-verified CFD job in one click.
 | Workflow | Real and tested | Limitations |
 | --- | --- | --- |
 | Ordinary language to CAD | 4 typed registered families: drilled L-bracket, conceptual wall fan, hollow shaft, four-hole mounting plate. True Gmsh/OpenCASCADE STEP export. | Unsupported products rejected, fan simplifications explicit. |
-| Structural FEA | 3D tetra10 L-bracket FEA, reaction equilibrium, displacement, sampled von Mises, mass comparison. | No validated wall anchors, joints, bolts, contact, fatigue. |
+| Structural FEA | Isolated real STEP-to-3D tetra10 solver for bracket and new single-solid shaft/plate with approved ideal face fixtures and material. | No validated shaft bearings, bolted wall anchors, contact, fatigue or mesh convergence. |
+| Wall mounting forces | Explicit gravity, user-provided thrust/torque, four-anchor free-body equilibrium with signed shear and tension. | This is a rigid statics load distribution, not OpenFOAM-integrated surface tractions or wall material FEA. |
 | Design Copilot | Bounded bracket changes, new STEP + FEA for every variant; optional LLM ordering or disclosed rules fallback. | LLM does not calculate physical metrics or generate arbitrary CAD. |
 | Rotating CFD | Actual source STEP-derived rotor STL meshed into OpenFOAM reference-room AMI dynamic-mesh case, solved via pimpleFoam, authentic time-varying U/p. | Reference room, not actual wall/guard/mount CFD. |
 | Continuous 3D visualization | Actual STL geometry rotates in Plotly while a genuine CFD snapshot remains fixed; discrete solved time records are available independently. | Interpolated geometry is NOT simulated CFD time frames. |

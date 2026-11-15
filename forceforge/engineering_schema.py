@@ -353,6 +353,27 @@ def approve_demo_assumptions(request: EngineeringRequest) -> EngineeringRequest:
             if getattr(req.material,key) is None:
                 setattr(req.material,key,value)
                 notes.append(f"DEMO FEA: assumed material {key} = {value:g} (not measured)")
+    elif isinstance(req.geometry,(HollowShaftGeometry,MountingPlateGeometry)):
+        if preflight_missing(req):
+            raise ValueError("Complete every physical STEP dimension before approval")
+        if req.analyses.structural_fea:
+            # Explicit user opt-in only. Uniform transverse traction on maximum-Z
+            # surface; rigid fixed minimum-Z surface. This is a genuine tetra10
+            # specimen calculation, NOT a tested shaft bearing or bolt fixture.
+            if req.loads.force_n is None:
+                req.loads.force_n=200.
+                notes.append("DEMO FEA: assumed total 200 N transverse traction")
+            if req.loads.force_axis is None:
+                req.loads.force_axis="X"
+                notes.append("DEMO FEA: assumed +X traction on maximum-Z face")
+            if req.loads.support_axis is None:
+                req.loads.support_axis="Z"
+                notes.append("DEMO FEA: ideal fixed minimum-Z face, no contact/bearing/bolts")
+            defaults={"E_gpa":70.,"poisson":.33,"density_kg_m3":2700.,"yield_mpa":250.}
+            for key,value in defaults.items():
+                if getattr(req.material,key) is None:
+                    setattr(req.material,key,value)
+                    notes.append(f"DEMO FEA: assumed aluminum material {key} = {value:g} (not certified)")
     req.assumptions=tuple(dict.fromkeys(notes))
     req.concept_assumptions_confirmed=True
     return EngineeringRequest.model_validate(req.model_dump())

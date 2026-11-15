@@ -70,13 +70,13 @@ def test_invalid_holes_or_nonregistered_products_cannot_change_geometry():
     assert unknown.request is None
 
 
-def test_nonbracket_physics_stay_blocked_without_spurious_numbers():
+def test_unparameterized_parametric_fea_and_cfd_remain_blocked():
     text=SHAFT_ZH+"分析应力、流场和散热。"
     req=interpret_text(text).request
     assert req is not None
     plan=plan_engineering(req)
     assert plan.task("generate_cad").status==TaskState.READY
-    assert plan.task("solid_mesh").status==TaskState.BLOCKED
+    assert plan.task("solid_mesh").status==TaskState.READY
     assert plan.task("structural_fea").status==TaskState.BLOCKED
     assert plan.task("fluid_cfd").status==TaskState.BLOCKED
     assert plan.task("thermal").status==TaskState.BLOCKED
@@ -114,3 +114,50 @@ def test_real_open_cascade_step_reimports_and_matches_true_volume(
             assert len(solids)==1
             volume=gmsh.model.occ.getMass(*solids[0])
             assert volume==pytest.approx(expect_volume,rel=.002)
+
+
+
+@pytest.mark.parametrize("prompt",[
+    SHAFT_ZH+"请分析结构应力。",
+    "做一个矩形安装板，长度80mm，宽度60mm，厚度12mm，分析受力和应力。"
+])
+def test_explicitly_approved_material_support_and_traction_unlock_real_fea(prompt):
+    from forceforge.engineering_schema import approve_demo_assumptions
+    parsed=interpret_text(prompt)
+    assert parsed.request is not None, parsed.issues
+    original=parsed.request
+    before=plan_engineering(original)
+    assert before.task("structural_fea").status==TaskState.BLOCKED
+    assert before.task("solid_mesh").status==TaskState.READY
+    approved=approve_demo_assumptions(original)
+    assert original.material.E_gpa is None
+    assert approved.material.E_gpa==70.
+    assert approved.loads.force_n==200.
+    after=plan_engineering(approved)
+    assert after.task("structural_fea").status==TaskState.READY
+    assert after.task("fluid_cfd").status==TaskState.NOT_REQUESTED
+    assert approved.assumptions
+    assert any("fixed minimum-Z" in x for x in approved.assumptions)
+
+
+@pytest.mark.parametrize("prompt",[
+    "做一个空心轴，外径30mm，内径10mm，长度60mm，分析结构应力。",
+    "做一个矩形安装板，长度60mm，宽度50mm，厚度12mm，分析结构受力。",
+])
+def test_real_parametric_step_to_independent_tetra10_fea(prompt):
+    pytest.importorskip("gmsh")
+    from forceforge.engineering_schema import approve_demo_assumptions
+    request=approve_demo_assumptions(interpret_text(prompt).request)
+    result=run_engineering(request)
+    assert result.cad.solid_parts==1
+    assert result.structural_fea is not None
+    fea=result.structural_fea
+    assert fea.mesh.source_sha256==result.cad.sha256
+    assert fea.mesh.num_tets>30
+    assert fea.relative_reaction_residual<1e-5
+    assert fea.peak_von_mises_mpa>0
+    assert fea.mass_kg>0
+    assert fea.tip_mm>0
+    assert result.evidence()["structural_fea"]["solver"].startswith("existing")
+    assert result.evidence()["fluid_cfd"] is None
+    assert result.plan.task("structural_fea").status==TaskState.READY

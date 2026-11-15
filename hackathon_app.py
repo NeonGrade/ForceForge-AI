@@ -50,6 +50,17 @@ with c:
                  label="Open Transient CFD",icon="🌀",use_container_width=True)
 
 st.divider()
+with st.container(border=True):
+    st.markdown("### 04 · Wall Mount Load Transfer")
+    st.write(
+        "Calculate physically balanced four-anchor reactions under explicit mass, "
+        "offset, aerodynamic thrust and torque. This is a real free-body model "
+        "with ideal anchors, not certified wall/fastener FEA or an invented CFD thrust."
+    )
+    st.page_link("pages/16_Wall_Mount_Loads.py",
+                 label="Open Wall & Anchor Load Transfer",icon="🔩",use_container_width=True)
+
+st.divider()
 st.subheader("Replay an existing verified CFD result")
 st.caption("Read existing local CFD results only: never start Docker or rerun Navier–Stokes.")
 

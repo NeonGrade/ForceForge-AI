@@ -34,15 +34,17 @@ st.caption(
 st.info(
     "CAD catalog: real L-bracket STEP + validated isolated tetra10 FEA; "
     "conceptual wall fan STEP + genuine air-domain Gmsh preprocessor; "
-    "new actual parametric hollow shaft and mounting plate STEP generators. "
-    "Only the bracket has validated structural FEA. Other product "
-    "CFD/FEA and wall-anchor physics remain BLOCKED until independently verified."
+    "new parametric hollow shaft and plate STEP generators with user-approved "
+    "isolated tetra10 structural FEA under explicitly simplified fixtures. "
+    "Fan CFD runs in a separate real OpenFOAM page; structural wall-anchor "
+    "equilibrium is separate from actual wall contact and fastener FEA."
 )
 st.markdown(
     "[Open the existing Real STEP / dual-hotspot / Design Copilot study]"
     "(./Real_STEP_Engineering)"
 )
 st.markdown("[Try the real OpenFOAM rotating-fan transient CFD reference lab](./Transient_Rotating_CFD)")
+st.markdown("[Analyze wall mounting loads with force/moment equilibrium](./Wall_Mount_Loads)")
 
 examples={
     "Wall fan (Chinese)": (
@@ -60,6 +62,9 @@ examples={
     "Hollow shaft / sleeve (Chinese)": (
         "设计一个空心轴，外径60mm，内径30mm，长度120mm。"
     ),
+    "Hollow shaft (real FEA demo)": (
+        "设计一个空心轴，外径30mm，内径10mm，长度60mm，分析受力和应力。"
+    ),
     "Mounting plate with four holes (Chinese)": (
         "做一个矩形安装板，长度150mm，宽度100mm，厚度8mm，"
         "开4个孔，孔径6mm，孔中心距边缘15mm。"
@@ -68,6 +73,9 @@ examples={
         "Design a rectangular mounting plate length 150 mm width 100 mm "
         "thickness 8 mm with 4 holes, hole diameter 6 mm "
         "and hole edge offset 15 mm."
+    ),
+    "Mounting plate (real FEA demo)": (
+        "做一个矩形安装板，长度60mm，宽度50mm，厚度12mm，计算应力和结构受力。"
     ),
 }
 st.markdown("### 1 · Describe the product in ordinary language")
@@ -176,7 +184,7 @@ st.caption(
     "A CAD button click runs real Gmsh in a disposable worker; "
     "FEA is executed only if the plan has all required inputs. "
     "The 3D air-domain tetra mesh is a separate explicit click. "
-    "BLOCKED CFD or fan structural FEA never produces fabricated results."
+    "Unknown, unsupported or unavailable CFD/FEA jobs never produce fabricated results."
 )
 start=st.button(
     "Generate STEP and execute READY engineering stages",

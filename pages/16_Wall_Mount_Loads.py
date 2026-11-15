@@ -1,0 +1,100 @@
+"""Four-anchor wall-mount statics from explicit external loads, NOT wall FEA."""
+from __future__ import annotations
+from dataclasses import asdict
+import json
+import streamlit as st
+import plotly.graph_objects as go
+from forceforge.wall_mount import WallMountInputs,analyze_wall_mount
+
+st.set_page_config(
+    page_title="ForceForge X | Wall Mount Load Transfer",page_icon="🔩",layout="wide"
+)
+st.title("Wall-Mounted Fan · Four-Anchor Load Transfer")
+st.caption("Real 6-DOF rigid-body force and moment equilibrium · SI units · independently specified inputs")
+st.warning(
+    "This computes an ideal FOUR-ANCHOR FREE-BODY model, not deformation of "
+    "actual wall/plate/anchors and not automatically integrated pressure from "
+    "the current OpenFOAM reference-room case. The anchor strengths and "
+    "wall contact are NOT assessed. User-supplied thrust is not a CFD result."
+)
+
+with st.form("wall_anchor_load_input"):
+    st.markdown("### Specify actual mechanical loads and mounting geometry")
+    a,b,c=st.columns(3)
+    with a:
+        mass=st.number_input("Fan + mount total mass (kg)",min_value=.01,max_value=100.,value=2.5,step=.1)
+        eccentricity=st.number_input("Center of mass from wall (mm)",min_value=0.,max_value=1000.,value=130.,step=10.)
+        thrust=st.number_input("Signed axial thrust (N, + outward)",min_value=-10000.,max_value=10000.,value=0.,step=1.)
+    with b:
+        sx=st.number_input("Horizontal anchor pitch (mm)",min_value=20.,max_value=600.,value=140.,step=10.)
+        sy=st.number_input("Vertical anchor pitch (mm)",min_value=20.,max_value=600.,value=110.,step=10.)
+        torque=st.number_input("Reaction torque about wall normal (N·m)",min_value=-1000.,max_value=1000.,value=0.,step=.5)
+    with c:
+        fx=st.number_input("Other side force X (N)",min_value=-10000.,max_value=10000.,value=0.,step=1.)
+        fy=st.number_input("Other vertical force Y (N)",min_value=-10000.,max_value=10000.,value=0.,step=1.)
+        provenance=st.selectbox("Source of aerodynamic force inputs",(
+            "unverified_example","user_supplied_or_measured","externally_integrated_cfd"
+        ),format_func=lambda x:{
+            "unverified_example":"Unverified demonstration numbers",
+            "user_supplied_or_measured":"Measured or user-provided loads",
+            "externally_integrated_cfd":"Independently integrated CFD surface loads",
+        }[x])
+    st.caption(
+        "A real OpenFOAM solution only becomes rotor thrust when pressure/viscous "
+        "tractions are integrated over a matching physical rotor surface at a "
+        "specified time. The currently sampled U/p point cloud cannot do this."
+    )
+    calculate=st.form_submit_button("Calculate actual 4-anchor static reactions",type="primary")
+if calculate:
+    try:
+        spec=WallMountInputs(
+            mass_kg=mass,center_offset_mm=eccentricity,
+            anchor_spacing_x_mm=sx,anchor_spacing_y_mm=sy,
+            axial_thrust_n=thrust,motor_reaction_torque_nm=torque,
+            lateral_force_x_n=fx,lateral_force_y_n=fy,
+            thrust_source=provenance,
+        )
+        result=analyze_wall_mount(spec)
+        st.session_state["wall_mount_load_result"]=result
+    except (ValueError,TypeError,ArithmeticError) as exc:
+        st.session_state.pop("wall_mount_load_result",None)
+        st.error(str(exc))
+
+result=st.session_state.get("wall_mount_load_result")
+if result is not None:
+    st.success("6-degree-of-freedom force and moment equilibrium verified")
+    c1,c2,c3,c4=st.columns(4)
+    c1.metric("Maximum anchor tension",f"{result.max_anchor_tension_n:.2f} N")
+    c2.metric("Maximum anchor shear",f"{result.max_anchor_shear_n:.2f} N")
+    c3.metric("Force balance error",f"{result.force_balance_error_n:.2e} N")
+    c4.metric("Moment balance error",f"{result.moment_balance_error_nm:.2e} N·m")
+    st.markdown("### Per-anchor reactions")
+    table=[asdict(p) for p in result.anchors]
+    st.dataframe(table,use_container_width=True,hide_index=True)
+    fig=go.Figure()
+    fig.add_trace(go.Bar(x=[f"A{i+1}" for i in range(4)],
+                         y=[x.tension_demand_n for x in result.anchors],
+                         name="Axial tension demand (N)"))
+    fig.add_trace(go.Bar(x=[f"A{i+1}" for i in range(4)],
+                         y=[x.shear_demand_n for x in result.anchors],
+                         name="In-plane shear demand (N)"))
+    fig.update_layout(
+        barmode="group",template="plotly_white",height=370,
+        xaxis_title="Four physical anchor coordinates (see table)",
+        yaxis_title="Reaction magnitude (N)",
+    )
+    st.plotly_chart(fig,use_container_width=True)
+    st.caption(result.numerical_scope)
+    if provenance=="unverified_example":
+        st.warning("Demonstration inputs: DO NOT present these forces as measured or OpenFOAM-derived.")
+    st.download_button(
+        "Download statics load-transfer evidence (JSON)",
+        json.dumps(result.as_dict(),indent=2),
+        file_name="forceforge_wall_anchor_rigid_statics.json",
+        mime="application/json",
+    )
+st.divider()
+st.page_link("pages/14_Natural_Language_Engineering.py",
+             label="Return to mechanical CAD models",icon="🧩")
+st.page_link("pages/15_Transient_Rotating_CFD.py",
+             label="Inspect actual OpenFOAM solved flow fields",icon="🌀")

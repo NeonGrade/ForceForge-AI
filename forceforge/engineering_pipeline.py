@@ -1,9 +1,11 @@
 """Capability-driven CAD / CFD / FEA orchestration for the NL engineering studio.
 
 DAG stages are created from the versioned EngineeringRequest. Only a
-registered CAD generator may create geometry. The ONLY currently executable
-physics job is the pre-existing isolated L-bracket tetra10 FEA. CFD, thermal
-analysis and multi-body wall-fan loads are BLOCKED with actionable reasons,
+registered CAD generator may create geometry. The executable isolated tetra10 FEA covers registered single-solid bracket,
+hollow-shaft and mounting-plate STEP geometry when material, load and fixture
+inputs are explicit or specifically user-approved. Rotating OpenFOAM CFD is
+launched in a separate verified job and is never inferred from an air mesh.
+Thermal and unvalidated multi-body wall-fan loads remain BLOCKED,
 never silently converted into invented plots or numerical estimates.
 """
 from __future__ import annotations
@@ -46,11 +48,11 @@ FAMILY_REGISTRY: dict[str, RegisteredFamily] = {
     ),
     "hollow_shaft": RegisteredFamily(
         "hollow_shaft", "Gmsh OCC parametric annular solid STEP",
-        "real single solid; no supported mechanics solver", None, None,
+        "real single solid; ideal-traction tetra10", "isolated tetra10", None,
     ),
     "mounting_plate": RegisteredFamily(
         "mounting_plate", "Gmsh OCC plate or four-hole through-cut STEP",
-        "real single solid; no supported mechanics solver", None, None,
+        "real single solid; ideal-traction tetra10", "isolated tetra10", None,
     ),
 }
 
@@ -160,18 +162,11 @@ def plan_engineering(request: EngineeringRequest) -> EngineeringPlan:
             depends_on=("generate_cad",),
             reason="A concept assembly is not a tied/contact-validated single solid for structural FEM.",
         ))
-    elif fam=="l_bracket":
+    else:
         tasks.append(EngineeringTask(
             "solid_mesh",cad_status,
             depends_on=("generate_cad",),reason=cad_reason,
             missing_inputs=cad_missing,
-        ))
-    else:
-        tasks.append(EngineeringTask(
-            "solid_mesh",TaskState.BLOCKED,
-            depends_on=("generate_cad",),
-            reason="A STEP alone is not a validated 3D tetra meshing/FEA workflow for this product",
-            missing_inputs=("validated_mesh_adapter",),
         ))
     if request.analyses.structural_fea:
         if fam=="wall_fan":
@@ -187,20 +182,6 @@ def plan_engineering(request: EngineeringRequest) -> EngineeringPlan:
                 missing_inputs=(
                     "mass_and_center_of_gravity","mounting_anchor_geometry",
                     "wall_and_contact_materials","structural_load_path",
-                ),
-            ))
-        elif fam!="l_bracket":
-            tasks.append(EngineeringTask(
-                "structural_fea",TaskState.BLOCKED,
-                depends_on=("generate_cad","solid_mesh"),
-                reason=(
-                    "This real STEP has no validated material, loading, "
-                    "fixture and tetra10 finite-element adapter. "
-                    "No stress or safety values are computed."
-                ),
-                missing_inputs=(
-                    "validated_fea_adapter","fixture_load_path",
-                    "material_and_loads",
                 ),
             ))
         else:
@@ -220,9 +201,15 @@ def plan_engineering(request: EngineeringRequest) -> EngineeringPlan:
             tasks.append(EngineeringTask(
                 "structural_fea",TaskState.READY if ready else TaskState.BLOCKED,
                 depends_on=("generate_cad","solid_mesh"),
-                reason="" if ready else (
-                    "Real structural FEA requires explicit load/material/fixture "
-                    "inputs or user-approved demo assumptions, and valid CAD."
+                reason=(
+                    "Actual one-body STEP tetra10 linear-elastic FEA with "
+                    "ideal fixed minimum-axis face and total traction on "
+                    "opposing maximum-axis face; no bearing/contact or bolts"
+                    if ready and fam!="l_bracket" else (
+                        "" if ready else
+                        "Real structural FEA requires explicit load/material/fixture "
+                        "inputs or user-approved demo assumptions, and valid CAD."
+                    )
                 ),
                 missing_inputs=missing+cad_missing,
             ))
@@ -304,8 +291,9 @@ def plan_engineering(request: EngineeringRequest) -> EngineeringPlan:
     else:
         warnings.append(
             "Parametric STEP geometry is generated from explicit dimensions. "
-            "This product has no validated FEA, CFD, contact, fatigue or "
-            "certified safety result; requested physics remain BLOCKED."
+            "When load/material/fixture inputs are provided, an actual isolated "
+            "tetra10 FEA solves the solid with ideal fixed-face/traction conditions. "
+            "Real bolt/bearing/contact, external CFD and fatigue are not validated."
         )
     if request.assumptions:
         warnings.append(
@@ -335,7 +323,7 @@ def run_engineering(request: EngineeringRequest) -> EngineeringExecution:
                 "generate_cad",TaskState.COMPLETED,
                 depends_on=task.depends_on,reason="Real STEP generated with SHA-256",
             ))
-        elif task.name=="solid_mesh" and request.family.value=="l_bracket" and not request.analyses.structural_fea:
+        elif task.name=="solid_mesh" and request.family.value!="wall_fan" and not request.analyses.structural_fea:
             stage_results.append(EngineeringTask(
                 "solid_mesh",TaskState.NOT_REQUESTED,
                 reason="No FEA requested; a STEP export does not require a volume mesh",
@@ -347,7 +335,6 @@ def run_engineering(request: EngineeringRequest) -> EngineeringExecution:
     if step.status==TaskState.READY:
         from .cad_solid import CadLoad
         from .isolated_cad import analyze_step_safely
-        assert isinstance(request.geometry,BracketGeometry)
         ax={"X":0,"Y":1,"Z":2}
         case=CadLoad(
             force_n=float(request.loads.force_n),
