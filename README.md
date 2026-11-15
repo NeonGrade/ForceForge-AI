@@ -1,3 +1,82 @@
+# ForceForge X — Hack The Nest 2026 submission
+
+**Describe a mechanical product. Generate real CAD. Verify supported physics.**
+
+This is the public competition submission branch for Hack The Nest 2026.
+ForceForge X turns a restricted catalog of everyday Chinese/English
+mechanical descriptions into real STEP geometry and independently solved
+FEA/CFD evidence.
+
+**Devpost packet:** [Project story, demo script and evidence](docs/DEVPOST_SUBMISSION_2026.md)
+
+**CI evidence:** [custom STEP rotor into real OpenFOAM](https://github.com/NeonGrade/ForceForge-AI/actions/runs/43674796795) · [Chromium continuous rotor animation](https://github.com/NeonGrade/ForceForge-AI/actions/runs/43675405969) · [macOS/Linux native CAD/FEA](https://github.com/NeonGrade/ForceForge-AI/actions/runs/43675409014)
+
+## Working engineering capabilities
+
+| Workflow | Real and tested | Limitations |
+| --- | --- | --- |
+| Ordinary language to CAD | 4 typed registered families: drilled L-bracket, conceptual wall fan, hollow shaft, four-hole mounting plate. True Gmsh/OpenCASCADE STEP export. | Unsupported products rejected, fan simplifications explicit. |
+| Structural FEA | 3D tetra10 L-bracket FEA, reaction equilibrium, displacement, sampled von Mises, mass comparison. | No validated wall anchors, joints, bolts, contact, fatigue. |
+| Design Copilot | Bounded bracket changes, new STEP + FEA for every variant; optional LLM ordering or disclosed rules fallback. | LLM does not calculate physical metrics or generate arbitrary CAD. |
+| Rotating CFD | Actual source STEP-derived rotor STL meshed into OpenFOAM reference-room AMI dynamic-mesh case, solved via pimpleFoam, authentic time-varying U/p. | Reference room, not actual wall/guard/mount CFD. |
+| Continuous 3D visualization | Actual STL geometry rotates in Plotly while a genuine CFD snapshot remains fixed; discrete solved time records are available independently. | Interpolated geometry is NOT simulated CFD time frames. |
+
+## How to launch
+
+Install Python 3 and Gmsh native dependencies. On a Mac:
+
+    git clone -b hack-the-nest-2026-submission https://github.com/NeonGrade/ForceForge-AI.git
+    cd ForceForge-AI
+    python3 -m venv .venv
+    source .venv/bin/activate
+    python -m pip install -r requirements.txt 'gmsh>=4.12,<5'
+    python -m streamlit run app.py --server.port 8501 --server.fileWatcherType none
+
+The OpenFOAM workflow additionally requires Docker Desktop and image:
+
+    docker pull opencfd/openfoam-default:2512
+
+Open http://localhost:8501. The app is currently a local-machine
+prototype, not a publicly hosted web app. Real CFD requires OpenFOAM to
+compute or restore a completed local job; no fake U/p fallback is provided.
+
+## 2-minute judging walkthrough
+
+1. Natural Language Engineering: describe a 300-mm wall fan, parse the
+   specification, produce and download actual STEP geometry.
+2. Transient Rotating CFD: restore a completed genuine custom-rotor
+   OpenFOAM job, inspect real velocity and pressure, and play the smooth
+   source-STL geometry loop. Explain what is calculated vs animated.
+3. Real STEP Engineering: run true bracket tetra10 stress/displacement
+   FEA, compare generated STEP alternatives and show evidence hashes.
+4. Show a hollow shaft or four-hole plate as a second product family.
+
+Record an actual working screen demonstration (less than 3 minutes) for
+Devpost. Do not wait for a long OpenFOAM solve during the short video;
+show the previously computed solver logs and the exact U/p evidence.
+
+## Originality and AI disclosure
+
+ForceForge X uses experimental engineering and numerical solver
+infrastructure that predates the hackathon. During the event we expanded
+the typed natural-language model catalog, built custom STEP-rotor CFD
+integration, hardened solver recovery and browser looping, and added
+independent macOS/Linux/Chromium regression tests. Organizers' rules
+require hackathon code to be created during the event, so the team must
+disclose the pre-event foundation and confirm that reuse is permissible.
+
+ChatGPT assisted with coding, debugging, verification tests, and
+documentation. The optional OpenAI API only prioritizes bounded designs.
+Physical FEA/CFD values always originate in numerical solvers.
+
+This is a research / education prototype, not a certified mechanical
+design, an unlimited product generator, or completed multiphysics
+wall-mount validation.
+
+---
+
+## Development history and technical details
+
 ## v0.2 — Real 3D air-domain mesh for conceptual wall fan (not CFD yet)
 
 In **Natural Language Engineering**, create the real multi-solid fan STEP,

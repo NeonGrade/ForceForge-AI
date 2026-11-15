@@ -20,9 +20,9 @@ https://hack-the-nest.devpost.com/
 **Tagline**: Describe a mechanical product. Generate real CAD. Test designs with actual FEA and rotating-flow CFD.
 
 **Project URL / source code (public; use exact branch, main is older)**:
-https://github.com/NeonGrade/ForceForge-AI/tree/feature/stress-local-validation-v11
+https://github.com/NeonGrade/ForceForge-AI/tree/hack-the-nest-2026-submission
 
-**Technical validation branch head at preparation**: f1396ff4813fc03419d53c961110c1fc7bb062ab
+**Validated code commit (prior to packaging)**: f1396ff4813fc03419d53c961110c1fc7bb062ab
 
 **Main track**: Future of Intelligence (OpenAI, with Exa).
 
