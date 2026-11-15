@@ -1,0 +1,37 @@
+name: Chromium - continuous rotor loop browser acceptance
+
+on:
+  push:
+    paths:
+      - 'forceforge/continuous_rotor.py'
+      - 'qa/rotor_loop_browser_smoke.py'
+      - '.github/workflows/rotor-browser-loop.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-chromium-rotor-loop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install interactive browser and Plotly
+        run: |
+          python -m pip install numpy 'plotly>=5.22,<7' playwright
+          python -m playwright install --with-deps chromium
+      - name: Verify repeated Play/Pause real WebGL rotor motion
+        run: python qa/rotor_loop_browser_smoke.py
+      - name: Store QA-only browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-only-continuous-rotor-browser
+          path: qa/artifacts_rotor_browser/
+          retention-days: 7
+          if-no-files-found: ignore
