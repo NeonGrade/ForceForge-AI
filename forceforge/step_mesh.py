@@ -78,6 +78,7 @@ class CadMesh:
     bbox_m: np.ndarray
     relative_volume_difference: float
     min_shape_quality: float
+    local_refinement: dict | None = None
     @property
     def num_tets(self):
         return len(self.tets4)
@@ -129,12 +130,24 @@ def _extract_tets(gmsh, scale, file_hash, label, size_mm, volume_native, max_tet
                    np.vstack((points.min(axis=0),points.max(axis=0))),float(delta),float(quality.min()))
 
 
-def mesh_step_bytes(data:bytes, *, source_label='STEP',mesh_size_mm=5.,unit='mm',max_tets=5000):
+def mesh_step_bytes(data:bytes, *, source_label='STEP',mesh_size_mm=5.,unit='mm',max_tets=5000,local_refinement=None):
     _validate_step(data)
     if unit not in ('mm','m'):
         raise ValueError('Units must be mm or m')
     if not .2<=mesh_size_mm<=30:
         raise ValueError('Mesh size must be between 0.2 and 30 mm')
+    if local_refinement is not None:
+        if not isinstance(local_refinement,dict):
+            raise ValueError('Local refinement must be a bounded dictionary')
+        try:
+            center=np.asarray(local_refinement['center_m'],dtype=float)
+            factor=float(local_refinement['size_factor'])
+            radius=float(local_refinement.get('radius_fraction',.20))
+        except (KeyError,TypeError,ValueError) as exc:
+            raise ValueError('Invalid refinement center, factor or radius') from exc
+        if (center.shape!=(3,) or not np.isfinite(center).all()
+                or not .45<=factor<=.90 or not .10<=radius<=.40):
+            raise ValueError('Unsafe or invalid local CAD refinement parameters')
     gmsh = _require_gmsh()
     with tempfile.TemporaryDirectory(prefix='ffstep_') as folder:
         src=Path(folder)/'source.step'
@@ -150,13 +163,39 @@ def mesh_step_bytes(data:bytes, *, source_label='STEP',mesh_size_mm=5.,unit='mm'
             volume_native=float(gmsh.model.occ.getMass(3,volumes[0][1]))
             scale=.001 if unit=='mm' else 1.
             size_native=mesh_size_mm if unit=='mm' else mesh_size_mm/1000
-            for key,value in [('Mesh.MeshSizeMin',size_native),('Mesh.MeshSizeMax',size_native),
+            lower=np.array(gmsh.model.getBoundingBox(3,volumes[0][1])[:3],dtype=float)
+            upper=np.array(gmsh.model.getBoundingBox(3,volumes[0][1])[3:],dtype=float)
+            if local_refinement is not None:
+                native_center=center/scale
+                if np.any(native_center<lower-1e-7) or np.any(native_center>upper+1e-7):
+                    raise ValueError('Refinement hotspot must lie within actual STEP bounding box')
+                # Use Gmsh's native 3D Box size field. The same source STEP
+                # BRep is re-imported; only the element-size distribution
+                # changes in the physical neighborhood of the FE hotspot.
+                field=gmsh.model.mesh.field.add('Box')
+                box_radius=np.maximum((upper-lower)*radius,size_native*.8)
+                minimum=np.maximum(lower,native_center-box_radius)
+                maximum=np.minimum(upper,native_center+box_radius)
+                for name,idx in (('X',0),('Y',1),('Z',2)):
+                    gmsh.model.mesh.field.setNumber(field,name+'Min',float(minimum[idx]))
+                    gmsh.model.mesh.field.setNumber(field,name+'Max',float(maximum[idx]))
+                gmsh.model.mesh.field.setNumber(field,'VIn',size_native*factor)
+                gmsh.model.mesh.field.setNumber(field,'VOut',size_native)
+                gmsh.model.mesh.field.setNumber(field,'Thickness',size_native*.25)
+                gmsh.model.mesh.field.setAsBackgroundMesh(field)
+            for key,value in [('Mesh.MeshSizeMin',size_native*(factor if local_refinement is not None else 1.)),
+                              ('Mesh.MeshSizeMax',size_native),
                               ('Mesh.MeshSizeFromPoints',0),('Mesh.MeshSizeFromCurvature',0),
                               ('Mesh.MeshSizeExtendFromBoundary',0)]:
                 gmsh.option.setNumber(key,value)
             gmsh.model.mesh.generate(3)
-            return _extract_tets(gmsh,scale,sha256(data).hexdigest(),source_label,
-                                 mesh_size_mm,volume_native,max_tets)
+            extracted=_extract_tets(gmsh,scale,sha256(data).hexdigest(),source_label,
+                                    mesh_size_mm,volume_native,max_tets)
+            extracted.local_refinement=(
+                {'center_m':center.tolist(),'size_factor':factor,'radius_fraction':radius}
+                if local_refinement is not None else None
+            )
+            return extracted
 
 
 def generated_bracket_step(*,web_mm=8.):
