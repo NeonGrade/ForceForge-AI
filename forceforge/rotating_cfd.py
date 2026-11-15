@@ -255,7 +255,7 @@ def _collect_vtk(root: Path) -> dict:
     # A filesystem timestamp is not CFD time. Sort genuine VTK records
     # by their exported numeric index (only validated labels are shown).
     def vtk_sort_key(path: Path):
-        match=re.search(r"([0-9]+(?:\\.[0-9]+)?)\\.vtk$",path.name)
+        match=re.search(r"([0-9]+(?:\.[0-9]+)?)\.vtk$",path.name)
         return (
             float(match.group(1)) if match else float("inf"),
             str(path),
