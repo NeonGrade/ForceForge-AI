@@ -161,3 +161,31 @@ def test_real_parametric_step_to_independent_tetra10_fea(prompt):
     assert result.evidence()["structural_fea"]["solver"].startswith("existing")
     assert result.evidence()["fluid_cfd"] is None
     assert result.plan.task("structural_fea").status==TaskState.READY
+
+
+
+def test_real_four_hole_plate_tetra10_fea_and_typed_boundary_assumptions():
+    """Real four-hole geometry is more demanding than a rectangular block.
+
+    If the mesh cap or independent solver rejects the geometry, the job
+    must fail loudly rather than present plausible but fabricated stress.
+    """
+    pytest.importorskip("gmsh")
+    from forceforge.engineering_schema import approve_demo_assumptions
+    spec=interpret_text(
+        "做一个矩形安装板，长度60mm，宽度50mm，厚度12mm，"
+        "开4个孔，孔径4mm，孔中心距边缘12mm，分析应力"
+    ).request
+    assert spec is not None
+    assert spec.geometry.hole_count==4
+    assert spec.geometry.hole_diameter_mm==4
+    assert spec.geometry.hole_edge_margin_mm==12
+    ready=approve_demo_assumptions(spec)
+    ready.mesh_size_mm=15.
+    assert plan_engineering(ready).task("structural_fea").status==TaskState.READY
+    out=run_engineering(ready)
+    assert out.structural_fea is not None
+    assert out.cad.solid_parts==1
+    assert out.structural_fea.mesh.source_sha256==out.cad.sha256
+    assert out.structural_fea.relative_reaction_residual<1e-5
+    assert out.structural_fea.peak_von_mises_mpa>0
