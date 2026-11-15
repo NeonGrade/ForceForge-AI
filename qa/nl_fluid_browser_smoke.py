@@ -69,6 +69,18 @@ def main():
                 assert result is not None and result.ok
                 form=page.get_by_role("button",name="Interpret engineering requirements")
                 expect(form).to_be_visible(timeout=35000)
+                # Explicitly input the same fan geometry used in the test
+                # rather than relying on Streamlit's delayed session-state
+                # default hydration inside st.form on first page open.
+                input_box=page.get_by_role(
+                    "textbox",name="What should ForceForge build and analyze?"
+                )
+                source_prompt=(
+                    "帮我做一个直径30厘米、转速1500 RPM的挂壁风扇，"
+                    "想看气流分布，以及墙壁和固定架怎么受力。"
+                )
+                input_box.fill(source_prompt)
+                expect(input_box).to_have_value(source_prompt)
                 form.click()
                 consent=page.get_by_role(
                     "checkbox",
