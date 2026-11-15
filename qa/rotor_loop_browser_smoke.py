@@ -69,30 +69,44 @@ def main():
             "return !!(g && g.data && g.data.length===2 && g._fullLayout); }",
             timeout=40000,
         )
-        page.evaluate(
-            "() => {"
-            " const g=document.getElementById('ff-real-rotor');"
-            " window.ffSourceX=g.data[1].x[0];"
-            " window.ffAnimated=0;"
-            " g.on('plotly_animated',()=>window.ffAnimated++);"
-            "}"
-        )
-        page.get_by_role("button",name="Play continuous rotor").click()
-        page.wait_for_function(
-            "() => {const g=document.getElementById('ff-real-rotor');"
-            "return window.ffAnimated>=5 && "
-            "Math.abs(g.data[1].x[0]-window.ffSourceX)>0.005;}",
-            timeout=30000,
-        )
-        # The playback does not stop after its first few frames.
-        page.wait_for_function("() => window.ffAnimated>=50",timeout=45000)
-        page.get_by_role("button",name="Pause").click()
-        page.screenshot(path=str(artifacts/"QA_ONLY_chromium_rotor_loop.png"),
-                        full_page=True)
-        print(
-            "PASS: actual Chromium WebGL rotor moves and repeats; "
-            f"animated frames={page.evaluate('window.ffAnimated')}"
-        )
+        try:
+            page.get_by_role("button",name="Play continuous rotor").click()
+            page.wait_for_function(
+                "() => {const g=document.getElementById('ff-real-rotor');"
+                "return Number(g.dataset.ffRotorSteps)>=6 && "
+                "Number(g.dataset.ffRotorMaxX)-Number(g.dataset.ffRotorMinX)>.005;}",
+                timeout=35000,
+            )
+            # Must move through more than a complete 48-step revolution
+            # instead of merely playing the first few geometry frames.
+            page.wait_for_function(
+                "() => {const g=document.getElementById('ff-real-rotor');"
+                "return Number(g.dataset.ffRotorSteps)>=52 && "
+                "Number(g.dataset.ffRotorCycle)>=1;}",
+                timeout=55000,
+            )
+            page.get_by_role("button",name="Pause rotor").click()
+            before=page.evaluate(
+                "Number(document.getElementById('ff-real-rotor').dataset.ffRotorSteps)"
+            )
+            page.wait_for_timeout(450)
+            after=page.evaluate(
+                "Number(document.getElementById('ff-real-rotor').dataset.ffRotorSteps)"
+            )
+            assert after==before,"Pause must stop geometry updates"
+            print("PASS: real Chromium WebGL Mesh3D geometry updated, "
+                  "completed >=1 loops, paused; frames=",before)
+        finally:
+            snapshot=page.evaluate(
+                "() => {const g=document.getElementById('ff-real-rotor');"
+                "return {steps:g.dataset.ffRotorSteps,"
+                "cycle:g.dataset.ffRotorCycle,"
+                "minX:g.dataset.ffRotorMinX,maxX:g.dataset.ffRotorMaxX,"
+                "label:document.getElementById('ff-rotor-label')?.textContent};}"
+            )
+            print("CHROMIUM ROTOR DIAGNOSTIC:",snapshot,"JS errors:",errors[:3])
+            page.screenshot(path=str(artifacts/"QA_ONLY_chromium_rotor_loop.png"),
+                            full_page=True)
         if errors:
             raise AssertionError("Browser JS errors: "+";".join(errors[:3]))
         browser.close()

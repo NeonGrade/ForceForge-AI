@@ -113,7 +113,8 @@ def test_loop_html_keeps_real_solver_snapshot_frozen():
     html=make_loop_html(source,model)
     assert "ff-real-rotor" in html
     assert "Play continuous rotor" in html
-    assert "Plotly.animate" in html
+    assert "Plotly.restyle" in html
+    assert "ffRotorSteps" in html
     assert "frozen" in html.lower()
     assert "0.040000 s" in html
     assert "No computed fields between solver frames" in html

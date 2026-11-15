@@ -201,31 +201,75 @@ def make_loop_html(source:dict,actual:dict) -> str:
         include_plotlyjs=True,full_html=False,div_id="ff-real-rotor",
         config={"displaylogo":False,"responsive":True}
     )
+    # Transport numerical source data only. No user HTML or source STL text
+    # becomes executable JS. The geometrical transformation is Rodrigues
+    # rotation around the axis read from the solved OpenFOAM dictionary.
+    import json
+    rotor_data=json.dumps({
+        "x":vertices[0,:,0].tolist(),
+        "y":vertices[0,:,1].tolist(),
+        "z":vertices[0,:,2].tolist(),
+        "origin":np.asarray(source["origin_m"],dtype=float).tolist(),
+        "axis":np.asarray(source["axis"],dtype=float).tolist(),
+        "frames_per_turn":FRAMES-1,
+    },separators=(",",":"))
     js="""<div style="font:13px system-ui;color:#475569">
 <button id="ff-start">Play continuous rotor</button>
 <button id="ff-stop">Pause rotor</button>
- Kinematic blade loop; CFD field is a frozen verified snapshot.
+ <span id="ff-rotor-label">Real STL geometry, slowed playback · U/p snapshot held</span>
 </div>
 <script>
 (function(){
  const plot=document.getElementById("ff-real-rotor");
- let active=false,frame=1,token=0;
- async function tick(current){
-  if(!active||token!==current)return;
-  try{
-   await Plotly.animate(plot,[String(frame)],{
-    mode:"immediate",transition:{duration:0},
-    frame:{duration:0,redraw:true}});
-  }catch(e){active=false;return;}
-  frame=(frame+1)%49;if(frame===0)frame=1;
-  if(active&&current===token)window.setTimeout(()=>tick(current),65);
+ const data=__ROTOR_DATA__;
+ const cx=data.origin[0],cy=data.origin[1],cz=data.origin[2];
+ const ax=data.axis[0],ay=data.axis[1],az=data.axis[2];
+ const N=data.x.length, segments=data.frames_per_turn;
+ let active=false, index=0, token=0, steps=0, minX=Infinity, maxX=-Infinity;
+ const label=document.getElementById("ff-rotor-label");
+ async function step(t){
+   if(!active||t!==token) return;
+   const theta=2*Math.PI*(index+1)/segments;
+   const cs=Math.cos(theta), sn=Math.sin(theta), omc=1-cs;
+   const x=new Array(N),y=new Array(N),z=new Array(N);
+   for(let j=0;j<N;j++){
+     const px=data.x[j]-cx,py=data.y[j]-cy,pz=data.z[j]-cz;
+     const dot=ax*px+ay*py+az*pz;
+     x[j]=cx+px*cs+(ay*pz-az*py)*sn+ax*dot*omc;
+     y[j]=cy+py*cs+(az*px-ax*pz)*sn+ay*dot*omc;
+     z[j]=cz+pz*cs+(ax*py-ay*px)*sn+az*dot*omc;
+   }
+   try{
+     await Plotly.restyle(plot,{x:[x],y:[y],z:[z]},[1]);
+   }catch(error){
+     active=false;
+     label.textContent="Rotor 3D rendering stopped: "+String(error);
+     return;
+   }
+   if(!active||token!==t) return;
+   index=(index+1)%segments;
+   steps+=1;
+   minX=Math.min(minX,x[0]);
+   maxX=Math.max(maxX,x[0]);
+   plot.dataset.ffRotorSteps=String(steps);
+   plot.dataset.ffRotorMinX=String(minX);
+   plot.dataset.ffRotorMaxX=String(maxX);
+   plot.dataset.ffRotorCycle=String(Math.floor(steps/segments));
+   label.textContent="Source STL · loop "+Math.floor(steps/segments)+
+       " · kinematic frame "+(index+1)+"/"+segments+
+       " · U/p fixed at last genuine solver write";
+   window.setTimeout(function(){step(t);},65);
  }
- document.getElementById("ff-start").onclick=()=>{
-   if(!active){active=true;token++;tick(token);}
+ document.getElementById("ff-start").onclick=function(){
+   if(active) return;
+   active=true;token+=1;step(token);
  };
- document.getElementById("ff-stop").onclick=()=>{active=false;token++;};
+ document.getElementById("ff-stop").onclick=function(){
+   active=false;token+=1;
+   label.textContent="Paused · source STL geometry / verified U/p snapshot";
+ };
 })();
-</script>"""
+</script>""".replace("__ROTOR_DATA__",rotor_data)
     measured_times=actual.get("physical_time_s")
     timestamp=(f"{float(measured_times[-1]):.6f} s"
                if measured_times is not None else "last verified VTK record")
