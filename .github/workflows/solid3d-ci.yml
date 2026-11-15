@@ -7,6 +7,11 @@ on:
     paths:
       - 'forceforge/solid3d.py'
       - 'app_3d.py'
+      - 'solid3d_service.py'
+      - 'forceforge/solid3d_worker.py'
+      - 'web_server.py'
+      - 'web/solid3d.*'
+      - 'web/index.html'
       - 'tests/**'
       - 'requirements-3d.txt'
       - '.github/workflows/solid3d-ci.yml'
@@ -31,8 +36,21 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements-3d.txt
+      - name: Check browser JS syntax
+        run: node --check web/solid3d.js
       - name: Run full Python test suite
         run: python -m pytest -q
+      - name: Isolated subprocess + real Gmsh smoke
+        run: |
+          python - <<'PY'
+          from solid3d_service import run_study
+          for _ in range(2):
+              result = run_study({"geometry":"box", "length_mm":50, "width_mm":10, "height_mm":10, "mesh_size_mm":10})
+              assert result["ok"] is True
+              assert result["mesh"]["tetrahedra"] > 0
+              assert result["metrics"]["equilibrium_residual_n"] < 1e-4
+          print("Isolated worker repeated FEA passed")
+          PY
       - name: Native Gmsh twice + pre-initialized session + FEA equilibrium
         run: |
           python - <<'PY'
