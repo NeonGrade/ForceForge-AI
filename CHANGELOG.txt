@@ -514,6 +514,14 @@ Made English engineering questions and natural parameter requests the primary Ag
 Added English evidence-grounded diagnosis, result, mesh, redesign-workflow, ML-scope and validation answers from bounded server-held FE reviews; changed inputs require new evidence. Questions never run the solver or accept client-invented results.
 Retained Chinese compatibility; documented supported topics and clarification behavior.
 
+WORKSPACE v1.0 ENGLISH AGENT / ML ADAPTATION — 2026-11-14
+Adapted to the unified Workspace v1.0 UI (PR #21 eb3dc6f) and PR #20 fcf7a19 CI routing updates.
+Added offline English 2D result/scenario/diagnosis answers from bounded server-held, current-case evidence. Questions do not run new FEA or accept client-invented values.
+Added partial English input changes, relative load/geometry requests and context-checked confirmation; retained same-tab persistence and fresh FEA after applying changes.
+Exposed grouped-design and whole-height validation plus complete ML/FEA provenance exports in the unified website. Kept 2D and 3D Agent schemas and evidence separate.
+Added forward-compatible v1.1 stress status explanations without merging the separate stress-remeshing engine. Displacement stability cannot imply local stress convergence.
+See docs/UNIFIED_ENGLISH_AGENT.md for supported English examples, bounds, verification and final team-acceptance limits.
+
 
 WORKSPACE UI v1.0.0 — 2026-11-14 — DRAFT REVIEW RELEASE
 Branch: ui/workspace-v1.0

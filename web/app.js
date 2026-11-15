@@ -44,7 +44,7 @@
     selected: null, hovered: null, tooltip: null,
     challengeMultiplier: 1.4,
     brief: 'Design a lightweight 2 m truss bridge under 1000 N, with displacement limit 2 mm.',
-    useApi: false, busy: new Set(), connected: false, error: null, errorKind: null,
+    validationStrategy: 'design', busy: new Set(), connected: false, error: null, errorKind: null,
   };
   let solveTimer = 0;
   let solveSeq = 0;
@@ -143,6 +143,7 @@
 
   function clearComputed({requirementsChanged = true} = {}) {
     state.solve = null;
+    state.parsed = null;
     state.challenge = null;
     state.selected = null;
     state.hovered = null;
@@ -258,21 +259,29 @@
 
   async function runML() {
     if (state.busy.has('ml')) return;
-    const fingerprint = reqKey();
+    const fingerprint = reqKey() + state.validationStrategy;
     setBusy('ml', true);
     try {
-      const incoming = await post('/api/ml', {...state.config, propose:true});
-      if (fingerprint !== reqKey()) return;
+      const incoming = await post('/api/ml', {...state.config, propose:true, validation_strategy:state.validationStrategy});
+      if (fingerprint !== reqKey() + state.validationStrategy) return;
       state.ml = incoming;
       toast('ML proposals checked with actual FEA');
-    } catch (err) { if (fingerprint === reqKey()) toast(`ML validation failed: ${err.message}`, true); }
+    } catch (err) { if (fingerprint === reqKey() + state.validationStrategy) toast(`ML validation failed: ${err.message}`, true); }
     finally { setBusy('ml', false); }
   }
 
   async function runAgent() {
     if (state.busy.has('agent')) return;
+    const current = {...state.config}, prompt = state.brief;
+    const inputSnapshot = JSON.stringify(current);
+    state.parsed = null;
     setBusy('agent', true);
-    try { state.parsed = await post('/api/interpret', {prompt:state.brief, use_api:state.useApi}); toast('Requirements extracted — review before applying'); }
+    try {
+      const incoming = await post('/api/agent/ask', {prompt, current, review_id:state.solve?.review_id});
+      if (inputSnapshot !== JSON.stringify(state.config) || prompt !== state.brief) return;
+      state.parsed = {...incoming, inputSnapshot, promptSnapshot:prompt};
+      toast(incoming.kind === 'answer' ? 'Answered from the completed current analysis' : 'Changes extracted — review before applying');
+    }
     catch (err) { toast(`Interpretation failed: ${err.message}`, true); }
     finally { setBusy('agent', false); }
   }
@@ -291,20 +300,23 @@
     toast('FEA-verified candidate loaded into the viewport');
   }
 
-  function applyBrief() {
-    const values = state.parsed?.interpreted;
-    if (!values) return;
-    // Validation must be atomic: a rejected brief never changes live inputs.
-    if (values.span_m < .5 || values.span_m > 4 || values.load_n < 100 || values.load_n > 3000 || values.max_displacement_mm < .25 || values.max_displacement_mm > 12) {
-      toast('Parsed values exceed the workspace limits. Adjust the brief and try again.', true);
+  async function applyBrief() {
+    const preview = state.parsed;
+    if (!preview?.proposal || state.busy.has('agent')) return;
+    if (preview.inputSnapshot !== JSON.stringify(state.config) || preview.promptSnapshot !== state.brief) {
+      state.parsed = null; renderPanel();
+      toast('Inputs or request changed. Understand the request again.', true);
       return;
     }
-    state.config.span_m = values.span_m;
-    state.config.base_load_n = values.load_n;
-    state.config.max_displacement_mm = values.max_displacement_mm;
-    state.config.height_m = Number((values.span_m * 0.5).toFixed(4));
-    clearComputed(); saveDesign(); renderControls(); resetView(); renderMetrics(); scheduleSolve(); setMode('design');
-    toast('Reviewed requirements applied — recomputing physics');
+    setBusy('agent', true);
+    try {
+      const response = await post('/api/agent/confirm', {proposal:preview.proposal, current:{...state.config}});
+      if (preview.inputSnapshot !== JSON.stringify(state.config) || preview.promptSnapshot !== state.brief) return;
+      state.config = response.parameters;
+      clearComputed(); saveDesign(); renderControls(); resetView(); renderMetrics(); scheduleSolve(); setMode('design');
+      toast('Confirmed changes applied — recomputing physics');
+    } catch (err) { toast(`Confirmation failed: ${err.message}`, true); }
+    finally { setBusy('agent', false); }
   }
 
   const topologyMap = {
@@ -655,19 +667,23 @@
     const data=state.ml, busy=state.busy.has('ml');
     return `<div class="result-overline">ML-ASSISTED DESIGN DISCOVERY</div><div class="result-hero"><div class="hero-top"><span class="dot-label">FEA → ML → FEA</span></div><div class="hero-state">Physics first</div><div class="hero-sub">Random Forest predicts utilization, then each shortlisted design is solved again by FEA.</div></div>
       ${!data?`<div class="empty-state">${ICON('brain')} Train on FEA-generated scenarios and verify the model's suggested designs.</div>`:''}
+      <label class="section-note" for="validationStrategy">Validation split</label><select id="validationStrategy" class="result-textarea" aria-label="ML validation split"><option value="design" ${state.validationStrategy==='design'?'selected':''}>Grouped designs · interpolation</option><option value="height" ${state.validationStrategy==='height'?'selected':''}>Whole heights · unseen height groups</option></select>
       <button class="panel-button" data-action="ml" ${busy?'disabled':''}>${busy?'<span class="loading-spinner"></span> Training & verifying…':`${ICON('brain')} Train and verify candidates`}</button>
       ${data?`<div class="subtle-divider"></div><div class="result-card"><div class="result-card-heading">Held-out validation <small>Group split</small></div><table class="analysis-table"><thead><tr><th>Target</th><th>MAE</th><th>R²</th></tr></thead><tbody>${Object.entries(data.metrics).map(([key,metric])=>`<tr><td>${esc(key.replace('worst_','').replace('_util',''))}</td><td>${num(metric.mae,3)}</td><td>${num(metric.r2,3)}</td></tr>`).join('')}</tbody></table><div class="section-note">Training-mean baseline MAE: ${Object.values(data.metrics).map(m=>num(m.baseline_mae,3)).join(' / ')}</div></div>
       <div class="result-card"><div class="result-card-heading">FEA-reverified proposals <small>${data.verified.length} designs</small></div><div class="compact-list">${data.verified.slice(0,7).map((r,i)=>`<button class="compact-row button-row" data-action="apply-ml" data-index="${i}" ${r.feasible?'':'title="Failed constraints"'}><span><span class="row-rank">${esc(r.topology)}</span><br><span class="row-kind">H ${num(r.height_m,2)} · A ${num(r.area_mm2,0)} mm²</span></span><span style="text-align:right"><strong>${num(r.mass_kg,3)} kg</strong><br><span class="small-badge ${r.feasible?'':'fail'}">${r.feasible?'PASS':'FAIL'}</span></span></button>`).join('')}</div></div>
+      <div class="section-note">${esc(data.validation.method)} · ${data.validation.train_rows} training / ${data.validation.test_rows} held out</div><button class="panel-button" data-action="download-ml">Export validation and FEA evidence</button>
       <div class="inline-message warning">${esc(data.note)} The holdout does not establish generalization to other topology families or materials.</div>`:''}`;
   }
 
   function agentPanel() {
-    const parsed=state.parsed?.interpreted,busy=state.busy.has('agent');
-    return `<div class="result-overline">REQUIREMENTS INTERPRETER</div><div class="result-hero"><div class="hero-top"><span class="dot-label">ENGINEER-IN-THE-LOOP</span></div><div class="hero-state">From brief to inputs</div><div class="hero-sub">Parse span, central force and deflection limit. Review all extracted values before use.</div></div>
-      <div class="result-card"><div class="result-card-heading">Design brief</div><textarea class="result-textarea" id="briefInput" maxlength="1600" aria-label="Write a truss design brief">${esc(state.brief)}</textarea><label class="checkbox-line"><input id="useApiCheck" type="checkbox" ${state.useApi?'checked':''}> Use OpenAI API if configured on server</label>
-      <button class="panel-button" data-action="interpret" ${busy?'disabled':''}>${busy?'<span class="loading-spinner"></span> Interpreting…':`${ICON('chat')} Interpret requirements`}</button></div>
-      ${parsed?`<div class="selected-card"><div class="selected-label">PROPOSED VALUES · REVIEW REQUIRED</div><div class="selected-grid"><span>Span</span><strong>${num(parsed.span_m,3)} m</strong><span>Central load</span><strong>${num(parsed.load_n,0)} N</strong><span>Displacement limit</span><strong>${num(parsed.max_displacement_mm,3)} mm</strong></div></div><div class="section-note">${esc(parsed.rationale)}</div><button class="panel-button" data-action="apply-brief">${ICON('check')} Apply reviewed inputs</button>`:''}
-      <div class="inline-message">The language model never calculates FEA values or declares a structure safe. The offline parser works without a key.</div>`;
+    const reply=state.parsed,busy=state.busy.has('agent');
+    const labels={span_m:'Span (m)',base_load_n:'Central load (N)',max_displacement_mm:'Displacement limit (mm)',height_m:'Height (m)',area_mm2:'Section area (mm²)'};
+    return `<div class="result-overline">ENGLISH ENGINEERING ASSISTANT</div><div class="result-hero"><div class="hero-top"><span class="dot-label">ENGINEER-IN-THE-LOOP</span></div><div class="hero-state">Ask or change</div><div class="hero-sub">Ask why a check fails, explain current results, or preview an input change in English.</div></div>
+      <div class="result-card"><div class="result-card-heading">English question or request</div><textarea class="result-textarea" id="briefInput" maxlength="1600" aria-label="English truss question or request">${esc(state.brief)}</textarea>
+      <div class="section-note">Try “Why does this design fail?”, “What is the displacement?” or “Increase the load by 20%”.</div>
+      <button class="panel-button" data-action="interpret" ${busy?'disabled':''}>${busy?'<span class="loading-spinner"></span> Understanding…':`${ICON('chat')} Understand English request`}</button></div>
+      ${reply?`<div id="agentReply">${reply.kind==='answer'?`<div class="result-card"><div class="result-card-heading">Completed current 2D analysis</div><p>${esc(reply.answer.text)}</p><div class="section-note">${esc(reply.answer.note)}</div></div>`:`<div class="selected-card"><div class="selected-label">PROPOSED CHANGES · REVIEW REQUIRED</div><div class="selected-grid">${Object.entries(reply.proposal.changes).map(([key,value])=>`<span>${esc(labels[key])}</span><strong>${num(state.config[key],3)} → ${num(value,3)}</strong>`).join('')}</div></div><div class="section-note">${esc(reply.note)}</div><button class="panel-button" data-action="apply-brief" ${busy?'disabled':''}>${ICON('check')} Confirm changes and analyze</button>`}</div>`:''}
+      <div class="inline-message">Answers use completed FEA evidence. Input changes require confirmation. This English-first assistant works without an API key.</div>`;
   }
 
   function renderPanel() {
@@ -716,7 +732,8 @@
       uncertainty_screen:state.solve.robust,
       optimization:state.search?{feasible_count:state.search.feasible_count,total_count:state.search.total_count,best:state.search.best}:null,
       challenge:state.challenge,
-      ml_validation:state.ml?{metrics:state.ml.metrics,validation:state.ml.validation}:null,
+      ml_validation:state.ml,
+      agent_answer:state.parsed?.kind==='answer'?state.parsed.answer:null,
     };
     download('forceforge_workspace_study.json',JSON.stringify(payload,null,2),'application/json');
     toast('Engineering study exported as JSON');
@@ -751,16 +768,21 @@
       const rows=state.search?.candidates||[];
       if(rows.length)download('forceforge_verified_designs.csv',rowsCSV(rows),'text/csv');
     }
+    else if(action==='download-ml' && state.ml)download('forceforge_ml_validation.json',JSON.stringify(state.ml,null,2),'application/json');
   });
 
   content.addEventListener('input',event=>{
     if(event.target.id==='challengeRange'){
       state.challengeMultiplier=Number(event.target.value);
       $('#challengeText').textContent=`${num(state.challengeMultiplier,2)}×`;
-    } else if(event.target.id==='briefInput')state.brief=event.target.value;
-    else if(event.target.id==='useApiCheck')state.useApi=event.target.checked;
+    } else if(event.target.id==='briefInput'){
+      state.brief=event.target.value;state.parsed=null;$('#agentReply')?.remove();
+    }
   });
   content.addEventListener('change',event=>{
+    if(event.target.id==='validationStrategy'){
+      state.validationStrategy=event.target.value;state.ml=null;renderPanel();
+    }
     if(event.target.id==='challengeRange'){
       state.challenge=null;renderPanel();renderMetrics();renderScene();
     }
