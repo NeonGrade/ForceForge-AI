@@ -421,6 +421,20 @@ checkMesh > /workspace/checkMesh.log
 pimpleFoam > /workspace/log.pimpleFoam
 '''
         _docker(root,solver_script,TIME_LIMIT_S-90,"solver_console.log")
+        # OpenFOAM tutorial preprocessing must not silently restore the
+        # original RPM or time settings. The solver must use the exact
+        # requested rotatingMotion and controlDict physics parameters.
+        configuration={
+            "dynamic_mesh_sha256":root/"case"/"constant"/"dynamicMeshDict",
+            "control_sha256":root/"case"/"system"/"controlDict",
+        }
+        for key,path in configuration.items():
+            if (not path.is_file() or
+                    sha256(path.read_bytes()).hexdigest()!=settings[key]):
+                raise ValueError(
+                    "OpenFOAM preprocessing rewrote a configured motion/time "
+                    "dictionary; cannot claim the requested RPM or transient duration"
+                )
         if not data.get("reference_only",True):
             target=root/"case"/"constant"/"triSurface"/"fan.stl"
             if (not target.is_file() or
