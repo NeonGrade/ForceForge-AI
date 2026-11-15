@@ -1,3 +1,48 @@
+## Hack The Nest 2026 — Live CAD Design Copilot (experimental)
+
+**One workflow, one existing app**: Real STEP CAD → Gmsh volume mesh → real
+quadratic tetra10 FEA → bounded AI proposal / rules fallback → **new STEP
+solids** → independent FEM rechecks → trade-off visualization and
+traceable downloads. All original ForceForge X v1.1 modules remain.
+
+### Run the upgraded Real STEP demo
+
+```bash
+git fetch origin
+git switch feature/stress-local-validation-v11
+git pull --ff-only origin feature/stress-local-validation-v11
+source .venv/bin/activate
+python -m pip install -r requirements.txt 'gmsh>=4.12,<5'
+python -m pytest -q
+python -m streamlit run app.py --server.fileWatcherType none
+```
+
+In **Real STEP → 3D FEA / CAD redesign** select the original 8 mm drilled
+bracket under the default 250 N transverse load and click **Run CAD import +
+3D FEA**. Immediately below the real 3D stress visualization, find
+**Step 2B · Design Copilot**. Default illustrative criteria are maximum
+tip displacement 0.015 mm, sampled peak stress 16 MPa and mass increase
+40%. Click **Generate CAD proposals + verify every candidate with real 3D
+FEA** to regenerate and analyze all three alternative STEP thicknesses.
+Download a resulting STEP and the complete evidence JSON.
+
+If a language model is desired, explicitly enable the LLM toggle and
+provide an API key locally (or set `OPENAI_API_KEY` in the local shell).
+AI only proposes a **bounded order and qualitative rationale**. Without a
+valid model result, the page explicitly labels the exhaustive search
+`RULE_BASED_FULL_SEARCH`. **No API key** is placed in reports/commits;
+**no stress or safety value comes from an LLM**.
+
+See [Hack The Nest 2026 demo and product/eligibility checklist](docs/HACK_THE_NEST_2026_DEMO.md)
+and [Physical hotspot reliability evidence](docs/LOCAL_STRESS_RELIABILITY.md).
+
+**Unimplemented:** true STEP fluid-domain CFD, general multipart
+contact/tie, arbitrary AI CAD BRep regeneration, plasticity, verified
+fatigue, proven global peak convergence and physical certification. Model
+constraints are illustrative, not design approval.
+
+---
+
 # ForceForge X v1.1 — Reproducible Local Stress Validation
 
 The 3-mesh STEP study now distinguishes **global displacement stability**, **fixed-region volume-weighted von Mises stability**, and **moving peak stress sensitivity**. Stable displacement no longer appears as a global engineering "PASS" when the local peak stress is unresolved. The original screenshot's 17.52% stress difference is correctly calculated from **18.6683 → 22.6327 MPa**.
