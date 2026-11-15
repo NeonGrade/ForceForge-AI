@@ -1,3 +1,128 @@
+## v0.2 — Real 3D air-domain mesh for conceptual wall fan (not CFD yet)
+
+In **Natural Language Engineering**, create the real multi-solid fan STEP,
+then press **Build real 3D Gmsh fluid mesh + tagged boundary regions**.
+An isolated Gmsh worker builds a conforming ambient-air + cylindrical
+actuator-source **true tetrahedral mesh**. It exports actual .msh data,
+six named 2D/3D Physical Groups, patch counts, tetrahedral volume error,
+and SHA-256 provenance. The displayed rotor-zone surface comes from
+actual Gmsh triangles; it is deliberately not a colored CFD solution.
+
+**Not implemented:** real flow velocity/pressure, blade-resolved
+Navier–Stokes, pressure-flow fan physics, turbulence, surrounding-wall
+effects or transfer of aerodynamic forces to bolt/contact FEA. The
+fluid_cfd and fan structural FEA tasks remain explicitly BLOCKED.
+
+[Exact model geometry, validation boundaries and next solver steps](docs/FLUID_DOMAIN_PREPROCESSOR_V02.md).
+
+---
+## Natural-language mechanical engineering v0.1 (PR #16)
+
+**Additive to the existing ForceForge X app:** ordinary Chinese/English
+mechanical descriptions → a strict versioned **engineering parameters
+schema** → **registered STEP CAD generator** → explicit capability and
+dependency plan → execute **only actually supported** CFD/FEA stages.
+
+Start the unchanged app:
+
+```bash
+python -m pip install -r requirements.txt 'gmsh>=4.12,<5'
+python -m streamlit run app.py --server.fileWatcherType none
+```
+
+Then select **Natural language → real CAD / FEA plan** from the original
+sidebar. The existing **Real STEP → tetra10 FEA / Design Copilot** page
+continues to work unchanged.
+
+Two currently registered examples:
+- **L-bracket:** plain text → real generated STEP → existing isolated
+  3D Tetra10 FEA, only after explicit load/material/support inputs or
+  user-approved labeled demo defaults.
+- **Wall fan:** plain text → actual OpenCASCADE multi-solid **concept
+  STEP** (impeller, guard, motor/mount) with visible assumptions.
+  **CFD and mounting FEA remain BLOCKED**; no fabricated airflow
+  or bolt/anchor stress results.
+
+The architecture is extensible by adding a typed product spec, a trusted
+isolated CAD adapter, physics capability declaration and independent tests.
+It does **not** currently turn arbitrary product prompts into verified CAD
+assemblies or run CFD.
+
+Full technical contract, test commands, status semantics and limitations:
+[Natural Language Engineering Architecture v0.1](docs/NATURAL_LANGUAGE_ENGINEERING_V01.md).
+
+---
+
+## Hack The Nest 2026 — Live CAD Design Copilot (experimental)
+
+**One workflow, one existing app**: Real STEP CAD → Gmsh volume mesh → real
+quadratic tetra10 FEA → bounded AI proposal / rules fallback → **new STEP
+solids** → independent FEM rechecks → trade-off visualization and
+traceable downloads. All original ForceForge X v1.1 modules remain.
+
+### Run the upgraded Real STEP demo
+
+```bash
+git fetch origin
+git switch feature/stress-local-validation-v11
+git pull --ff-only origin feature/stress-local-validation-v11
+source .venv/bin/activate
+python -m pip install -r requirements.txt 'gmsh>=4.12,<5'
+python -m pytest -q
+python -m streamlit run app.py --server.fileWatcherType none
+```
+
+In **Real STEP → 3D FEA / CAD redesign** select the original 8 mm drilled
+bracket under the default 250 N transverse load and click **Run CAD import +
+3D FEA**. Immediately below the real 3D stress visualization, find
+**Step 2B · Design Copilot**. Default illustrative criteria are maximum
+tip displacement 0.015 mm, sampled peak stress 16 MPa and mass increase
+40%. Click **Generate CAD proposals + verify every candidate with real 3D
+FEA** to regenerate and analyze all three alternative STEP thicknesses.
+Download a resulting STEP and the complete evidence JSON.
+
+If a language model is desired, explicitly enable the LLM toggle and
+provide an API key locally (or set `OPENAI_API_KEY` in the local shell).
+AI only proposes a **bounded order and qualitative rationale**. Without a
+valid model result, the page explicitly labels the exhaustive search
+`RULE_BASED_FULL_SEARCH`. **No API key** is placed in reports/commits;
+**no stress or safety value comes from an LLM**.
+
+See [Hack The Nest 2026 demo and product/eligibility checklist](docs/HACK_THE_NEST_2026_DEMO.md)
+and [Physical hotspot reliability evidence](docs/LOCAL_STRESS_RELIABILITY.md).
+
+**Unimplemented:** true STEP fluid-domain CFD, general multipart
+contact/tie, arbitrary AI CAD BRep regeneration, plasticity, verified
+fatigue, proven global peak convergence and physical certification. Model
+constraints are illustrative, not design approval.
+
+---
+
+# ForceForge X v1.1 — Reproducible Local Stress Validation
+
+The 3-mesh STEP study now distinguishes **global displacement stability**, **fixed-region volume-weighted von Mises stability**, and **moving peak stress sensitivity**. Stable displacement no longer appears as a global engineering "PASS" when the local peak stress is unresolved. The original screenshot's 17.52% stress difference is correctly calculated from **18.6683 → 22.6327 MPa**.
+
+The tetra10 solver retains all real integration-point physical locations, stress and Gauss weights. The **Run two local hotspot refinements** button uses actual Gmsh BRep remeshing near the measured peak position and independently reruns 3D FEM in isolated Mac-safe processes under identical loads; an ideal-clamp stress singularity is explicitly rejected as an engineering verification.
+
+[Read the physical stress-reliability specification](docs/LOCAL_STRESS_RELIABILITY.md) · [Stable Mac setup](docs/STABLE_CAD_RUNTIME.md)
+
+```bash
+cd ~/ForceForge-AI
+git status --short
+git fetch origin
+git switch --track origin/feature/stress-local-validation-v11
+source .venv/bin/activate
+python -m pip install -r requirements.txt 'gmsh>=4.12,<5'
+python -m pytest -q
+python -m streamlit run app.py --server.fileWatcherType none
+```
+
+If the branch already exists locally: `git switch feature/stress-local-validation-v11 && git pull --ff-only`.
+
+All previous modes, the genuine NIST STEP source, true tetra10 SOLID FEA, CAD redesign, ML and robustness screens are retained. Numerical mesh checks do **not** replace actual hardware fixture/material correlation or structural safety certification.
+
+---
+
 # ForceForge X v1.0 — Source-Locked Mesh Evidence
 
 The same **actual STEP CAD** is now checked at **three independently generated 3D tetra mesh resolutions**. ForceForge reuses the active FEM solution, runs exactly two additional crash-isolated solves, and reports how actual element counts, global displacement, strain energy, sampled local von Mises, volume preservation and reaction balance vary with mesh refinement.
@@ -333,3 +458,26 @@ AI-generated approval stamp.
 For demo: `python -m streamlit run app.py` → sidebar page **Cross Industry
 Platform**. The previously working main FEA and Advanced Structural Lab pages
 are retained. See `docs/CROSS_INDUSTRY_PLATFORM.md` for model scope and tests.
+
+
+## Plain language CAD product catalog (PR #16)
+
+The Natural Language Engineering page is an extensible, bounded catalog:
+real OpenCASCADE STEP generated from explicit dimensions, never an
+arbitrary-language general-purpose feature-tree CAD engine.
+
+| Supported description | Inputs needed | Real deliverable | Numerical boundary |
+| --- | --- | --- | --- |
+| L-bracket | thickness in {8,10,12,14} mm | real drilled STEP; validated isolated tetra10 FEA with specified/approved loads | qualified joints/fatigue NOT supplied |
+| Wall-mounted axial fan | diameter, blades, hub diameter, blade pitch | conceptual multibody STEP; separate idealized air-domain mesh | wall anchor/contact/CFD of this design still BLOCKED |
+| Hollow shaft/sleeve | outer diameter, bore diameter, length | real single-solid STEP (subtractive bore) | FEA/CFD BLOCKED |
+| Rectangular mounting plate | length, width, thickness; optional 4 hole diameters and edge margin | real OCC STEP with genuine through-holes | FEA/CFD BLOCKED |
+
+Example: "Make a hollow shaft outer diameter 60 mm inner diameter 30 mm length 120 mm".
+Example: "Make a mounting plate length 150 mm width 100 mm thickness 8 mm with 4 holes, hole diameter 6 mm, hole edge offset 15 mm".
+
+The transient CFD page can additionally display the actual rotor surface from
+a COMPLETED OpenFOAM solver case as a continuous kinematic loop beside a
+fixed verified U/p field snapshot. Three computed flow snapshots do not
+become forty-nine physically computed CFD time frames through this display.
+OpenFOAM job-state recovery uses the original solver evidence.

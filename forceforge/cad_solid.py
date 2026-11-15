@@ -52,6 +52,14 @@ class CADFEAResult:
     mass_kg: float
     sampled_peak_stress_pa: float
     strain_energy_j: float
+    # Coordinates/values refer to actual tetrahedral Gauss integration samples.
+    # They allow spatially FIXED stress probes across different tetra meshes;
+    # sampling only each global maximum cannot assess convergence at a
+    # consistent physical location.
+    gauss_points_m: np.ndarray
+    gauss_von_mises_pa: np.ndarray
+    gauss_weights_m3: np.ndarray
+    sampled_peak_location_m: np.ndarray
     @property
     def tip_mm(self):
         return abs(self.average_tip_displacement_m)*1e3
@@ -117,16 +125,28 @@ def solve_cad_mesh(mesh:CadMesh, case:CadLoad=CadLoad()) -> CADFEAResult:
     if eqerror>1e-5:
         raise ValueError('Reaction equilibrium failed; check the mesh and support faces')
     mids=[];vm=[]
+    samples_xyz=[];samples_vm=[];sample_weights=[]
     for nodes in cells:
         xyz=points[nodes[:4]]
         local_u=u[(3*nodes[:,None]+np.arange(3)).reshape(-1)]
-        B,_=_B(xyz,np.array([.25]*4))
+        B, element_volume=_B(xyz,np.array([.25]*4))
         mids.append(D@(B@local_u))
         sampling=[]
         for g in GAUSS:
-            Bi,_=_B(xyz,np.asarray(g))
-            sampling.append(_von_mises(D@(Bi@local_u)))
+            weights=np.asarray(g,dtype=float)
+            Bi,_=_B(xyz,weights)
+            mis=_von_mises(D@(Bi@local_u))
+            sampling.append(mis)
+            samples_xyz.append(weights@xyz)
+            samples_vm.append(mis)
+            sample_weights.append(element_volume/4.)
         vm.append(max(sampling))
+    samples_xyz=np.asarray(samples_xyz,dtype=float)
+    samples_vm=np.asarray(samples_vm,dtype=float)
+    sample_weights=np.asarray(sample_weights,dtype=float)
+    if not np.isclose(sample_weights.sum(),mesh.mesh_volume_m3,rtol=1e-7,atol=1e-12):
+        raise AssertionError('Quadratic tetra Gauss weights do not preserve actual CAD mesh volume')
+    maximum_sample=int(np.argmax(samples_vm))
     node_u=u.reshape(-1,3)
     topnode=np.flatnonzero(np.abs(points[:,axis]-maximum)<tol)
     tip=float(np.mean(node_u[topnode,case.force_axis]))
@@ -139,5 +159,9 @@ def solve_cad_mesh(mesh:CadMesh, case:CadLoad=CadLoad()) -> CADFEAResult:
         max_displacement_m=float(np.linalg.norm(node_u,axis=1).max()),
         mass_kg=case.density*mesh.mesh_volume_m3,
         sampled_peak_stress_pa=float(np.max(vm)),
-        strain_energy_j=float(.5*u.dot(stiff@u))
+        strain_energy_j=float(.5*u.dot(stiff@u)),
+        gauss_points_m=samples_xyz,
+        gauss_von_mises_pa=samples_vm,
+        gauss_weights_m3=sample_weights,
+        sampled_peak_location_m=samples_xyz[maximum_sample].copy(),
     )

@@ -102,6 +102,8 @@ with st.sidebar:
     st.page_link('pages/10_3D_CAD_Simulation.py',label='3D stress / failure / redesign',icon='🛠️')
     st.page_link('pages/12_True_3D_Solid_FEA.py',label='True 3D solid FEA · tetra10',icon='🔩')
     st.page_link('pages/13_Real_STEP_Engineering.py',label='Real STEP → 3D FEA / CAD redesign',icon='🧩')
+    st.page_link('pages/14_Natural_Language_Engineering.py',label='Natural language → real CAD / FEA plan',icon='💬')
+    st.page_link('pages/15_Transient_Rotating_CFD.py',label='Real moving-blade CFD / OpenFOAM animation',icon='🌀')
     st.markdown('**Engineering tools**')
     st.page_link('pages/7_Engineering_Workbench.py',label='Structural optimization & ML',icon='📈')
     st.page_link('pages/5_Advanced_Structural_Lab.py',label='Advanced thermal / joint mechanics',icon='⚙️')
