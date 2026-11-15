@@ -24,7 +24,8 @@ def test_nl_page_handles_unknown_product_without_invoking_cad():
     app=AppTest.from_file(PAGE,default_timeout=45).run()
     source=next(x for x in app.text_area
                 if x.label=="What should ForceForge build and analyze?")
-    source.set_value("设计一个自动变速箱，计算油路和振动").run()
+    # Form widget changes are committed together with the submit event.
+    source.set_value("设计一个自动变速箱，计算油路和振动")
     button=next(x for x in app.button
                 if x.label=="Interpret engineering requirements")
     button.click().run()
