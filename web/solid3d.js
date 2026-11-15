@@ -4,11 +4,15 @@
  */
 "use strict";
 (function () {
-  // When opened as the sixth mode of the main workspace, keep only the
-  // study UI; the parent retains the shared brand/header and tool rail.
-  if (new URLSearchParams(window.location.search).has("embedded")) {
-    document.body.classList.add("embedded");
+  // Route old standalone bookmarks back to the complete six-tool workspace.
+  // Only the iframe uses the standalone study markup without a duplicate
+  // navigation/header. ?standalone=1 remains available for troubleshooting.
+  const route = new URLSearchParams(window.location.search);
+  if (!route.has("embedded") && !route.has("standalone")) {
+    window.location.replace("/#solid3d");
+    return;
   }
+  if (route.has("embedded")) document.body.classList.add("embedded");
   const $ = (id) => document.getElementById(id);
   const form = $("studyForm");
   const canvas = $("solidCanvas");
