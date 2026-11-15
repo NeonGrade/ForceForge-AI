@@ -3,10 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0b111b">
+  <meta name="theme-color" content="#0b131b">
   <meta name="description" content="ForceForge AI: a physics-verified, interactive 2D truss engineering workspace.">
-  <title>ForceForge AI | Engineering Workspace</title>
+  <title>ForceForge X | Level 02 · Planar Engineering</title>
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/spatial-theme.css">
 </head>
 <body>
   <svg class="svg-sprites" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -34,16 +35,24 @@
   </svg>
   <div class="app-shell" id="appShell">
     <header class="topbar">
-      <div class="brand" title="ForceForge AI Engineering Workspace">
-        <div class="brand-icon"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M5 25 16 5l11 20H5Z" stroke="#64EAD3" stroke-width="2.4" stroke-linejoin="round"/><path d="M10 16h12M16 5v20" stroke="#64EAD3" stroke-width="1.7"/><circle cx="5" cy="25" r="2" fill="#64EAD3"/><circle cx="27" cy="25" r="2" fill="#64EAD3"/><circle cx="16" cy="5" r="2" fill="#64EAD3"/></svg></div>
-        <div class="brand-name"><strong>FORCEFORGE<span>AI</span></strong><small>ENGINEERING STUDIO</small></div>
+      <div class="brand" title="ForceForge X Spatial Engineering">
+        <div class="brand-icon spatial-brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="brand-name"><strong>forceforge<span> X</span></strong><small>LEVEL 02 · SPATIAL ENGINEERING</small></div>
       </div>
       <div class="header-divider"></div>
+      <button type="button" class="scene-selector-2d" id="sceneSelector" aria-expanded="false" aria-controls="sceneMenu" title="Choose engineering workspace">
+        <span class="scene-sigil">◈</span><span class="scene-select-copy"><strong>Truss engineering</strong><small>2D AXIAL FEA · COMPUTATIONAL</small></span><span class="scene-chevron">⌄</span>
+      </button>
+      <div class="scene-menu-2d" id="sceneMenu" hidden>
+        <span class="menu-kicker">CHOOSE A SPACE</span>
+        <button type="button" class="space-choice active" id="open2d"><span class="space-choice-icon">◈</span><span><strong>Truss engineering</strong><small>2D verified analysis and robust design</small></span><span>✓</span></button>
+        <button type="button" class="space-choice" id="open3d" aria-controls="integratedStudioFrame" title="Open the integrated 3D model workspace"><span class="space-choice-icon">⬡</span><span><strong>3D Spatial Studio</strong><small>3D solid · Real CAD · Laboratory</small></span><span>↗</span></button>
+      </div>
       <div class="breadcrumb"><span class="crumb-muted">Workspace</span><span class="crumb-sep">/</span><span class="crumb-current">Truss Study 01</span><span class="file-tag">2D · STATIC</span></div>
       <div class="header-spacer"></div>
       <div class="status-pill" id="connectionStatus"><span class="status-dot pending"></span><span id="connectionText">Connecting solver</span></div>
-      <button class="top-icon-button mobile-only" id="mobileLeft" aria-label="Toggle design settings"><svg class="icon"><use href="#i-menu"/></svg></button>
-      <button class="top-icon-button mobile-only" id="mobileRight" aria-label="Toggle results"><svg class="icon"><use href="#i-eye"/></svg></button>
+      <button class="top-icon-button mobile-only" id="mobileLeft" aria-label="Engineering settings" aria-controls="leftPanel" aria-expanded="false" title="Engineering settings"><svg class="icon"><use href="#i-settings"/></svg></button>
+      <button class="top-icon-button mobile-only" id="mobileRight" aria-label="Engineering results" aria-controls="rightPanel" aria-expanded="false" title="Results"><svg class="icon"><use href="#i-eye"/></svg></button>
       <button class="top-button secondary" id="btnExport"><svg class="icon"><use href="#i-download"/></svg><span>Export</span></button>
       <button class="top-icon-button" id="btnHelp" aria-label="Workspace help" title="Help / shortcuts"><svg class="icon"><use href="#i-info"/></svg></button>
     </header>
@@ -62,7 +71,7 @@
       </nav>
 
       <aside class="inspector" id="leftPanel" aria-label="Design controls">
-        <div class="panel-titlebar"><div><div class="eyebrow">MODEL SETUP</div><h2>Design parameters</h2></div><span class="titlebar-glyph"><svg class="icon"><use href="#i-settings"/></svg></span></div>
+        <div class="panel-titlebar"><div><div class="eyebrow">ENGINEERING SETTINGS</div><h2>Refine the model.</h2></div><button type="button" class="drawer-close" data-close-panel="left" aria-label="Close design settings">×</button></div>
         <div class="inspector-scroll">
           <div class="input-section">
             <div class="section-kicker"><span>01</span> STRUCTURE</div>
@@ -99,22 +108,39 @@
       <main class="workspace" aria-label="Engineering model viewport">
         <div class="viewport" id="viewport" tabindex="0" aria-label="Interactive truss model. Drag to pan; scroll to zoom; hover nodes or members for data.">
           <svg class="scene-svg" id="sceneSvg" role="img" aria-label="2D truss analysis view with engineering axes, grid and structure"></svg>
-          <div class="viewport-header"><div class="viewport-title"><span class="eyebrow teal">SIMULATION / STATIC STUDY</span><h1 id="viewportTitle">Triangle Truss <span>·</span> Load Case 01</h1><div class="viewport-description">Pin-jointed 2D frame <span class="title-sep">•</span> Linear elastic FEA</div></div></div>
+          <div class="model-pins" id="modelPins" aria-label="On-model engineering controls">
+            <button type="button" class="model-pin pin-load" id="spatialPinLoad" data-pin-key="base_load_n" title="Adjust downward applied force; drag horizontally or click" aria-label="Adjust downward applied force"><span class="pin-glyph">↓</span><span class="pin-copy"><small>APPLIED FORCE</small><strong id="spatialLoadValue">1,000 N</strong></span></button>
+            <button type="button" class="model-pin pin-area" id="spatialPinArea" data-pin-key="area_mm2" title="Adjust member section area; drag horizontally or click" aria-label="Adjust uniform cross-section area"><span class="pin-glyph">↔</span><span class="pin-copy"><small>SECTION AREA</small><strong id="spatialAreaValue">180 mm²</strong></span></button>
+            <button type="button" class="model-pin pin-result" id="spatialPinResult" title="Inspect FEA result" aria-label="Show full FEA results"><span class="pin-glyph result-glyph">◎</span><span class="pin-copy"><small>MAX MOVEMENT · FEA</small><strong id="spatialResultValue">— mm</strong></span></button>
+          </div>
+          <div class="model-editor" id="modelEditor" hidden role="group" aria-label="Edit selected engineering parameter">
+            <div class="model-editor-header"><span id="modelEditorGlyph">↓</span><strong id="modelEditorTitle">Applied force</strong><button type="button" id="modelEditorClose" aria-label="Close parameter editor">×</button></div>
+            <div class="model-editor-value"><button type="button" id="modelEditorMinus" aria-label="Decrease value">−</button><label><input id="modelEditorValue" type="number" inputmode="decimal" aria-label="Parameter value"><span id="modelEditorUnit">N</span></label><button type="button" id="modelEditorPlus" aria-label="Increase value">+</button></div>
+            <input id="modelEditorRange" type="range" aria-label="Parameter range" min="100" max="3000" step="50" value="1000">
+            <div class="model-editor-hint">Drag the marker, move the slider, or enter a value.</div>
+          </div>
+          <div class="viewport-header"><div class="viewport-title"><span class="eyebrow teal">01 / STRUCTURAL ANALYSIS</span><div class="spatial-headline">Shape the response.</div><h1 id="viewportTitle">Triangle Truss <span>·</span> Load Case 01</h1><div class="viewport-description">Pin-jointed 2D frame <span class="title-sep">•</span> Linear elastic FEA</div></div></div>
           <div class="floating-toolbar" role="group" aria-label="Analysis visualization"><div class="tool-label">DISPLAY</div><div class="segment-buttons"><button class="segment selected" data-visual="stress" title="Stress visualization">Stress</button><button class="segment" data-visual="force" title="Axial force visualization">Axial</button><button class="segment" data-visual="displacement" title="Displacement visualization">Disp.</button></div><div class="toolbar-divider"></div><label class="toggle-control" title="Show exaggerated deformation"><input type="checkbox" id="deformToggle" checked><span class="toggle-track"></span><span>Deform</span></label></div>
           <div class="deform-control" id="deformControl"><span>DEFORMATION</span><input type="range" id="deformScale" min="0" max="650" step="25" value="300" aria-label="Deformation exaggeration"><output id="deformText">300×</output></div>
           <div class="view-legend"><span><i class="legend-line tension"></i> Tension</span><span><i class="legend-line compression"></i> Compression</span><span><i class="legend-line reference"></i> Undeformed</span></div>
           <div class="view-tools" aria-label="View controls"><button id="zoomIn" title="Zoom in" aria-label="Zoom in"><svg class="icon"><use href="#i-zoom-in"/></svg></button><button id="zoomOut" title="Zoom out" aria-label="Zoom out"><svg class="icon"><use href="#i-zoom-out"/></svg></button><div class="view-tool-divider"></div><button id="fitView" title="Fit view (F)" aria-label="Fit view"><svg class="icon"><use href="#i-crosshair"/></svg></button><button id="toggleGrid" title="Toggle grid" aria-label="Toggle grid"><svg class="icon"><use href="#i-grid"/></svg></button></div>
           <div class="hover-tooltip" id="hoverTooltip" hidden></div>
+          <div class="spatial-grid-note">XY REFERENCE · METRES · FEA MODEL</div>
+          <div class="scene-gesture" id="gestureGuide"><span>⌖</span><span>DRAG TO PAN</span><i></i><span>SCROLL TO ZOOM</span><i></i><span>SELECT A MEMBER</span><button type="button" id="dismissGesture" aria-label="Dismiss navigation hint">×</button></div>
           <div class="view-footer"><span class="view-footer-left"><span class="coordinate-indicator">X <b id="cursorX">—</b> m</span><span class="coordinate-indicator">Y <b id="cursorY">—</b> m</span></span><span id="zoomLabel">100%</span></div>
         </div>
         <section class="metrics-dock" aria-label="Live FEA metrics"><div class="dock-heading"><div class="dock-vertical">LIVE<br>FEA</div><div class="dock-wave"></div></div><div class="metric-item"><span class="metric-label">TOTAL MASS</span><div class="metric-main"><strong id="metricMass">—</strong><span>kg</span></div><div class="metric-sub" id="metricMassSub">Nominal</div></div><div class="metric-item"><span class="metric-label">MAX DISPLACEMENT</span><div class="metric-main"><strong id="metricDisp">—</strong><span>mm</span></div><div class="metric-sub" id="metricDispSub">Limit 2.00 mm</div></div><div class="metric-item"><span class="metric-label">PEAK AXIAL STRESS</span><div class="metric-main"><strong id="metricStress">—</strong><span>MPa</span></div><div class="metric-sub">Absolute maximum</div></div><div class="metric-item metric-feasibility"><span class="metric-label">ROBUST DESIGN</span><div class="metric-main status-metric"><span class="metric-status-dot" id="metricStatusDot"></span><strong id="metricStatus">—</strong></div><div class="metric-sub" id="metricWorst">8 corner scenarios</div></div></section>
       </main>
 
-      <aside class="results-panel" id="rightPanel" aria-label="Results and tools"><div class="panel-titlebar results-titlebar"><div><div class="eyebrow" id="resultEyebrow">PHYSICS SOLVER</div><h2 id="resultTitle">Analysis results</h2></div><span id="resultTitleIcon" class="titlebar-glyph"><svg class="icon"><use href="#i-target"/></svg></span></div><div id="panelContent" class="results-scroll"><div class="results-loading"><span class="loading-spinner"></span><div>Waiting for verified FEA results</div></div></div><div class="results-footer"><div class="proof-dot"></div><span>IDEALIZED FEA · NOT STRUCTURAL CERTIFICATION</span></div></aside>
+      <aside class="results-panel" id="rightPanel" aria-label="Results and tools"><div class="panel-titlebar results-titlebar"><div><div class="eyebrow" id="resultEyebrow">PHYSICS SOLVER</div><h2 id="resultTitle">Analysis results</h2></div><button type="button" class="drawer-close" data-close-panel="right" aria-label="Close results">×</button></div><div id="panelContent" class="results-scroll"><div class="results-loading"><span class="loading-spinner"></span><div>Waiting for verified FEA results</div></div></div><div class="results-footer"><div class="proof-dot"></div><span>IDEALIZED FEA · NOT STRUCTURAL CERTIFICATION</span></div></aside>
     </div>
   </div>
+  <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <dialog class="help-dialog" id="helpDialog"><div class="dialog-head"><div><span class="eyebrow">QUICK GUIDE</span><h2>Workspace shortcuts</h2></div><button id="closeHelp" class="top-icon-button" aria-label="Close"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="dialog-body"><div><kbd>1</kbd> <span>Analyze</span></div><div><kbd>2</kbd> <span>Optimize</span></div><div><kbd>3</kbd> <span>Challenge</span></div><div><kbd>4</kbd> <span>ML Verify</span></div><div><kbd>5</kbd> <span>AI Brief</span></div><div><kbd>F</kbd> <span>Fit structure to viewport</span></div><div><kbd>Esc</kbd> <span>Clear selection</span></div><div><kbd>Drag</kbd> <span>Pan model</span></div><div><kbd>Scroll</kbd> <span>Zoom model</span></div><div><kbd>Click</kbd> <span>Inspect member or node</span></div></div><p>FEA outputs come from the Python solver in this repository. The grid and coordinates are in meters; rendered deformation is intentionally exaggerated.</p></dialog>
+  <iframe id="integratedStudioFrame" class="integrated-studio-frame" title="3D Spatial Engineering Studio" aria-label="3D finite element engineering workspace" hidden></iframe>
+  <button type="button" id="return2D" class="return-2d-studio" title="Return to 2D truss engineering" aria-label="Return to 2D truss engineering" hidden>↶ <span>2D TRUSS</span></button>
   <script src="/app.js" defer></script>
+  <script src="/spatial-shell.js" defer></script>
 </body>
 </html>

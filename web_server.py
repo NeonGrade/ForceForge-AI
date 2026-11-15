@@ -264,7 +264,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if route in ("/", "/index.html"):
             path = STATIC_DIR / "index.html"
-        elif route in ("/style.css", "/app.js"):
+        elif route in ("/style.css", "/app.js", "/spatial-theme.css", "/spatial-shell.js"):
             path = STATIC_DIR / route.lstrip("/")
         else:
             self._json(404, {"error": "Not found"})
@@ -301,13 +301,99 @@ class Handler(BaseHTTPRequestHandler):
             self._json(500, {"error": "Solver failed. Check server logs and model inputs."})
 
 
+# The 2D and 3D applications have different meanings for /api/solve.
+# Keep their physics engines unchanged and expose the 3D API under /api/3d/*.
+# The embedded 3D page is served from the same origin and given a lightweight
+# fetch prefix adapter; the standalone studio_server.py remains fully usable.
+STUDIO_API_BOOTSTRAP = r"""<script>
+(function () {
+  'use strict';
+  const studioFetch = window.fetch.bind(window);
+  window.fetch = function (resource, options) {
+    if (typeof resource === 'string' && resource.startsWith('/api/')) {
+      resource = '/api/3d' + resource.substring(4);
+    }
+    return studioFetch(resource, options);
+  };
+})();
+</script>"""
+
+
+def make_integrated_handler(studio_handler, studio_index: Path | None = None):
+    """Compose independent, real 2D/3D solvers without altering their endpoints.
+
+    /                -> 2D Truss Workspace
+    /studio/         -> existing WebGL Spatial Studio
+    /api/solve       -> 2D truss solver
+    /api/3d/solve    -> 3D solid or modal solver
+    /api/3d/cad/... -> original isolated STEP/Gmsh solver
+    """
+    studio_index = studio_index or ROOT / 'studio' / 'index.html'
+
+    class IntegratedHandler(Handler, studio_handler):
+        server_version = 'ForceForgeUnifiedSpatial/1.0'
+
+        def _json(self, *args, **kwargs):
+            if getattr(self, '_studio_dispatch', False):
+                return studio_handler._json(self, *args, **kwargs)
+            return Handler._json(self, *args, **kwargs)
+
+        def _dispatch_to_studio(self, operation, translated_path=None):
+            original_path = self.path
+            self._studio_dispatch = True
+            try:
+                if translated_path is not None:
+                    self.path = translated_path
+                return operation(self)
+            finally:
+                self.path = original_path
+                self._studio_dispatch = False
+
+        def do_GET(self):
+            route = urlsplit(self.path).path
+            if route in ('/studio', '/studio/'):
+                if not studio_index.is_file():
+                    return self._json(404, {'error': '3D Studio files missing'})
+                html = studio_index.read_text(encoding='utf-8')
+                if '</head>' not in html:
+                    return self._json(500, {'error': '3D Studio HTML invalid'})
+                html = html.replace('</head>', STUDIO_API_BOOTSTRAP + '\n</head>', 1)
+                return self._reply(200, html.encode('utf-8'), 'text/html; charset=utf-8')
+            if route == '/api/3d/catalog':
+                return self._dispatch_to_studio(studio_handler.do_GET, '/api/catalog')
+            if route.startswith('/studio/') or route.startswith('/download/'):
+                return self._dispatch_to_studio(studio_handler.do_GET)
+            return Handler.do_GET(self)
+
+        def do_POST(self):
+            route = urlsplit(self.path).path
+            if route.startswith('/api/3d/'):
+                # The 3D handler validates body length, origin, source SHA and input.
+                translated = '/api/' + route[len('/api/3d/'):]
+                return self._dispatch_to_studio(studio_handler.do_POST, translated)
+            return Handler.do_POST(self)
+
+    return IntegratedHandler
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="ForceForge immersive engineering workspace")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
-    server = ThreadingHTTPServer((args.host, args.port), Handler)
+    integrated = False
+    handler = Handler
+    try:
+        from studio_server import StudioHandler
+    except ImportError as exc:
+        print(f"3D Studio unavailable: {exc}. Starting 2D only.", flush=True)
+    else:
+        handler = make_integrated_handler(StudioHandler)
+        integrated = True
+    server = ThreadingHTTPServer((args.host, args.port), handler)
     print(f"ForceForge Workspace: http://{args.host}:{args.port}", flush=True)
+    if integrated:
+        print("Integrated 2D and 3D workspaces on the same port; Real CAD requires optional Gmsh.", flush=True)
     print("Press Ctrl+C to stop. Existing Streamlit UI: python -m streamlit run app.py", flush=True)
     try:
         server.serve_forever()
