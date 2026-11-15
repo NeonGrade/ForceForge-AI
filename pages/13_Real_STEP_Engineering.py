@@ -22,6 +22,9 @@ from forceforge.isolated_cad import (
     analyze_step_safely, generate_bracket_safely,
 )
 from forceforge.mesh_verification import run_mesh_evidence, select_mesh_sizes
+from forceforge.local_refinement import run_hotspot_refinement
+from forceforge.stress_probe import probe_stress
+import plotly.graph_objects as go
 from forceforge.solid3d import surface_figure
 from forceforge.step_mesh import (
     MAX_CAD_BYTES, NIST_BRIDGE_URL, NIST_DATASET_DOI, NIST_PINNED_SHA256,
@@ -195,6 +198,7 @@ if run_requested:
     st.session_state.pop("stable_initial", None)
     st.session_state.pop("stable_revised", None)
     st.session_state.pop("stable_mesh_evidence", None)
+    st.session_state.pop("stable_hotspot_study", None)
     t0 = time.monotonic()
     try:
         with st.spinner(
@@ -271,6 +275,12 @@ st.caption(
     f"CAD volume: {mesh.cad_volume_m3*1e9:,.2f} mm³ · "
     f"tetra mesh volume error: {mesh.relative_volume_difference*100:.2f}% · "
     f"mesh shape-quality proxy (minimum): {mesh.min_shape_quality:.5f}"
+)
+peak_pt = np.asarray(result.sampled_peak_location_m)*1000
+st.caption(
+    "Global peak Gauss sample (undeformed STEP XYZ) = "
+    f"({peak_pt[0]:.2f}, {peak_pt[1]:.2f}, {peak_pt[2]:.2f}) mm. "
+    "The peak location may move between meshes."
 )
 if result.peak_von_mises_mpa > yield_mpa:
     st.warning(
@@ -349,11 +359,26 @@ with st.expander(
         record = None
     if record is not None:
         evidence = record["study"]
-        st.write(
-            f"Completed in {record['seconds']:.1f} s. "
-            f"Assessment: **{evidence.decision}**"
-        )
-        st.write(evidence.decision_reason)
+        if evidence.engineering_evidence_status == "GLOBAL_DISPLACEMENT_STABLE_LOCAL_STRESS_UNVERIFIED":
+            st.error(
+                "GLOBAL DISPLACEMENT STABLE; LOCAL STRESS NOT VERIFIED. "
+                "A stable tip displacement does not validate the peak "
+                "von Mises stress or authorize a safety decision."
+            )
+        elif evidence.engineering_evidence_status == "PRELIMINARY_NUMERICAL_SCREENS_MET_NOT_CERTIFIED":
+            st.warning(
+                "Preliminary numerical screens met. Real fixture/material "
+                "verification and experimental correlation remain missing."
+            )
+        else:
+            st.error(
+                "Numerical evidence incomplete or mesh sensitive: "
+                + evidence.engineering_evidence_status
+            )
+        st.write("**Global displacement screen:**",evidence.decision)
+        st.write("**Peak local stress screen:**",evidence.local_peak_status)
+        st.write("**Physical 5–30% span band:**",evidence.physical_band_stress_status)
+        st.caption(evidence.decision_reason)
         rows = [r.as_dict() for r in evidence.ordered_rows]
         df = pd.DataFrame(rows).rename(columns={
             "target_size_mm": "Target edge (mm)",
@@ -365,6 +390,15 @@ with st.expander(
             "peak_sampled_mises_mpa": "Sampled peak von Mises (MPa)",
             "strain_energy_mj": "Strain energy (mJ)",
             "reaction_residual": "Relative equilibrium residual",
+            "probe_weighted_mean_mpa": "Fixed-band mean stress (MPa)",
+            "probe_weighted_p90_mpa": "Fixed-band weighted P90 (MPa)",
+            "probe_gauss_samples": "Band Gauss samples",
+            "probe_volume_percent": "Band volume fraction (%)",
+            "hotspot_x_mm": "Hotspot X (mm)",
+            "hotspot_y_mm": "Hotspot Y (mm)",
+            "hotspot_z_mm": "Hotspot Z (mm)",
+            "hotspot_support_fraction": "Peak support distance / span",
+            "hotspot_zone": "Peak zone",
         })
         st.dataframe(df.round(6), hide_index=True, width="stretch")
         a, b, c = st.columns(3)
