@@ -36,6 +36,42 @@ The issue is engineering interpretation: the global tip displacement stabilizes 
    - rejects over-limit (>1,400 tetra) models; no silent mesh truncation; actual solve stays inside the same crash-isolated macOS-compatible child process with timeouts.
 6. All old modal, 3D solid, CAD redesign, robust optimization, uncertainty and ML modules remain intact.
 
+
+## Competing physical hotspots: two fixed 3D region comparison
+
+The verified Mac FEA of the actual 8 mm L-bracket, 250 N transverse load
+identified two competing high-stress sites across the final two
+independently re-meshed quadratic-tetra solids:
+
+- Mesh A global maximum: **(6.894, 12.383, 9.155) mm**.
+- Mesh B global maximum: **(6.894, 31.651, 9.110) mm**.
+- Separation: **19.27 mm**. The *magnitude* of the sampled maximum
+  changed only 2.03%, while the physical location switched.
+
+ForceForge therefore no longer uses a moving maximum position as the
+sole location-sensitive convergence check. A site is treated as a
+**fixed 7 mm spherical physical region**, centered on one of the two
+candidate XYZ stress locations, and independently sampled from real
+3D Gauss-point stresses in both meshes. Each region has:
+
+- actual Gauss sample count from each mesh and finite sample volume
+- volume-weighted stress mean and weighted P90 in MPa in both solutions
+- percent change in *that same XYZ region* under real CAD remeshing.
+
+Both spatial regions must pass the numerical <=5% heuristic for a
+`PRELIMINARY_COMPETING_HOTSPOT_STABILITY` result. If either physical
+region cannot be sampled adequately or exceeds the threshold, the
+status is `MULTIPLE_HOTSPOTS_NOT_CORRELATED` and the app displays
+an unresolved stress assessment. The global maximum remains
+**spatially nonunique** and the tool reports BOTH regions, not a
+misleading single "best" hotspot.
+
+This is a quantitative **finite region stress screen** under assumed
+loads and *idealized fully fixed* conditions. It does NOT validate
+engineering strength, actual fatigue, bolt contact or safety.
+
+---
+
 ## What the verdict means
 
 - **PRELIMINARY_LOCAL_STRESS_SCREEN_MET**: multiple independently remeshed numerical samples meet *heuristic* stress and peak-location checks. Does NOT certify safety or independently validate actual material/fixtures.
