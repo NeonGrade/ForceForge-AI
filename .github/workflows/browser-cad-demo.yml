@@ -35,6 +35,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: forceforge-real-step-browser-screenshots
-          path: qa/artifacts/*.png
+          path: qa/artifacts/
           retention-days: 7
           if-no-files-found: ignore
