@@ -66,6 +66,7 @@ def _save_result(folder: Path, mesh: CadMesh, result: CADFEAResult) -> None:
             "mesh_volume_m3": mesh.mesh_volume_m3,
             "relative_volume_difference": mesh.relative_volume_difference,
             "min_shape_quality": mesh.min_shape_quality,
+            "local_refinement": mesh.local_refinement,
         },
         "load": asdict(result.load),
         "result": {
@@ -100,6 +101,7 @@ def _read_result(folder: Path, source: bytes) -> CADFEAResult:
         bbox_m=arrays["mesh_bbox"],
         relative_volume_difference=float(m["relative_volume_difference"]),
         min_shape_quality=float(m["min_shape_quality"]),
+        local_refinement=m.get("local_refinement"),
     )
     r = metadata["result"]
     return CADFEAResult(
@@ -193,6 +195,7 @@ def generate_bracket_safely(web_mm: float) -> bytes:
 def analyze_step_safely(
     source: bytes, *, source_label: str, mesh_size_mm: float,
     unit: str, load: CadLoad, max_tets: int = MAX_INTERACTIVE_TETS,
+    local_refinement: dict | None = None,
 ) -> CADFEAResult:
     """A bounded, independent STEP → volume mesh → tetra10 FE solve."""
     if not 50 <= max_tets <= MAX_INTERACTIVE_TETS:
@@ -203,6 +206,7 @@ def analyze_step_safely(
         "unit": str(unit),
         "max_tets": int(max_tets),
         "load": asdict(load),
+        "local_refinement": local_refinement,
     }
     return _invoke("analyze", settings, source, RUN_TIMEOUT_SECONDS)
 
@@ -223,6 +227,7 @@ def _worker_main(kind: str, folder: Path) -> None:
             mesh_size_mm=payload["mesh_size_mm"],
             unit=payload["unit"],
             max_tets=payload["max_tets"],
+            local_refinement=payload.get("local_refinement"),
         )
         result = solve_cad_mesh(mesh, CadLoad(**payload["load"]))
         _save_result(folder, mesh, result)
