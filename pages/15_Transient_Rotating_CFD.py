@@ -374,6 +374,18 @@ if job:
                 st.plotly_chart(
                     fig,width="stretch",key="actual_openfoam_dynamic_animation",
                 )
+                # Offline hackathon fallback: the complete interactive
+                # playback is generated ONLY from verified real CFD fields,
+                # including embedded Plotly JS so no Wi-Fi is required.
+                st.download_button(
+                    "Download stand-alone REAL CFD animation (offline HTML)",
+                    data=fig.to_html(
+                        include_plotlyjs=True,full_html=True
+                    ).encode("utf-8"),
+                    file_name="forceforge_verified_openfoam_dynamic_flow.html",
+                    mime="text/html",
+                    key="download_authentic_cfd_animation",
+                )
                 mean_speed=np.mean(speed,axis=1)
                 chart=go.Figure()
                 chart.add_trace(go.Scatter(
