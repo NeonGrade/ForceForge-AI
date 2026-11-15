@@ -79,7 +79,7 @@ jobs:
           root=ROOT/job_id
           target=Path("qa/rotating_cfd_proof")
           target.mkdir(parents=True,exist_ok=True)
-          for fn in ("status.json","log.pimpleFoam","checkMesh.log",
+          for fn in ("status.json","copy_openfoam.log","log.pimpleFoam","checkMesh.log",
                      "foamToVTK.log","solver_console.log","launcher.log"):
               src=root/fn
               if src.exists():
