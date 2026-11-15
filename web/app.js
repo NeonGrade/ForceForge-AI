@@ -149,12 +149,32 @@
   }
 
   function setMode(mode) {
+    // The original five tools remain mounted. The optional 3D mode is an
+    // embedded, same-origin study backed by a separate crash-isolated worker.
+    // Switching modes does not discard the current 2D design or FEA results.
     state.mode = mode;
-    $$('[data-panel]').forEach(el => {
+    const solid = mode === 'solid3d';
+    $('[data-panel]').forEach(el => {
       const active = el.dataset.panel === mode;
       el.classList.toggle('active', active);
       el.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
+    bodyShell.classList.toggle('solid-mode', solid);
+    const frame = $('#solidWorkspaceFrame');
+    if (frame) {
+      frame.hidden = !solid;
+      if (solid && !frame.getAttribute('src')) {
+        frame.setAttribute('src', frame.dataset.src);
+      }
+    }
+    const current = $('.crumb-current');
+    if (current) current.textContent = solid ? '3D Solid Study' : 'Truss Study 01';
+    const tag = $('.file-tag');
+    if (tag) tag.textContent = solid ? '3D · EXPERIMENTAL' : '2D · STATIC';
+    if (solid) {
+      bodyShell.classList.remove('show-left', 'show-right');
+      return;
+    }
     if (window.matchMedia('(max-width:1050px)').matches) {
       bodyShell.classList.remove('show-left');
       bodyShell.classList.add('show-right');
@@ -748,8 +768,8 @@
       state.selected=null;bodyShell.classList.remove('show-left','show-right');renderScene();renderPanel();
     }
     if(event.key==='f'||event.key==='F')resetView();
-    if('12345'.includes(event.key)&&event.key.length===1){
-      const modes=['design','optimize','challenge','ml','agent'];setMode(modes[Number(event.key)-1]);
+    if('123456'.includes(event.key)&&event.key.length===1){
+      const modes=['design','optimize','challenge','ml','agent','solid3d'];setMode(modes[Number(event.key)-1]);
     }
   });
   new ResizeObserver(()=>renderScene()).observe(viewport);
