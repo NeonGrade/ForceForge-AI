@@ -13,6 +13,8 @@ from pathlib import Path
 import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
+import streamlit.components.v1 as components
+from forceforge.continuous_rotor import load_completed_case_rotor,make_loop_html
 
 from forceforge.rotor_visual import sample_real_stl_triangles, rotating_triangle_frames
 from forceforge.rotating_cfd import (
@@ -297,6 +299,38 @@ if job:
                 n=xyz.shape[0]
                 speed=np.linalg.norm(velocity,axis=2)
                 color_max=max(float(np.percentile(speed,99)),1e-9)
+                st.subheader("Continuous actual fan blades · kinematic loop")
+                st.caption(
+                    "Blades come from the exact solver-case STL and rotate at "
+                    "the recorded RPM. Velocity and pressure shown behind them "
+                    "are one frozen, genuine CFD snapshot. No extra CFD frames "
+                    "or aerodynamic results have been invented."
+                )
+                try:
+                    real_rotor=load_completed_case_rotor(job)
+                    continuous_html=make_loop_html(real_rotor,fields)
+                    components.html(continuous_html,height=660,scrolling=False)
+                    st.download_button(
+                        "Download continuous actual rotor demo (offline HTML)",
+                        data=(
+                            "<!doctype html><html><head><meta charset='utf-8'>"
+                            "<title>ForceForge X: actual source rotor</title>"
+                            "</head><body>"+continuous_html+"</body></html>"
+                        ).encode("utf-8"),
+                        file_name="forceforge_continuous_actual_rotor.html",
+                        mime="text/html",
+                        key="download_real_source_rotor_loop",
+                    )
+                    st.caption(
+                        "Verified original STL: "+real_rotor["source"]+
+                        " · SHA-256 "+real_rotor["sha256"]
+                    )
+                except (ValueError,RuntimeError,OSError,KeyError) as exc:
+                    st.warning(
+                        "Original blade animation unavailable: "+str(exc)+
+                        ". The verified U/p field snapshots remain accessible."
+                    )
+                st.markdown("#### Verified discrete OpenFOAM U/p time snapshots")
                 select=st.slider(
                     "Inspect real OpenFOAM VTK snapshot",
                     min_value=0,max_value=n-1,value=0,step=1,
