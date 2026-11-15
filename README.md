@@ -1,3 +1,21 @@
+## v0.2 — Real 3D air-domain mesh for conceptual wall fan (not CFD yet)
+
+In **Natural Language Engineering**, create the real multi-solid fan STEP,
+then press **Build real 3D Gmsh fluid mesh + tagged boundary regions**.
+An isolated Gmsh worker builds a conforming ambient-air + cylindrical
+actuator-source **true tetrahedral mesh**. It exports actual .msh data,
+six named 2D/3D Physical Groups, patch counts, tetrahedral volume error,
+and SHA-256 provenance. The displayed rotor-zone surface comes from
+actual Gmsh triangles; it is deliberately not a colored CFD solution.
+
+**Not implemented:** real flow velocity/pressure, blade-resolved
+Navier–Stokes, pressure-flow fan physics, turbulence, surrounding-wall
+effects or transfer of aerodynamic forces to bolt/contact FEA. The
+fluid_cfd and fan structural FEA tasks remain explicitly BLOCKED.
+
+[Exact model geometry, validation boundaries and next solver steps](docs/FLUID_DOMAIN_PREPROCESSOR_V02.md).
+
+---
 ## Natural-language mechanical engineering v0.1 (PR #16)
 
 **Additive to the existing ForceForge X app:** ordinary Chinese/English
