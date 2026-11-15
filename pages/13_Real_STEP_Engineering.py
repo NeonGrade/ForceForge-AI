@@ -489,6 +489,15 @@ else:
                   "completeness or engineering safety is claimed."
             )
             st.dataframe(pd.DataFrame(failures),hide_index=True,width="stretch")
+        original_reasons = []
+        if result.tip_mm > criteria.max_tip_mm:
+            original_reasons.append("Displacement limit exceeded")
+        if result.peak_von_mises_mpa > criteria.max_sampled_stress_mpa:
+            original_reasons.append("Sampled stress limit exceeded")
+        if result.peak_von_mises_mpa * 1e6 > case.yield_pa:
+            original_reasons.append("Beyond assumed yield / elastic model")
+        if not copilot_record["original_feasible"] and not original_reasons:
+            original_reasons.append("Numerical quality gate unresolved")
         view_rows = [{
             "Design": f"Original {int(web)} mm",
             "3D tetra": mesh.num_tets,
@@ -496,6 +505,7 @@ else:
             "Mass change (%)": 0.,
             "Tip (mm)": result.tip_mm,
             "Sampled stress (MPa)": result.peak_von_mises_mpa,
+            "Reason": "; ".join(original_reasons) if original_reasons else "Within modeled limits",
             "Model screen": (
                 "PRELIMINARY_MEETS" if copilot_record["original_feasible"]
                 else "FAILS_ASSUMED_LIMITS"
@@ -508,6 +518,7 @@ else:
             "Mass change (%)": r.mass_change_pct,
             "Tip (mm)": r.tip_mm,
             "Sampled stress (MPa)": r.peak_von_mises_mpa,
+            "Reason": "; ".join(r.failure_reasons) if r.failure_reasons else "Within modeled limits",
             "Model screen": r.status,
         } for r in rows)
         st.dataframe(
