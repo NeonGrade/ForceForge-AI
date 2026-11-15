@@ -160,6 +160,11 @@
       el.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
     bodyShell.classList.toggle('solid-mode', solid);
+    if (solid && window.location.hash !== '#solid3d') {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search + '#solid3d');
+    } else if (!solid && window.location.hash === '#solid3d') {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
     const frame = $('#solidWorkspaceFrame');
     if (frame) {
       frame.hidden = !solid;
@@ -777,5 +782,6 @@
   });
   new ResizeObserver(()=>renderScene()).observe(viewport);
   renderControls();renderMetrics();renderScene();renderPanel();
+  if (window.location.hash === '#solid3d') setMode('solid3d');
   runSolve();
 })();
