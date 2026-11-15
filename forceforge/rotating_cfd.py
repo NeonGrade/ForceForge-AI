@@ -613,7 +613,7 @@ foamToVTK -legacy -ascii -no-boundary -fields '(U p)' > /workspace/foamToVTK.log
         summary=_collect_vtk(root)
         data.update({
             "status":"COMPLETED","stage":"REAL_TRANSIENT_FIELDS_READY",
-            "source_type":SCENE_KIND,
+            "source_type":data["geometry_origin"],
             "result":summary,
             "completed_epoch_s":time.time(),
         })
