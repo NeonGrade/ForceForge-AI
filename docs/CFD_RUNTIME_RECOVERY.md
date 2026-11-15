@@ -24,7 +24,8 @@ for log in launcher.log copy_openfoam.log solver_console.log log.pimpleFoam foam
   fi
 done
 
-docker ps --format 'table {{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.CPUPerc}}'
+docker ps --format 'table {{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}'
+docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}'
 for id in $(docker ps --filter ancestor=opencfd/openfoam-default:2512 -q); do
   docker inspect "$id" --format '{{.Name}} {{range .Mounts}}{{.Source}} -> {{.Destination}} {{end}}'
 done
