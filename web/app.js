@@ -618,6 +618,9 @@
   }
 
   function renderPanel() {
+    // Background 2D FEA or ML requests may finish while the 3D study is open.
+    // Do not try to render an unknown 2D inspector mode in that case.
+    if (state.mode === 'solid3d') return;
     const titles={design:['PHYSICS SOLVER','Analysis results'],optimize:['DESIGN EXPLORER','Robust optimization'],challenge:['LOAD TESTING','Design challenge'],ml:['MACHINE LEARNING','ML surrogate'],agent:['NATURAL LANGUAGE','AI requirements']};
     const [eyebrow,title]=titles[state.mode];
     $('#resultEyebrow').textContent=eyebrow;
