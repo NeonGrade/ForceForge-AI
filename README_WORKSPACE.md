@@ -1,3 +1,18 @@
+# ForceForge X | Engineering Workspace v1.0
+
+**Status:** v1.0 review candidate. This unified 2D/3D interface is the engineering **workspace** of the future ForceForge X website, not its future home/marketing page.
+
+Run the latest combined branch with `python3 web_server.py` and open **http://127.0.0.1:8000/workspace/**.
+Use the scene selector to switch between the original 2D truss FEM workflow and the 3D Spatial Studio. The 3D scene is hosted in the same website; you do not need a second 8765 server. Real STEP and Gmsh operations require the optional Gmsh dependency.
+
+**Key v1.0 refinements:** explicit workspace identity and version, browser Back/Forward and deep links, recoverable 3D loading, failure-aware FE status, narrow-screen contrast, per-tab design recovery (recalculated by the solver), Reset study, and traceable numerical evidence in JSON exports.
+
+The engineering version of the existing 3D solver is independent of this workspace UI version. No physical safety certification or measured static validation is claimed.
+
+[Read the complete v1.0 specification](docs/WORKSPACE_V1_0.md) or [the original integration architecture](docs/UNIFIED_SPATIAL_WORKSPACES.md).
+
+---
+
 # Unified 2D + 3D Spatial Workspace (review build)
 
 Run `python3 web_server.py` to open **http://127.0.0.1:8000**. From the centered workspace selector choose **Truss engineering** (2D axial FEA) or **3D Spatial Studio** (true 3D solid, Real CAD, and measured laboratory scene). Both are served at the same local origin and port, with direct in-page switching and unchanged numerical solvers. Install `gmsh>=4.12,<5` for real STEP/Gmsh workflows. The 3D integration requires the unified review branch; 2D-only checkouts continue to run without a 3D backend. See [the unified interface guide](docs/UNIFIED_SPATIAL_WORKSPACES.md).

@@ -7,7 +7,7 @@ from threading import Thread
 from urllib.request import Request, urlopen
 import json
 
-from web_server import make_integrated_handler
+from web_server import make_integrated_handler, WORKSPACE_VERSION
 
 
 class FakeStudioHandler(BaseHTTPRequestHandler):
@@ -55,6 +55,12 @@ def test_one_port_serves_both_real_api_namespaces(tmp_path):
             html = response.read().decode()
             assert 'id="open3d"' in html
             assert 'id="integratedStudioFrame"' in html
+        with urlopen(base + '/workspace/') as response:
+            assert b'WORKSPACE v1.0' in response.read()
+        with urlopen(base + '/api/workspace') as response:
+            info = json.load(response)
+            assert info['workspace_version'] == WORKSPACE_VERSION
+            assert info['spaces']['3d']['available'] is True
         with urlopen(base + '/api/3d/catalog') as response:
             data = json.load(response)
             assert [m['id'] for m in data['modules']] == ['solid', 'cad', 'lab']
@@ -62,6 +68,8 @@ def test_one_port_serves_both_real_api_namespaces(tmp_path):
             html = response.read().decode()
             assert '3D Studio' in html
             assert "resource = '/api/3d' + resource.substring(4)" in html
+            assert 'WORKSPACE V1.0 / SPATIAL ENGINEERING' in html
+            assert 'new Request(url, resource)' in html
         with urlopen(base + '/studio/styles.css') as response:
             assert b'studio stylesheet' in response.read()
 
@@ -134,3 +142,21 @@ def test_actual_3d_studio_uses_namespaced_solver_on_integration_branch(tmp_path)
         server.shutdown()
         server.server_close()
         worker.join(timeout=5)
+
+
+def test_workspace_v1_transition_and_history_are_in_same_page():
+    root = Path(__file__).resolve().parents[1]
+    html = (root / 'web/index.html').read_text()
+    js = (root / 'web/spatial-shell.js').read_text()
+    css = (root / 'web/spatial-theme.css').read_text()
+    assert '<title>ForceForge X | Engineering Workspace v1.0</title>' in html
+    for control in ('workspaceTransition', 'retry3D', 'cancel3DLoading',
+                    'studioAvailability', 'return2D', 'integratedStudioFrame'):
+        assert f'id="{control}"' in html
+    assert "dest.pathname = '/workspace/'" in js
+    assert "window.addEventListener('popstate'" in js
+    assert 'studioFrame.contentDocument?.getElementById' in js
+    assert 'appShell.inert = true' in js
+    assert 'activeRequest' in js
+    assert '.workspace-transition' in css
+    assert 'z-index:100' in css

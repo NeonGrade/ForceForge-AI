@@ -39,27 +39,78 @@
     else {shell.classList.remove('show-left');shell.classList.add('show-right');}
     closeEditor();closeMenu();
   });
-  // Both spatial workspaces are served by the same Python backend and local origin.
-  function closeMenu() {menu.hidden=true;selector.setAttribute('aria-expanded','false');}
-  selector.addEventListener('click',e => {e.stopPropagation();menu.hidden=!menu.hidden;selector.setAttribute('aria-expanded',String(!menu.hidden));});
-  $('open2d').addEventListener('click',()=>{closeMenu();api.setMode('design');closePanels();});
+  // The workspace is a product surface, not the future product home page.
+  // Both real solvers remain isolated under one origin and in one browser tab.
   const studioFrame = $('integratedStudioFrame');
   const backTo2D = $('return2D');
   const studioSwitch = $('open3d');
-  let studioStarted = false;
+  const transition = $('workspaceTransition');
+  const retry3D = $('retry3D');
+  const cancel3D = $('cancel3DLoading');
+  const appShell = $('appShell');
+  let studioLoaded = false;
+  let studioFramePromise = null;
   let studioSwitching = false;
+  let activeRequest = 0;
+  let preflightController = null;
 
-  function closeStudio() {
-    closeMenu();
-    document.body.classList.remove('in-3d-workspace');
-    studioFrame.hidden = true;
-    backTo2D.hidden = true;
-    studioSwitching = false;
-    studioSwitch.disabled = false;
+  function closeMenu() {
+    menu.hidden = true;
+    selector.setAttribute('aria-expanded', 'false');
   }
+  selector.addEventListener('click', e => {
+    e.stopPropagation();
+    menu.hidden = !menu.hidden;
+    selector.setAttribute('aria-expanded', String(!menu.hidden));
+  });
+  $('open2d').addEventListener('click', () => {
+    closeMenu(); api.setMode('design'); closePanels();
+    selector.focus({preventScroll:true});
+  });
+
+  function routeSpace() {
+    return new URLSearchParams(window.location.search).get('space') === '3d' ? '3d' : '2d';
+  }
+  function updateRoute(space, replace = false) {
+    const dest = new URL(window.location.href);
+    dest.pathname = '/workspace/';
+    if (space === '3d') dest.searchParams.set('space', '3d');
+    else dest.searchParams.delete('space');
+    const next = dest.pathname + dest.search + dest.hash;
+    if (next === window.location.pathname + window.location.search + window.location.hash) return;
+    window.history[replace ? 'replaceState' : 'pushState']({space}, '', next);
+  }
+  function showTransition(kind, title, message) {
+    transition.hidden = false;
+    transition.dataset.state = kind;
+    transition.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+    $('transitionTitle').textContent = title;
+    $('transitionMessage').textContent = message;
+    $('transitionSymbol').textContent = kind === 'error' ? '!' : '⬡';
+    retry3D.hidden = kind !== 'error';
+    cancel3D.textContent = kind === 'error' ? 'Back to 2D' : 'Stay in 2D';
+  }
+  function hideTransition() {
+    transition.hidden = true;
+    retry3D.hidden = true;
+  }
+  function closeStudio({history = true, focus = true} = {}) {
+    ++activeRequest; // A late 3D preflight or iframe load may not reopen the scene.
+    if (preflightController) preflightController.abort();
+    preflightController = null;
+    closeMenu(); hideTransition();
+    document.body.classList.remove('in-3d-workspace');
+    studioFrame.hidden = true; studioFrame.setAttribute('aria-hidden', 'true');
+    appShell.inert = false; appShell.removeAttribute('aria-hidden');
+    backTo2D.hidden = true;
+    studioSwitching = false; studioSwitch.disabled = false;
+    if (history) updateRoute('2d');
+    if (focus) selector.focus({preventScroll:true});
+  }
+
   function addTrussChoiceToStudio() {
-    // Same-origin iframe: add a real 2D entry to the existing 3D scene selector.
-    // The original 3D scene choices and its WebGL canvas remain untouched.
+    // The integrated iframe is same-origin. Its original engineering controls,
+    // WebGL viewport, and material/CAD methods are kept intact.
     const doc = studioFrame.contentDocument;
     if (!doc) return;
     const chooser = doc.getElementById('project-chooser');
@@ -70,63 +121,127 @@
     choice.className = 'project-choice';
     choice.setAttribute('aria-label', 'Switch to 2D truss engineering');
     const icon = doc.createElement('span');
-    icon.className = 'project-icon';
-    icon.textContent = '◈';
+    icon.className = 'project-icon'; icon.textContent = '◈';
     const copy = doc.createElement('span');
-    const title = doc.createElement('strong');
-    title.textContent = 'Truss engineering';
-    const sub = doc.createElement('small');
-    sub.textContent = '2D FEA · Robust design';
+    const title = doc.createElement('strong'); title.textContent = 'Truss engineering';
+    const sub = doc.createElement('small'); sub.textContent = '2D FEA / Robust design';
     copy.append(title, sub);
     const arrow = doc.createElement('span');
-    arrow.className = 'project-arrow';
-    arrow.textContent = '↗';
+    arrow.className = 'project-arrow'; arrow.textContent = '↗';
     choice.append(icon, copy, arrow);
-    choice.addEventListener('click', closeStudio);
+    choice.addEventListener('click', () => closeStudio());
     const kicker = chooser.querySelector('.sheet-kicker');
     if (kicker && kicker.nextSibling) chooser.insertBefore(choice, kicker.nextSibling);
     else chooser.appendChild(choice);
   }
-  studioFrame.addEventListener('load', () => {
-    try { addTrussChoiceToStudio(); }
-    catch (err) { console.warn('Could not add 2D choice to embedded 3D selector', err); }
-  });
-  async function openStudio() {
-    if (studioSwitching) return;
-    studioSwitching = true;
-    studioSwitch.disabled = true;
-    closeMenu(); closePanels(); closeEditor();
-    try {
-      // Do not display a missing 3D pane when only the legacy 2D branch is installed.
-      const response = await fetch('/api/3d/catalog', {cache:'no-store'});
-      if (!response.ok) throw new Error('3D components are not available in this checkout.');
-      const catalogue = await response.json();
-      if (!Array.isArray(catalogue.modules)) throw new Error('Invalid 3D Studio catalogue.');
-      if (!studioStarted) {
-        studioFrame.src = '/studio/';
-        studioStarted = true;
-      }
+
+  function ensureStudioFrame() {
+    if (studioLoaded && studioFrame.contentDocument?.getElementById('model-canvas')) {
+      return Promise.resolve();
+    }
+    if (studioFramePromise) return studioFramePromise;
+    studioFramePromise = new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = error => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        studioFrame.removeEventListener('load', onLoad);
+        studioFramePromise = null;
+        if (error) reject(error);
+        else resolve();
+      };
+      const onLoad = () => {
+        try {
+          const doc = studioFrame.contentDocument;
+          if (!doc || !doc.getElementById('model-canvas') || !doc.getElementById('project-chooser')) {
+            return finish(new Error('The 3D interface did not load correctly. Check Studio assets.'));
+          }
+          addTrussChoiceToStudio();
+          studioLoaded = true;
+          finish(null);
+        } catch (error) {finish(error);}
+      };
+      const timeout = setTimeout(() => {
+        finish(new Error('3D viewport loading timed out. You can retry without losing 2D inputs.'));
+      }, 16000);
+      studioFrame.addEventListener('load', onLoad);
       studioFrame.hidden = false;
-      backTo2D.hidden = false;
+      studioFrame.removeAttribute('aria-hidden');
+      studioFrame.src = '/studio/';
+    });
+    return studioFramePromise;
+  }
+
+  async function openStudio({history = true} = {}) {
+    if (studioSwitching) return;
+    const current = ++activeRequest;
+    studioSwitching = true; studioSwitch.disabled = true;
+    closeMenu(); closePanels(); closeEditor();
+    showTransition('loading', 'Opening 3D Spatial Studio', 'Connecting the original 3D FEA and CAD tools.');
+    try {
+      const controller = new AbortController();
+      preflightController = controller;
+      const timeout = setTimeout(() => controller.abort(), 8500);
+      let response;
+      try {response = await fetch('/api/3d/catalog', {cache:'no-store', signal:controller.signal});}
+      finally {clearTimeout(timeout);}
+      if (current !== activeRequest) return;
+      if (!response.ok) throw new Error('3D modules are not installed in this checkout. Use the unified integration branch.');
+      const catalogue = await response.json();
+      if (!Array.isArray(catalogue.modules) || !['solid','cad','lab'].every(id =>
+            catalogue.modules.some(m => m.id === id))) {
+        throw new Error('The 3D catalogue is incomplete. Check your installed project files.');
+      }
+      $('transitionMessage').textContent = 'Preparing the WebGL workspace and engineering overlays.';
+      await ensureStudioFrame();
+      if (current !== activeRequest) return;
+      hideTransition();
+      studioFrame.hidden = false; studioFrame.removeAttribute('aria-hidden');
+      appShell.inert = true; appShell.setAttribute('aria-hidden', 'true');
       document.body.classList.add('in-3d-workspace');
-    } catch(err) {
-      const toast = $('toast');
-      toast.textContent = err.message || '3D Studio could not be opened';
-      toast.classList.add('show', 'error');
-      setTimeout(() => toast.classList.remove('show', 'error'), 5000);
+      backTo2D.hidden = false;
+      if (history) updateRoute('3d');
+      backTo2D.focus({preventScroll:true});
+    } catch (error) {
+      if (current !== activeRequest) return;
+      studioFrame.hidden = true; studioFrame.setAttribute('aria-hidden', 'true');
+      studioLoaded = false;
+      const message = error.name === 'AbortError'
+        ? 'The local 3D server did not respond in time. Check the terminal and retry.'
+        : (error.message || '3D Studio could not be opened.');
+      showTransition('error', '3D workspace unavailable', message);
     } finally {
-      studioSwitching = false;
-      studioSwitch.disabled = false;
+      if (current === activeRequest) {
+        studioSwitching = false;
+        studioSwitch.disabled = false;
+        preflightController = null;
+      }
     }
   }
-  studioSwitch.addEventListener('click', openStudio);
-  backTo2D.addEventListener('click', closeStudio);
+  studioSwitch.addEventListener('click', () => openStudio());
+  backTo2D.addEventListener('click', () => closeStudio());
+  cancel3D.addEventListener('click', () => closeStudio());
+  retry3D.addEventListener('click', () => openStudio());
+  window.addEventListener('popstate', () => {
+    if (routeSpace() === '3d') openStudio({history:false});
+    else closeStudio({history:false,focus:false});
+  });
+  const initialSpace = routeSpace();
+  updateRoute(initialSpace, true);
+  if (initialSpace === '3d') openStudio({history:false});
+  // Readiness is passive: it never starts an expensive CAD or FE solve.
+  fetch('/api/workspace', {cache:'no-store'}).then(r => r.ok ? r.json() : null).then(info => {
+    if (info && info.spaces?.['3d']?.available === false) {
+      $('studioAvailability').textContent = '3D modules missing in this checkout';
+    }
+  }).catch(() => {});
   document.addEventListener('pointerdown',e => {
     if(!menu.hidden&&!menu.contains(e.target)&&!selector.contains(e.target))closeMenu();
     if(!editor.hidden&&!editor.contains(e.target)&&!e.target.closest('.model-pin'))closeEditor();
   });
   document.addEventListener('keydown',e=>{
-    if(e.key==='Escape') {closeMenu();closePanels();closeEditor();}
+    if(e.key==='Escape') {if(!transition.hidden) closeStudio(); else {closeMenu();closePanels();closeEditor();}}
   });
   $('dismissGesture').addEventListener('click',()=>{$('gestureGuide').hidden=true;});
 
