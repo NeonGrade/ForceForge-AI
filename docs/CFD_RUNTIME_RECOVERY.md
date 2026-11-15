@@ -99,3 +99,35 @@ Do not run recovery while the original worker still owns the job.
 If the recovery fails, `status.json` becomes `POSTPROCESS_RECOVERY_FAILED`
 with an error; inspect `foamToVTK.log`, `export_console.log`, and
 `launcher.log`. A false `COMPLETED` state is never generated.
+
+## ARM64 VTK type-42 recovery after Segmentation fault 139
+
+The 300-mm rotating-fan reference run on macOS completed 198
+pimpleFoam steps and the original plain foamToVTK export. A subsequent
+recovery attempt using foamToVTK -poly-decomp crashed inside OpenFOAM's
+geometry writer with exit code 139. Do not try that argument again on
+this installation.
+
+The fixed Python reader uses native VTK to import OpenFOAM polyhedral
+VTK cells (type 42), including actual finite-volume cell-centred U
+and p. It samples up to 500 genuine cell centres per frame. An old
+case_N.vtk index N is mapped to the exact Nth Time record from the
+SHA-256-verified pimpleFoam log (never treated as seconds). Existing
+real VTK files are reused first, without Docker or extra CFD.
+
+For the already-solved job (run from the ForceForge-AI repository
+with its Python venv active):
+
+    git pull --ff-only origin feature/stress-local-validation-v11
+    python -m pip install "vtk>=9.6,<10"
+    python -m forceforge.rotating_cfd --recover-fields 2e9aefe6c51efd9d
+
+If successful, the same Job ID becomes COMPLETED /
+REAL_TRANSIENT_FIELDS_READY. Then refresh or restore it inside the
+Transient CFD Streamlit page. Original case, logs and time directories
+are not deleted.
+
+If old snapshots are insufficient, field-only recovery can run a
+bounded plain foamToVTK (without -poly-decomp), but no pimpleFoam.
+The explicit status/error remains FAILED when real U/p data cannot
+be verified. CI must still prove full native end-to-end acceptance.
