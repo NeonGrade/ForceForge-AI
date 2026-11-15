@@ -522,6 +522,10 @@ Exposed grouped-design and whole-height validation plus complete ML/FEA provenan
 Added forward-compatible v1.1 stress status explanations without merging the separate stress-remeshing engine. Displacement stability cannot imply local stress convergence.
 See docs/UNIFIED_ENGLISH_AGENT.md for supported English examples, bounds, verification and final team-acceptance limits.
 
+WORKSPACE / MAIN HOMEPAGE COMPATIBILITY — 2026-11-14
+Synchronized main d415808/f810b1b: preserved the independent project homepage at / and /index.html, with the full English Agent / ML / 2D / 3D engineering workspace at /workspace/.
+Retained the workspace capability API, original Studio routes and all numerical engines. Updated the real HTTP regression to check both the homepage launch link and the complete workspace entry.
+
 
 WORKSPACE UI v1.0.0 — 2026-11-14 — DRAFT REVIEW RELEASE
 Branch: ui/workspace-v1.0

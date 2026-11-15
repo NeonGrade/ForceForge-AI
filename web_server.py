@@ -338,7 +338,9 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/api/workspace":
             self._json(200, workspace_manifest())
             return
-        if route in ("/", "/index.html", "/workspace", "/workspace/"):
+        if route in ("/", "/index.html"):
+            path = ROOT / "landing" / "index.html"
+        elif route in ("/workspace", "/workspace/"):
             path = STATIC_DIR / "index.html"
         elif route in ("/style.css", "/app.js", "/spatial-theme.css", "/spatial-shell.js"):
             path = STATIC_DIR / route.lstrip("/")

@@ -21,7 +21,7 @@ For reproducible Mac environments, prefer Python 3.12 in a virtual environment; 
 
 ## Interaction
 
-1. The main page opens the 2D Truss Engineering workspace, including its solver, optimization, load challenge, ML, AI brief, mesh grid and field probing.
+1. The project homepage links to `/workspace/`, which opens the 2D Truss Engineering workspace, including its solver, optimization, load challenge, ML, AI brief, mesh grid and field probing.
 2. Open the centered scene selector and select **3D Spatial Studio**.
 3. The existing 3D WebGL interface appears directly in the same page. Its own project selector offers **Solid mechanics**, **Real CAD** and **Real laboratory** with their original engineering calculations.
 4. Within that 3D project selector, **Truss engineering** switches back to the preserved 2D state; a compact **2D TRUSS** return control offers an additional reliable way back.
@@ -31,7 +31,8 @@ For reproducible Mac environments, prefer Python 3.12 in a virtual environment; 
 
 | URL | Owner | Purpose |
 | --- | --- | --- |
-| `/` | 2D | Main engineering SPA |
+| `/` | Project | Main branch's independent project landing page |
+| `/workspace/` | 2D | Main engineering SPA |
 | `/api/solve` | 2D | Axial truss finite element solve |
 | `/api/search`, `/api/challenge`, `/api/ml`, `/api/interpret` | 2D | Existing 2D workflows |
 | `/studio/` | 3D | Original WebGL UI served in a same-origin iframe |
