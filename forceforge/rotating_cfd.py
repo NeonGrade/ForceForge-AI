@@ -125,6 +125,8 @@ def _docker(root: Path,script: str,limit: int,logname: str):
     args=[
         "docker","run","--rm","--network","none",
         "--cpus=4","--memory=6g","--pids-limit=256",
+        "--user",str(os.getuid())+":"+str(os.getgid()),
+        "-e","HOME=/tmp",
         "-v",str(root.resolve())+":/workspace",
         "-w","/workspace",IMAGE,"bash","-lc",script,
     ]
@@ -371,7 +373,7 @@ if [ -z "$src" ]; then
   exit 43
 fi
 echo "Official rotating-fan case: $src"
-cp -a "$src" /workspace/case
+cp -r "$src" /workspace/case
 ls -la /workspace/case
 ls -la /workspace/case/constant || true
 ls -la /workspace/case/system || true
