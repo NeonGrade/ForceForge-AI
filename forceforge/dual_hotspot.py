@@ -261,7 +261,9 @@ def run_dual_hotspot_study(original_step: bytes, baseline, previous_study, *,
         for row in previous_study.matched_physical_hotspot_regions
     ])
     results = []
-    for factor in (.80, .65):
+    # Actual same-STEP Gmsh-only sweep: 0.65/0.45 with radius=.24
+    # produced 744/953 tets (>=10% growth, both <1400) on Linux.
+    for factor in (.65, .45):
         result = solve_at(
             original_step, source_label=source_label,
             mesh_size_mm=float(baseline.mesh.mesh_size_mm),
@@ -269,7 +271,7 @@ def run_dual_hotspot_study(original_step: bytes, baseline, previous_study, *,
             local_refinement={
                 "centers_m": centers.tolist(),
                 "size_factor": factor,
-                "radius_fraction": .18,
+                "radius_fraction": .24,
             },
         )
         results.append(result)
