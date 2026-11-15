@@ -4,7 +4,9 @@ from dataclasses import asdict
 import json
 import streamlit as st
 import plotly.graph_objects as go
-from forceforge.wall_mount import WallMountInputs,analyze_wall_mount
+from forceforge.wall_mount import (
+    WallMountInputs,analyze_wall_mount,parse_openfoam_pressure_patch_csv
+)
 
 st.set_page_config(
     page_title="ForceForge X | Wall Mount Load Transfer",page_icon="🔩",layout="wide"
@@ -17,6 +19,28 @@ st.warning(
     "the current OpenFOAM reference-room case. The anchor strengths and "
     "wall contact are NOT assessed. User-supplied thrust is not a CFD result."
 )
+
+with st.expander("Optional · integrate uploaded OpenFOAM rotor surface pressure CSV"):
+    st.caption(
+        "For a single actual solver time, supply face centroids and outward "
+        "normals from the SAME rotor geometry as the pressure field. "
+        "Expected CSV columns: time_s, x_m, y_m, z_m, nx, ny, nz, "
+        "area_m2, p_kinematic_m2_s2. No invented CFD fields."
+    )
+    pressure_csv=st.file_uploader(
+        "Wetted rotor face pressures (CSV, 4 MB max)",
+        type=["csv"],key="wall_pressure_patch_csv"
+    )
+    density=st.number_input(
+        "Measured/assumed air density (kg/m³)",
+        min_value=.1,max_value=20.,value=1.225,step=.025
+    )
+    if pressure_csv is not None:
+        st.warning(
+            "Uploaded pressure faces are user-provided and their OpenFOAM "
+            "job/mesh identity has NOT been independently verified. "
+            "Pressure forces exclude viscous shear and are not full fan thrust."
+        )
 
 with st.form("wall_anchor_load_input"):
     st.markdown("### Specify actual mechanical loads and mounting geometry")
@@ -47,17 +71,31 @@ with st.form("wall_anchor_load_input"):
     calculate=st.form_submit_button("Calculate actual 4-anchor static reactions",type="primary")
 if calculate:
     try:
+        patch=(
+            parse_openfoam_pressure_patch_csv(
+                pressure_csv.getvalue(),air_density_kg_m3=float(density)
+            )
+            if pressure_csv is not None else None
+        )
+        pf=patch.force_xyz_n if patch is not None else (0.,0.,0.)
+        pm=patch.moment_xyz_nm if patch is not None else (0.,0.,0.)
         spec=WallMountInputs(
             mass_kg=mass,center_offset_mm=eccentricity,
             anchor_spacing_x_mm=sx,anchor_spacing_y_mm=sy,
-            axial_thrust_n=thrust,motor_reaction_torque_nm=torque,
-            lateral_force_x_n=fx,lateral_force_y_n=fy,
-            thrust_source=provenance,
+            axial_thrust_n=thrust+pf[2],
+            motor_reaction_torque_nm=torque+pm[2],
+            lateral_force_x_n=fx+pf[0],lateral_force_y_n=fy+pf[1],
+            aerodynamic_moment_x_nm=pm[0],
+            aerodynamic_moment_y_nm=pm[1],
+            thrust_source=("uploaded_patch_csv_pressure_only" if patch is not None
+                           else provenance),
         )
         result=analyze_wall_mount(spec)
         st.session_state["wall_mount_load_result"]=result
+        st.session_state["wall_mount_pressure_patch_evidence"]=patch
     except (ValueError,TypeError,ArithmeticError) as exc:
         st.session_state.pop("wall_mount_load_result",None)
+        st.session_state.pop("wall_mount_pressure_patch_evidence",None)
         st.error(str(exc))
 
 result=st.session_state.get("wall_mount_load_result")
@@ -85,11 +123,24 @@ if result is not None:
     )
     st.plotly_chart(fig,width="stretch")
     st.caption(result.numerical_scope)
-    if provenance=="unverified_example":
+    patch=st.session_state.get("wall_mount_pressure_patch_evidence")
+    if patch is not None:
+        st.info(
+            f"Integrated supplied pressure patches at t={patch.solver_time_s:.5f} s · "
+            f"{patch.face_count} wetted faces · source SHA-256: {patch.source_sha256}. "
+            "This is a real numerical pressure surface integral of uploaded data, "
+            "not independently verified OpenFOAM job evidence or wall FEA."
+        )
+    if result.inputs.thrust_source=="unverified_example":
         st.warning("Demonstration inputs: DO NOT present these forces as measured or OpenFOAM-derived.")
     st.download_button(
         "Download statics load-transfer evidence (JSON)",
-        json.dumps(result.as_dict(),indent=2),
+        json.dumps({
+            "anchor_statics":result.as_dict(),
+            "pressure_patch":(
+                patch.as_dict() if patch is not None else None
+            ),
+        },indent=2),
         file_name="forceforge_wall_anchor_rigid_statics.json",
         mime="application/json",
     )

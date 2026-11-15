@@ -77,3 +77,46 @@ def test_derived_cfd_force_requires_actual_surface_not_discrete_scatter_samples(
             np.zeros((500,3)),np.zeros((500,3)),
             np.ones(499),np.ones(500),air_density_kg_m3=1.2
         )
+
+
+
+def test_user_supplied_real_patch_csv_pressure_integrates_into_anchor_statics():
+    from forceforge.wall_mount import parse_openfoam_pressure_patch_csv
+    source=(
+        "time_s,x_m,y_m,z_m,nx,ny,nz,area_m2,p_kinematic_m2_s2\n"
+        "0.04,0.1,0,0.2,0,0,1,0.2,10\n"
+    ).encode("utf-8")
+    patch=parse_openfoam_pressure_patch_csv(
+        source,air_density_kg_m3=1.2
+    )
+    assert patch.face_count==1
+    assert patch.solver_time_s==pytest.approx(.04)
+    assert patch.pressure_only
+    assert len(patch.source_sha256)==64
+    assert patch.force_xyz_n==pytest.approx((0.,0.,-2.4))
+    assert patch.moment_xyz_nm==pytest.approx((0.,.24,0.))
+    # The physical surface load, including the face-offset yaw moment,
+    # must survive the pressure -> anchor force transfer intact.
+    case=WallMountInputs(
+        mass_kg=2,center_offset_mm=100.,
+        anchor_spacing_x_mm=100.,anchor_spacing_y_mm=100.,
+        axial_thrust_n=patch.force_xyz_n[2],
+        aerodynamic_moment_y_nm=patch.moment_xyz_nm[1],
+        thrust_source="uploaded_patch_csv_pressure_only",
+    )
+    result=analyze_wall_mount(case)
+    assert result.force_balance_error_n<1e-10
+    assert result.moment_balance_error_nm<1e-10
+
+
+def test_pressure_patch_csv_requires_same_physical_solver_time_and_all_columns():
+    from forceforge.wall_mount import parse_openfoam_pressure_patch_csv
+    bad=(
+        "time_s,x_m,y_m,z_m,nx,ny,nz,area_m2,p_kinematic_m2_s2\n"
+        "0.04,0,0,0,0,0,1,0.2,10\n"
+        "0.05,0,0,0,0,0,1,0.2,10\n"
+    ).encode("utf-8")
+    with pytest.raises(ValueError,match="SAME solver time"):
+        parse_openfoam_pressure_patch_csv(bad,air_density_kg_m3=1.2)
+    with pytest.raises(ValueError,match="missing mandatory"):
+        parse_openfoam_pressure_patch_csv(b"x,y\n0,1\n",air_density_kg_m3=1.2)
