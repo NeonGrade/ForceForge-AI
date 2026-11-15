@@ -43,7 +43,7 @@ mode=st.radio(
     [
         "Official OpenFOAM blade-resolved rotating-fan reference case",
         "My STEP-derived rotor in the official OpenFOAM reference room",
-    ],index=0,
+    ],index=(1 if isinstance(rotor_source,dict) else 0),
 )
 use_custom=mode.startswith("My STEP-derived")
 custom_input_loaded=isinstance(rotor_source,dict)

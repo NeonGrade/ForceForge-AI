@@ -278,10 +278,17 @@ if snapshot is not None:
                 file_name="forceforge_rotor_from_actual_STEP.stl",
                 mime="model/stl",key="nl_actual_rotor_stl_export",
             )
-            st.markdown(
-                "[Open the rotating-mesh OpenFOAM CFD lab with this rotor]"
-                "(./Transient_Rotating_CFD)"
+            st.info(
+                "Source STEP rotor is ready. The real OpenFOAM workflow "
+                "will remesh this exact rotor in the official reference "
+                "room. The optional actuator air mesh below is NOT "
+                "required before starting that separate solver."
             )
+            if st.button(
+                "Continue to real OpenFOAM CFD using this STEP rotor",
+                key="nl_continue_to_cfd",type="primary",
+            ):
+                st.switch_page("pages/15_Transient_Rotating_CFD.py")
 
     if cad.preview_nodes_mm is not None and cad.preview_faces is not None:
         nodes=cad.preview_nodes_mm
