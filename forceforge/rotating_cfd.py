@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -121,26 +122,48 @@ def docker_ready() -> tuple[bool,str]:
 
 
 def _docker(root: Path,script: str,limit: int,logname: str):
-    """Only fixed developer-authored shell scripts; never concatenate user input."""
+    """Use job-specific Docker names so a timed-out CLI cannot orphan a solver.
+
+    Do not use global Docker pruning or stop unrelated user containers.
+    """
+    suffix=re.sub(r"[^a-z0-9-]","-",logname.lower())[:28]
+    container_name=f"forceforge-{root.name}-{suffix}"
     args=[
-        "docker","run","--rm","--network","none",
+        "docker","run","--rm","--name",container_name,"--network","none",
         "--cpus=4","--memory=6g","--pids-limit=256",
         "--user",str(os.getuid())+":"+str(os.getgid()),
         "-e","HOME=/tmp",
         "-v",str(root.resolve())+":/workspace",
         "-w","/workspace",IMAGE,"bash","-lc",script,
     ]
-    with (root/logname).open("w",encoding="utf-8") as log:
-        res=subprocess.run(
-            args,cwd=root,stdin=subprocess.DEVNULL,
-            stdout=log,stderr=subprocess.STDOUT,
-            timeout=limit,check=False,text=True,
-        )
-    if res.returncode:
-        tail=(root/logname).read_text(encoding="utf-8",errors="replace")[-1800:]
-        raise RuntimeError(
-            f"OpenFOAM container stage {logname} failed ({res.returncode}): {tail}"
-        )
+    try:
+        with (root/logname).open("w",encoding="utf-8") as log:
+            res=subprocess.run(
+                args,cwd=root,stdin=subprocess.DEVNULL,
+                stdout=log,stderr=subprocess.STDOUT,
+                timeout=limit,check=False,text=True,
+            )
+        if res.returncode:
+            tail=(root/logname).read_text(
+                encoding="utf-8",errors="replace"
+            )[-1800:]
+            raise RuntimeError(
+                f"OpenFOAM container stage {logname} failed "
+                f"({res.returncode}): {tail}"
+            )
+    except (subprocess.TimeoutExpired,RuntimeError,OSError):
+        # A killed Docker CLI can leave an actively consuming daemon-side
+        # container behind. Stop only the uniquely named container for
+        # this exact job and stage, never other Docker work.
+        try:
+            subprocess.run(
+                ["docker","rm","-f",container_name],
+                cwd=root,stdin=subprocess.DEVNULL,
+                capture_output=True,check=False,timeout=12,
+            )
+        except (OSError,subprocess.TimeoutExpired):
+            pass
+        raise
 
 
 def _manifest(root: Path,info: dict):
@@ -150,10 +173,54 @@ def _manifest(root: Path,info: dict):
 
 
 def _load_status(root: Path) -> dict:
+    source=root/"status.json"
+    if not source.is_file():
+        return {"stage":"NOT_FOUND","status":"NOT_FOUND"}
     try:
-        return json.loads((root/"status.json").read_text(encoding="utf-8"))
+        return json.loads(source.read_text(encoding="utf-8"))
     except (OSError,json.JSONDecodeError):
-        return {"stage":"STARTING","status":"RUNNING"}
+        return {
+            "stage":"STATUS_ERROR","status":"FAILED",
+            "message":"Persistent CFD status is missing or invalid; inspect launcher.log",
+        }
+
+
+def _worker_pid(root: Path, status: dict) -> int | None:
+    pid_file=root/"worker.pid"
+    try:
+        pid=int(pid_file.read_text(encoding="ascii").strip()) if pid_file.exists() else int(status["pid"])
+        return pid if pid > 0 else None
+    except (ValueError,KeyError,OSError):
+        return None
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid,0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+
+
+def _active_cfd_job_ids() -> list[str]:
+    """Check process ownership, not just a possibly stale status JSON."""
+    active=[]
+    if not ROOT.is_dir():
+        return active
+    for folder in ROOT.iterdir():
+        if not folder.is_dir() or not re.fullmatch(r"[0-9a-f]{16}",folder.name):
+            continue
+        state=_load_status(folder)
+        if state.get("status") not in ("RUNNING","SOLVER_FINISHED_UNVERIFIED_FIELDS"):
+            continue
+        pid=_worker_pid(folder,state)
+        if pid is not None and _pid_alive(pid):
+            active.append(folder.name)
+        elif pid is None and time.time()-float(state.get("started_epoch_s",0))<20:
+            active.append(folder.name)
+    return active
 
 
 def _valid_job_root(job_id: str) -> Path:
@@ -192,12 +259,22 @@ def launch_reference_job(
     if not ok:
         raise RuntimeError(msg)
     ROOT.mkdir(mode=0o700,parents=True,exist_ok=True)
-    job_id=secrets.token_hex(8)
-    folder=_valid_job_root(job_id)
-    folder.mkdir(mode=0o700,parents=False,exist_ok=False)
-    if custom_rotor_stl is not None:
-        (folder/"user_rotor.stl").write_bytes(custom_rotor_stl)
-    data={
+    # Cross-tab and cross-process launch coordination on macOS and Linux:
+    # only one expensive OpenFOAM job at a time for this local user.
+    with (ROOT/".launch.lock").open("a+") as lock:
+        fcntl.flock(lock,fcntl.LOCK_EX)
+        running=_active_cfd_job_ids()
+        if running:
+            raise RuntimeError(
+                "An OpenFOAM job is already active: "+", ".join(running)+
+                ". Restore/refresh that job instead of starting duplicates."
+            )
+        job_id=secrets.token_hex(8)
+        folder=_valid_job_root(job_id)
+        folder.mkdir(mode=0o700,parents=False,exist_ok=False)
+        if custom_rotor_stl is not None:
+            (folder/"user_rotor.stl").write_bytes(custom_rotor_stl)
+        data={
         "status":"RUNNING","stage":"QUEUED",
         "job_id":job_id,"started_epoch_s":time.time(),
         "geometry_origin":(
@@ -221,22 +298,41 @@ def launch_reference_job(
         "docker_image_id":msg,
         "solved":False,
     }
-    _manifest(folder,data)
-    with (folder/"launcher.log").open("w",encoding="utf-8") as log:
-        worker=subprocess.Popen(
-            [sys.executable,"-m","forceforge.rotating_cfd",
-             "--worker",job_id],
-            stdin=subprocess.DEVNULL,stdout=log,
-            stderr=subprocess.STDOUT,close_fds=True,
-            start_new_session=True,
-        )
-    data["pid"]=worker.pid
-    _manifest(folder,data)
-    return job_id
+        _manifest(folder,data)
+        with (folder/"launcher.log").open("w",encoding="utf-8") as log:
+            worker=subprocess.Popen(
+                [sys.executable,"-m","forceforge.rotating_cfd",
+                 "--worker",job_id],
+                stdin=subprocess.DEVNULL,stdout=log,
+                stderr=subprocess.STDOUT,close_fds=True,
+                start_new_session=True,
+            )
+        # Never rewrite status.json AFTER spawning the worker: it may
+        # already have advanced to COPY/MESH/POSTPROCESS and its update
+        # would be overwritten by the original QUEUED manifest.
+        (folder/"worker.pid").write_text(str(worker.pid),encoding="ascii")
+        return job_id
 
 
 def job_status(job_id: str) -> dict:
-    return _load_status(_valid_job_root(job_id))
+    folder=_valid_job_root(job_id)
+    current=_load_status(folder)
+    if current.get("status") not in ("RUNNING","SOLVER_FINISHED_UNVERIFIED_FIELDS"):
+        return current
+    pid=_worker_pid(folder,current)
+    age=time.time()-float(current.get("started_epoch_s",time.time()))
+    if pid is not None and not _pid_alive(pid) and age>8:
+        return {
+            **current,"status":"FAILED","stage":"WORKER_EXITED",
+            "message":"The CFD worker exited unexpectedly. Inspect launcher.log "
+                      "and the named Docker stage logs in this job folder.",
+        }
+    if current.get("stage")=="QUEUED" and age>30:
+        return {
+            **current,"warning":"CFD stayed QUEUED for more than 30 seconds. "
+            "Check launcher.log; this stage should usually advance quickly.",
+        }
+    return current
 
 
 def _parse_time(s: str) -> float | None:
