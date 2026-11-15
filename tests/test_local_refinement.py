@@ -12,12 +12,16 @@ VOLUME=.075*.04*.058
 
 
 def model(tets,peak,*,peak_fraction=.30,
-          source=SOURCE,load=LOAD):
+          source=SOURCE,load=LOAD,peak_y=.020,
+          dual_sites=False):
     xyz=np.zeros((4*tets,3))
     xyz[:,0]=.010
-    xyz[:,1]=.020
+    if dual_sites:
+        xyz[:,1]=np.where(np.arange(len(xyz))%2==0,.012,.032)
+    else:
+        xyz[:,1]=.020
     xyz[:,2]=np.linspace(.001,.057,len(xyz))
-    p=np.array([.010,.020,.058*peak_fraction])
+    p=np.array([.010,peak_y,.058*peak_fraction])
     # The max sample is a physical location, independent of mesh id.
     return SimpleNamespace(
         mesh=SimpleNamespace(
@@ -88,3 +92,36 @@ def test_mixed_cad_or_material_rejected_before_validity_report():
             model(900,22,load=CadLoad(force_n=999,force_axis=0,boundary_axis=2)),
             source_hash=SOURCE
         )
+
+
+def test_two_competing_physical_hotspots_are_compared_at_same_xyz_locations():
+    first=model(450,20.0,peak_y=.012,dual_sites=True)
+    second=model(650,20.2,peak_y=.012,dual_sites=True)
+    third=model(950,20.3,peak_y=.032,dual_sites=True)
+    out=assess_hotspot_refinement(first,second,third,source_hash=SOURCE)
+    assert out.refinement_mono
+    assert out.hotspot_move_mm==pytest.approx(20)
+    assert out.status=="PRELIMINARY_COMPETING_HOTSPOT_STABILITY"
+    assert len(out.matched_physical_hotspot_regions)==2
+    for region in out.matched_physical_hotspot_regions:
+        assert region["mesh_A_gauss_samples"]>=12
+        assert region["mesh_B_gauss_samples"]>=12
+        assert region["mean_change_percent"]<5
+        assert region["p90_change_percent"]<5
+    assert "NOT an approval" in out.explanation
+
+
+def test_two_competing_hotspots_do_not_fake_stability_if_fixed_region_changes():
+    first=model(450,20.,peak_y=.012,dual_sites=True)
+    second=model(650,20.,peak_y=.012,dual_sites=True)
+    third=model(950,20.8,peak_y=.032,dual_sites=True)
+    # Numerically nearly unchanged global max does not guarantee
+    # that the stress at each physical site is unchanged. Manufacture
+    # such a divergent field explicitly to test the *rejection* path.
+    third.gauss_von_mises_pa=np.where(
+        third.gauss_points_m[:,1]<.020, 8e6, 40e6
+    )
+    out=assess_hotspot_refinement(first,second,third,source_hash=SOURCE)
+    assert out.status=="MULTIPLE_HOTSPOTS_NOT_CORRELATED"
+    assert len(out.matched_physical_hotspot_regions)==2
+    assert out.maximum_fixed_site_p90_change_percent>5
