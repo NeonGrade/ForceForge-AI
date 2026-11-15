@@ -1,39 +1,92 @@
-# 3D Solid FEA: experimental milestone
+# ForceForge 3D Solid FEA — isolated web workspace (experimental)
 
-Run the original verified 2D application with `python -m streamlit run app.py`.
-The separate experimental 3D app is `python -m streamlit run app_3d.py`.
+## Preferred local launch — integrated engineering UI
 
-## Installation
 ```bash
+git switch feature/step-solid-fea
+git pull --ff-only origin feature/step-solid-fea
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements-3d.txt
 python -m pytest -q
-python -m streamlit run app_3d.py
+python web_server.py
 ```
 
-## Implemented
-- Gmsh OpenCASCADE native box and uploaded STEP solid import.
-- Explicit CAD coordinate unit selection: mm, metre or inch.
-- 4-node linear tetrahedral, isotropic, small-strain static 3D FEA.
-- Fixed minimum-axis face; nodal point-force distribution on maximum-axis face.
-- Per-element von Mises and averaged nodal color interpolation, deformation display.
-- Force balance; constant-strain patch test.
+Open **http://127.0.0.1:8000/solid3d**. The original 2D truss workspace
+remains at **http://127.0.0.1:8000/**, with a navigation link to 3D.
 
-## Explicitly not supported
-- No assembly contact, tie interfaces, or automated BC detection: disconnected components may lead to singular systems.
-- No surface pressure, thermal/CFD, plasticity, nonlinear kinematics, or fatigue.
-- No CAD modification/parameter-search feedback loop.
-- No convergence study yet: mesh refinement must be checked before using any reported stress.
-- Stress singularities at ideal clamps/load nodes and smoothed nodal colors can mislead.
-- The solver is intended for education and demonstration; not design safety decisions.
+This 3D page is a normal HTTP/Canvas application **without Streamlit
+WebSockets or external JavaScript libraries**. The long-running web server
+does not import Gmsh. Each simulation runs in a disposable Python subprocess
+(`forceforge/solid3d_worker.py`) with a 65-second timeout, a serialized
+worker queue, 6,000-tetrahedron / 10,000-node limits and a 4 MB STEP file
+limit. A worker Python exception, native crash or timeout is returned as an
+error; it does not terminate the parent HTTP server. Browser health status
+checks `/api/health` every 15 seconds.
 
-## QA gate before claiming completion
-1. Install optional native Gmsh dependencies on the deployment host.
-2. Execute pytest and the UI on macOS.
-3. Test one CAD STEP solid and a multi-solid STEP file with clearly defined interfaces.
-4. Compare a beam displacement/stress case against beam theory and a second validated solver.
-5. Run mesh refinement; review reactions and singular/ill-conditioned cases.
-6. Check UI stability and upload limits, then merge the feature branch after review.
+For legacy compatibility, `python -m streamlit run app_3d.py` also uses the
+isolated worker, but **the HTTP workspace is preferred for live demos**.
+If the machine sleeps, the server is stopped, or the HTTP port changes, no
+local web app can remain connected; restart the local server.
 
-This feature intentionally uses a separate entrypoint; it does not alter existing 2D workflows.
+## Supported calculations
+
+- Native rectangular 3D solid and uploaded STEP closed-solid import through
+  Gmsh OpenCASCADE.
+- Explicit STEP coordinate unit selection (mm, m, inch).
+- Linear isotropic small-strain 4-node tetrahedra, static stiffness solve.
+- Fixed minimum-axis face and equal nodal point-load distribution on the
+  maximum-axis face; choose X, Y or Z.
+- Nodal displacement, element von Mises stress, stress-to-node average and
+  exterior surface triangles.
+- Rotatable Canvas contour display with adjustable deformation amplification,
+  result export, reaction equilibrium check.
+- Patch, repeat-meshing, lifecycle, worker crash/timeout and HTTP smoke tests.
+
+**STEP geometry import is not assembly/contact FEA.** Multiple disconnected
+solids without supported interfaces may produce a singular system. The current
+solver does not automatically assign contacts, tie surfaces or boundary
+conditions to imported assemblies.
+
+## Limits and validation
+
+- Boundary loads are simplified; nodal stress concentrations may be highly
+  mesh-dependent. Displayed colors use averaged nodal stress, and the reported
+  peak von Mises is computed at elements.
+- No plasticity, real stress/strain material data, fatigue, failure model,
+  thermal coupling, CFD or automatic CAD modification yet.
+- Mesh convergence and comparison against independent reference solvers are
+  **still acceptance gates** before claiming reliable physical accuracy.
+- Strongly avoid describing this as a verified safety/design-certificate tool.
+
+## Checks
+
+```bash
+python -m pytest -q
+# Run test suite and native smoke tests through GitHub Actions
+# `Solid 3D FEA checks` workflow on the feature branch
+python web_server.py
+# In another terminal:
+curl http://127.0.0.1:8000/api/health
+```
+
+## Stability diagnosis
+
+- If `/api/health` stays online but the solve shows an error, the isolated
+  FEA worker encountered a CAD, mesh, numerical or timeout problem. Try a
+  coarser mesh, reduce geometry complexity, and inspect the terminal message.
+- If `/api/health` is offline, the parent web server was stopped, the device
+  slept, or the local port is unavailable. Restart `python web_server.py`.
+- If the old `localhost:8501` page shows a Streamlit **Connection error**,
+  use `http://127.0.0.1:8000/solid3d` to avoid the Streamlit/WebSocket stack.
+- Multiple solver button clicks are guarded by a single-worker semaphore.
+  A second request gets a safe busy error without overloading memory.
+
+## Demo scenario
+
+Rectangular block 100 × 20 × 20 mm, mesh size 8 mm, E=200 GPa, nu=0.3,
++1000 N along X. Rotate colored surface. Confirm finite stress/displacement,
+check the force balance residual, then rerun or vary deformation amplification
+without a Streamlit reconnect.
+
+The HTTP version is intentionally additive to the existing 2D browser app.
