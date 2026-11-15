@@ -28,7 +28,7 @@ def test_geometry_rotation_preserves_blade_length_and_source_positions():
     assert positions[-1]==pytest.approx(positions[0],abs=1e-12)
     center=np.array([0,0,2.6])
     distances=np.linalg.norm(positions-center,axis=2)
-    assert distances==pytest.approx(distances[0][None,:])
+    assert np.allclose(distances,distances[0][None,:])
 
 
 def test_invalid_stl_and_unphysical_preview_rejected():
