@@ -159,6 +159,9 @@ def cached_surrogate(req: Requirements):
 
 
 def handle_api(route: str, data: dict) -> dict:
+    if route == "/api/solid3d/solve":
+        from solid3d_service import run_study
+        return run_study(data)
     if route == "/api/interpret":
         prompt = data.get("prompt", "")
         if not isinstance(prompt, str) or not 1 <= len(prompt.strip()) <= 1600:
@@ -264,7 +267,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         if route in ("/", "/index.html"):
             path = STATIC_DIR / "index.html"
-        elif route in ("/style.css", "/app.js"):
+        elif route in ("/solid3d", "/solid3d.html"):
+            path = STATIC_DIR / "solid3d.html"
+        elif route in ("/style.css", "/app.js", "/solid3d.css", "/solid3d.js"):
             path = STATIC_DIR / route.lstrip("/")
         else:
             self._json(404, {"error": "Not found"})
@@ -277,7 +282,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         route = urlsplit(self.path).path
         if route not in {"/api/solve", "/api/search", "/api/challenge", "/api/ml",
-                         "/api/interpret", "/api/sensitivity"}:
+                         "/api/interpret", "/api/sensitivity", "/api/solid3d/solve"}:
             self._json(404, {"error": "Unknown endpoint"})
             return
         origin = self.headers.get("Origin")
@@ -287,8 +292,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             size = int(self.headers.get("Content-Length", "0"))
-            if not 1 <= size <= 65536:
-                raise InputError("Request must contain up to 64 KB of JSON")
+            size_limit = 6_000_000 if route == "/api/solid3d/solve" else 65536
+            if not 1 <= size <= size_limit:
+                raise InputError(f"Request must contain 1 to {size_limit} bytes of JSON")
             data = json.loads(self.rfile.read(size))
             if not isinstance(data, dict):
                 raise InputError("Expected a JSON object")
