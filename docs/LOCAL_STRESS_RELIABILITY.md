@@ -31,7 +31,7 @@ The issue is engineering interpretation: the global tip displacement stabilizes 
 5. The new **Run two local hotspot refinements** button:
    - reuses exactly the original STEP SHA and load/material/support conditions
    - reimports the same STEP BRep with real Gmsh 3D `Box` size fields centered on the originally sampled Gauss hotspot in millimetres
-   - runs separate quadratic-tetra 3D FEM for local element-size factors 0.80 then 0.60 (relative to baseline, bounded) with independent reaction/volume checks
+   - runs separate quadratic-tetra 3D FEM for local element-size factors 0.60 then 0.45 (relative to baseline, bounded) with independent reaction/volume checks
    - shows the local stress trend, physical peak movement, actual tetra element count and a conservative status
    - rejects over-limit (>1,400 tetra) models; no silent mesh truncation; actual solve stays inside the same crash-isolated macOS-compatible child process with timeouts.
 6. All old modal, 3D solid, CAD redesign, robust optimization, uncertainty and ML modules remain intact.
