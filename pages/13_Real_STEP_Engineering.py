@@ -520,11 +520,22 @@ with st.expander(
         targeted=None
     if targeted is not None:
         details=targeted["study"]
-        if details.status=="PRELIMINARY_LOCAL_STRESS_SCREEN_MET":
+        if details.status in (
+            "PRELIMINARY_LOCAL_STRESS_SCREEN_MET",
+            "PRELIMINARY_COMPETING_HOTSPOT_STABILITY",
+        ):
             st.warning(
-                "Numerical local-stress screening only. Physical contact, "
-                "experimental material data and safety approval are not verified."
+                "Preliminary NUMERICAL stress-region screening only; "
+                "no actual fixture/contact verification, laboratory "
+                "stress correlation, or structural safety approval."
             )
+            if details.status=="PRELIMINARY_COMPETING_HOTSPOT_STABILITY":
+                st.info(
+                    "The highest sampled stress switched between multiple "
+                    "physical locations. Two fixed XYZ hotspot regions "
+                    "have been evaluated on BOTH refined 3D meshes. "
+                    "Inspect each critical region separately."
+                )
         else:
             st.error(
                 "LOCAL STRESS UNRESOLVED — " + details.status
@@ -551,6 +562,36 @@ with st.expander(
             f"{details.region_p90_change_percent:.2f}%, and hotspot "
             f"location moved {details.hotspot_move_mm:.2f} mm."
         )
+        if details.matched_physical_hotspot_regions:
+            st.markdown(
+                "**Independent spatial stress probes · competing hotspots**"
+            )
+            st.caption(
+                "Each row is one FIXED 7 mm physical XYZ sphere, "
+                "queried on both 3D FE solutions; it is not a moving "
+                "maximum element ID. Values are Gauss-volume weighted."
+            )
+            fixed_sites = pd.DataFrame(
+                list(details.matched_physical_hotspot_regions)
+            ).rename(columns={
+                "center_xyz_mm": "Physical XYZ center (mm)",
+                "radius_mm": "Sphere radius (mm)",
+                "mesh_A_gauss_samples": "Mesh A samples",
+                "mesh_B_gauss_samples": "Mesh B samples",
+                "mesh_A_volume_weighted_mean_mpa": "Mesh A mean (MPa)",
+                "mesh_B_volume_weighted_mean_mpa": "Mesh B mean (MPa)",
+                "mean_change_percent": "Mean change (%)",
+                "mesh_A_weighted_p90_mpa": "Mesh A P90 (MPa)",
+                "mesh_B_weighted_p90_mpa": "Mesh B P90 (MPa)",
+                "p90_change_percent": "P90 change (%)",
+            })
+            st.dataframe(fixed_sites,hide_index=True,width="stretch")
+            st.caption(
+                "Largest matched-site mean change: "
+                f"{details.maximum_fixed_site_mean_change_percent:.2f}%; "
+                "largest matched-site P90 change: "
+                f"{details.maximum_fixed_site_p90_change_percent:.2f}%."
+            )
         st.caption(details.limitations)
         st.download_button(
             "Download local stress-verification JSON",
