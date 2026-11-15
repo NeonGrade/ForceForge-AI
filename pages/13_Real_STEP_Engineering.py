@@ -24,6 +24,9 @@ from forceforge.isolated_cad import (
 from forceforge.mesh_verification import run_mesh_evidence, select_mesh_sizes
 from forceforge.local_refinement import run_hotspot_refinement
 from forceforge.dual_hotspot import run_dual_hotspot_study
+from forceforge.cad_copilot import (
+    DesignLimits, evaluate_candidate, pick_lightest_feasible, propose_designs,
+)
 from forceforge.stress_probe import probe_stress
 import plotly.graph_objects as go
 from forceforge.solid3d import surface_figure
@@ -201,6 +204,7 @@ if run_requested:
     st.session_state.pop("stable_mesh_evidence", None)
     st.session_state.pop("stable_hotspot_study", None)
     st.session_state.pop("stable_dual_hotspot", None)
+    st.session_state.pop("stable_cad_copilot", None)
     t0 = time.monotonic()
     try:
         with st.spinner(
@@ -866,6 +870,335 @@ if revised_record is not None:
         file_name="forceforge_cad_fea.json",
         mime="application/json",
     )
+
+
+# -------------------------------------------------------------------------
+# Step 5: AI proposes bounded parametric CAD changes; ONLY independent
+# tetra10 FEM + engineering quality gates may rank candidates. This is a
+# transparent, reproducible opt-in feature for the hackathon live demo.
+# -------------------------------------------------------------------------
+st.subheader("Step 5 · Design Copilot: AI proposal → Real CAD → FEA verification")
+if selection != "Editable 3D L-bracket":
+    st.info(
+        "The current Design Copilot edits ONLY the documented parametric "
+        "8/10/12/14 mm drilled L-bracket. Imported arbitrary STEP topology "
+        "cannot yet be automatically regenerated. Existing manual STEP "
+        "comparison and genuine 3D FEA remain available above."
+    )
+else:
+    st.write(
+        "Enter an engineering objective. Optionally let a language model "
+        "prioritize **bounded CAD dimensions**. Every alternative is then "
+        "regenerated as a REAL STEP and independently meshed/solved with "
+        "the same Gmsh + quadratic-tetra10 FEM. AI cannot invent stresses "
+        "or override a failed engineering check."
+    )
+    copilot_brief = st.text_input(
+        "Design objective (max 500 characters)",
+        value=(
+            "Reduce deflection and sampled stress while minimizing "
+            "added material."
+        ),
+        max_chars=500,
+        key="stable_copilot_brief",
+    )
+    c1, c2, c3 = st.columns(3)
+    tip_limit = c1.number_input(
+        "Target max tip displacement (mm)",
+        min_value=.001, max_value=20., value=.015,
+        step=.005, format="%.3f", key="stable_copilot_tip_limit",
+    )
+    stress_limit = c2.number_input(
+        "Target max sampled von Mises (MPa)",
+        min_value=1., max_value=1800.,
+        value=min(16., float(yield_mpa)),
+        step=1., key="stable_copilot_stress_limit",
+    )
+    mass_budget = c3.number_input(
+        "Allowed mass increase (%)",
+        min_value=0., max_value=250., value=40.,
+        step=5., key="stable_copilot_mass_budget",
+    )
+    enable_llm = st.checkbox(
+        "Ask an LLM to prioritize the CAD proposals (optional OpenAI API)",
+        value=False, key="stable_copilot_use_llm",
+    )
+    secret_key = (
+        st.text_input(
+            "API key (used for this request only, never exported)",
+            type="password", key="stable_copilot_secret",
+            help="Leave blank to use OPENAI_API_KEY from the server environment. "
+                 "If unavailable, the run is labeled rules-based.",
+        ) if enable_llm else None
+    )
+    criteria = DesignLimits(
+        max_tip_mm=float(tip_limit),
+        max_sampled_stress_mpa=float(stress_limit),
+        max_mass_increase_percent=float(mass_budget),
+    )
+    copilot_signature = (
+        signature, float(web), copilot_brief, criteria, bool(enable_llm),
+    )
+    st.caption(
+        "Permitted geometry variable: vertical web thickness 8, 10, 12, "
+        "or 14 mm. Material, boundary conditions, mesh target and applied "
+        "load remain identical. The finite search is bounded; this is NOT "
+        "automatic arbitrary assembly reconstruction or CFD."
+    )
+    if st.button(
+        "Generate CAD proposals + verify every candidate with real 3D FEA",
+        type="primary", key="stable_copilot_run",
+    ):
+        st.session_state.pop("stable_cad_copilot", None)
+        started = time.monotonic()
+        try:
+            with st.spinner("Parsing the brief and planning bounded CAD studies..."):
+                proposal = propose_designs(
+                    brief=copilot_brief,
+                    original_thickness_mm=int(web),
+                    baseline=result, limits=criteria,
+                    use_api=bool(enable_llm), api_key=secret_key,
+                )
+            fe_rows = []
+            cad_sources = {}
+            fe_solutions = {}
+            failures = []
+            for n, thickness in enumerate(proposal.candidates_mm, start=1):
+                try:
+                    with st.spinner(
+                        f"True 3D FEA {n}/{len(proposal.candidates_mm)}: "
+                        f"generate {thickness} mm STEP → tetra mesh → solve..."
+                    ):
+                        candidate_step = generate_bracket_safely(float(thickness))
+                        candidate_fea = analyze_step_safely(
+                            candidate_step,
+                            source_label=f"Copilot candidate {thickness} mm",
+                            mesh_size_mm=float(mesh_size),
+                            unit="mm", load=case,
+                        )
+                        evidence_row = evaluate_candidate(
+                            original=result, candidate=candidate_fea,
+                            thickness_mm=thickness, limits=criteria,
+                        )
+                    fe_rows.append(evidence_row)
+                    cad_sources[thickness] = candidate_step
+                    fe_solutions[thickness] = candidate_fea
+                except (CadJobError, RuntimeError, ValueError, OSError) as exc:
+                    failures.append({
+                        "thickness_mm": thickness,
+                        "error_type": type(exc).__name__,
+                        "message": str(exc)[:400],
+                    })
+            selected = pick_lightest_feasible(fe_rows)
+            # A design already meeting the stated numerical limits may be
+            # lighter than all proposals; never force a needless redesign.
+            original_qa = (
+                result.relative_reaction_residual <= 1e-5
+                and mesh.relative_volume_difference <= .20
+                and mesh.min_shape_quality > 0
+            )
+            original_feasible = (
+                original_qa
+                and result.tip_mm <= criteria.max_tip_mm
+                and result.peak_von_mises_mpa <= criteria.max_sampled_stress_mpa
+                and result.peak_von_mises_mpa*1e6 <= case.yield_pa
+            )
+            if original_feasible and (
+                selected is None or result.mass_kg <= fe_solutions[selected].mass_kg
+            ):
+                selected = int(web)
+            if not fe_rows and not original_feasible:
+                raise ValueError(
+                    "All candidate FEA runs failed; no design is verified. "
+                    "Inspect individual solver failures."
+                )
+            st.session_state["stable_cad_copilot"] = {
+                "signature": copilot_signature,
+                "proposal": proposal,
+                "rows": tuple(fe_rows),
+                "sources": cad_sources,
+                "solutions": fe_solutions,
+                "failures": tuple(failures),
+                "selected": selected,
+                "original_feasible": original_feasible,
+                "duration_s": time.monotonic()-started,
+            }
+        except (RuntimeError, ValueError, OSError) as exc:
+            st.error(
+                "Design search did not complete a valid physical study: "
+                + str(exc)
+            )
+
+    copilot_record = st.session_state.get("stable_cad_copilot")
+    if copilot_record is not None and copilot_record["signature"] != copilot_signature:
+        st.warning(
+            "Design brief, limits, loading or geometry changed. "
+            "Previous AI/FEA recommendation is stale and hidden until re-run."
+        )
+        copilot_record = None
+    if copilot_record is not None:
+        suggestion = copilot_record["proposal"]
+        rows = list(copilot_record["rows"])
+        failures = list(copilot_record["failures"])
+        selected = copilot_record["selected"]
+        st.write("**Proposal source:**", suggestion.mode)
+        st.caption(suggestion.message)
+        st.write("**Reasoning:**", suggestion.rationale)
+        if failures:
+            st.error(
+                "INCOMPLETE CANDIDATE SET: "
+                + str(len(failures))
+                + " independent CAD/FEA studies failed. No global search "
+                  "completeness or engineering safety is claimed."
+            )
+            st.dataframe(pd.DataFrame(failures),hide_index=True,width="stretch")
+        view_rows = [{
+            "Design": f"Original {int(web)} mm",
+            "3D tetra": mesh.num_tets,
+            "Mass (kg)": result.mass_kg,
+            "Mass change (%)": 0.,
+            "Tip (mm)": result.tip_mm,
+            "Sampled stress (MPa)": result.peak_von_mises_mpa,
+            "Model screen": (
+                "PRELIMINARY_MEETS" if copilot_record["original_feasible"]
+                else "FAILS_ASSUMED_LIMITS"
+            ),
+        }]
+        view_rows.extend({
+            "Design": f"CAD {r.thickness_mm} mm",
+            "3D tetra": r.tetrahedra,
+            "Mass (kg)": r.mass_kg,
+            "Mass change (%)": r.mass_change_pct,
+            "Tip (mm)": r.tip_mm,
+            "Sampled stress (MPa)": r.peak_von_mises_mpa,
+            "Model screen": r.status,
+        } for r in rows)
+        st.dataframe(
+            pd.DataFrame(view_rows).round(5),
+            hide_index=True,width="stretch",
+        )
+        fig = go.Figure()
+        for item in view_rows:
+            screened = item["Model screen"] in (
+                "PRELIMINARY_MODEL_CONSTRAINTS_MET", "PRELIMINARY_MEETS",
+            )
+            fig.add_trace(go.Scatter(
+                x=[item["Mass (kg)"]], y=[item["Tip (mm)"]],
+                mode="markers+text",
+                text=[item["Design"]], textposition="top center",
+                name=item["Design"] + (" · meets screen" if screened else " · outside screen"),
+                marker=dict(
+                    size=14, symbol="circle" if screened else "x",
+                    color="#23a89d" if screened else "#e9a34b",
+                ),
+                hovertemplate=(
+                    "%{text}<extra></extra>"
+                    + "<br>Mass %{x:.4f} kg"
+                    + "<br>Tip %{y:.5f} mm"
+                ),
+            ))
+        fig.add_hline(
+            y=criteria.max_tip_mm, line_dash="dash",
+            annotation_text="Illustrative displacement limit",
+        )
+        fig.update_layout(
+            title="Actual FEM design trade-off · mass vs tip displacement",
+            xaxis_title="Mass (kg)",
+            yaxis_title="FE-computed tip displacement (mm)",
+            height=360,
+            showlegend=False,
+            margin=dict(t=60,b=40,l=40,r=20),
+        )
+        st.plotly_chart(
+            fig,width="stretch",key="stable_copilot_tradeoff",
+        )
+        if selected is None:
+            st.error(
+                "No design in the tested discrete set meets every "
+                "illustrative constraint; no unverified winner is invented."
+            )
+        else:
+            is_original = selected == int(web)
+            complete = len(rows) == len(suggestion.candidates_mm) and not failures
+            if complete:
+                st.success(
+                    "PHYSICS-VERIFIED DISCRETE SCREEN: "
+                    + ("Retain original CAD" if is_original
+                       else f"{selected} mm revised STEP is the lightest "
+                            "FEA-screened candidate meeting all stated limits.")
+                )
+            else:
+                st.warning(
+                    f"Best among successfully tested variants: {selected} mm. "
+                    "Candidate evaluation is incomplete."
+                )
+            if not is_original:
+                winner = copilot_record["solutions"][selected]
+                compare_cmax = 1.01*max(
+                    result.peak_von_mises_mpa,winner.peak_von_mises_mpa
+                )
+                ca, cb = st.columns(2)
+                with ca:
+                    st.markdown("**Original CAD / true tetra10 FEA**")
+                    st.plotly_chart(
+                        surface_figure(
+                            result,deformation_scale=visual,
+                            stress_cmax_mpa=compare_cmax,
+                        ),width="stretch",key="copilot_orig_fea",
+                    )
+                with cb:
+                    st.markdown("**Selected revised STEP / independently solved**")
+                    st.plotly_chart(
+                        surface_figure(
+                            winner,deformation_scale=visual,
+                            stress_cmax_mpa=compare_cmax,
+                        ),width="stretch",key="copilot_best_fea",
+                    )
+                st.caption(
+                    f"Shared 0–{compare_cmax:.2f} MPa legend. "
+                    "Both 3D stress fields come from independently "
+                    "solved quadratic-tetra finite elements."
+                )
+                st.download_button(
+                    f"Download FEA-verified candidate CAD ({selected} mm STEP)",
+                    data=copilot_record["sources"][selected],
+                    file_name=f"forceforge_copilot_{selected}mm.step",
+                    mime="application/step",
+                    key="stable_copilot_step_export",
+                )
+        audited = {
+            "study": "Bounded CAD proposals evaluated by real Gmsh tetra10 FEA",
+            "proposal": suggestion.as_dict(),
+            "original_step_sha256": result.mesh.source_sha256,
+            "material_force_fixture": asdict(case),
+            "design_brief": copilot_brief,
+            "limits": asdict(criteria),
+            "baseline": view_rows[0],
+            "candidates": [r.as_dict() for r in rows],
+            "failed_jobs": failures,
+            "selected_thickness_mm": selected,
+            "all_candidates_evaluated": (
+                len(rows) == len(suggestion.candidates_mm) and not failures
+            ),
+            "solve_duration_s": copilot_record["duration_s"],
+            "verification_scope": (
+                "Preliminary static 3D linear-elastic FEA and illustrative "
+                "criteria only. No demonstrated converged local peak stress, "
+                "contact, fatigue, material qualification, CFD, or safety approval."
+            ),
+        }
+        st.download_button(
+            "Export auditable AI-to-CAD-to-FEA evidence (JSON)",
+            data=json.dumps(audited,indent=2),
+            file_name="forceforge_copilot_real_fea_evidence.json",
+            mime="application/json",
+            key="stable_copilot_json_export",
+        )
+        st.caption(
+            "AI outputs only bounded CAD proposals; 3D FEA is authoritative. "
+            "Passing these illustrative limits is not a numerical convergence "
+            "certificate, verified joint/bolt fixture or approval for use."
+        )
 
 with st.expander("Source, numerical limits and qualification gaps"):
     st.write(
