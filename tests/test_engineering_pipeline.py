@@ -26,15 +26,16 @@ def _bracket():
     return approve_demo_assumptions(interpret_text(BRACKET_TEXT).request)
 
 
-def test_fan_plan_blocks_unimplemented_cfd_and_fea_even_with_concept_defaults():
+def test_fan_plan_advertises_separate_real_openfoam_job_but_not_completed_cfd():
     p=plan_engineering(_fan())
     assert p.task("generate_cad").status==TaskState.READY
     assert p.task("solid_mesh").status==TaskState.BLOCKED
     assert p.task("structural_fea").status==TaskState.BLOCKED
     assert p.task("fluid_domain").status==TaskState.READY
     assert p.task("fluid_mesh").status==TaskState.READY
-    assert p.task("fluid_cfd").status==TaskState.BLOCKED
-    assert "Navier-Stokes" in p.task("fluid_cfd").reason
+    assert p.task("fluid_cfd").status==TaskState.AVAILABLE_EXTERNAL
+    assert "OpenFOAM" in p.task("fluid_cfd").reason
+    assert "NO CFD solve occurs" in p.task("fluid_cfd").reason
     assert "wall" in p.task("structural_fea").reason.lower()
 
 
@@ -72,7 +73,7 @@ def test_mocked_fan_run_exports_real_cad_metadata_but_no_fake_sim(monkeypatch):
     assert meta["fluid_domain"] is None
     assert out.plan.task("fluid_mesh").status==TaskState.READY
     assert meta["structural_fea"] is None
-    assert any(s["name"]=="fluid_cfd" and s["status"]=="BLOCKED"
+    assert any(s["name"]=="fluid_cfd" and s["status"]=="AVAILABLE_EXTERNAL"
                for s in meta["stages"])
     assert any(s["name"]=="generate_cad" and s["status"]=="COMPLETED"
                for s in meta["stages"])
@@ -166,7 +167,7 @@ def test_fluid_domain_requires_explicit_separate_click(monkeypatch):
     assert report["fluid_cfd"] is None
     assert any(t.name=="fluid_mesh" and t.status==TaskState.COMPLETED
                for t in execution.stage_results)
-    assert any(t.name=="fluid_cfd" and t.status==TaskState.BLOCKED
+    assert any(t.name=="fluid_cfd" and t.status==TaskState.AVAILABLE_EXTERNAL
                for t in execution.stage_results)
 
 

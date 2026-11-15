@@ -27,7 +27,7 @@ def test_wall_fan_real_multibody_step_is_not_a_fake_cfd_result():
     assert len(output.cad.step_bytes)>1000
     assert output.evidence()["fluid_cfd"] is None
     assert output.evidence()["structural_fea"] is None
-    assert any(x.status==TaskState.BLOCKED and x.name=="fluid_cfd"
+    assert any(x.status==TaskState.AVAILABLE_EXTERNAL and x.name=="fluid_cfd"
                for x in output.stage_results)
     # Confirm OpenCASCADE independently imports true STEP volumes
     gmsh=_require_gmsh()

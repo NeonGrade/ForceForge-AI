@@ -2,7 +2,8 @@
 
 Same Streamlit multipage application and same PR #16 branch. The UI only
 runs native CAD/FEA on an EXPLICIT button press through bounded subprocesses.
-CFD, thermal and fan mounting structural results are blocked, NEVER mocked.
+CFD is only run by a separate real OpenFOAM job; no CFD/thermal or fan
+mounting structural results are fabricated by this CAD page.
 """
 from __future__ import annotations
 
@@ -169,6 +170,13 @@ for task in plan.tasks:
         "Reason":task.reason,
     })
 st.dataframe(rows,hide_index=True,width="stretch")
+if plan.task("fluid_cfd").status==TaskState.AVAILABLE_EXTERNAL:
+    st.info(
+        "Actual source-STEP rotor OpenFOAM CFD is supported through the "
+        "separate rotating-flow page. First generate the fan STEP and "
+        "extract its real blade STL, then launch a genuine solver job. "
+        "No velocities/pressures are computed by this geometry planner."
+    )
 for warning in plan.warnings:
     st.caption("Engineering limitation: "+warning)
 
@@ -333,7 +341,10 @@ if snapshot is not None:
                     "air zones → tetrahedralize → check true volume and patches..."
                 ):
                     mesh_registered_fluid_domain(effective,execution)
-                st.success("Tagged 3D fluid mesh generated; CFD solver remains BLOCKED.")
+                st.success(
+                    "Genuine 3D air mesh generated; blade-resolved CFD requires "
+                    "a separately launched real OpenFOAM job."
+                )
             except (RuntimeError,ValueError,OSError) as exc:
                 st.error(
                     "3D fluid mesh could not be produced; the previous CAD "

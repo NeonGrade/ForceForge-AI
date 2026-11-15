@@ -22,6 +22,7 @@ from .product_cad import CADProduct, generate_product
 
 class TaskState(str, Enum):
     READY = "READY"
+    AVAILABLE_EXTERNAL = "AVAILABLE_EXTERNAL"
     BLOCKED = "BLOCKED"
     NOT_REQUESTED = "NOT_REQUESTED"
     COMPLETED = "COMPLETED"
@@ -250,18 +251,31 @@ def plan_engineering(request: EngineeringRequest) -> EngineeringPlan:
                 reason="Real air volume must be explicitly generated before meshing",
                 missing_inputs=missing,
             ))
+        external_ready=(
+            fam=="wall_fan" and cad_status==TaskState.READY
+            and request.concept_assumptions_confirmed
+        )
         tasks.append(EngineeringTask(
-            "fluid_cfd",TaskState.BLOCKED,
-            depends_on=("fluid_mesh",),
+            "fluid_cfd",
+            TaskState.AVAILABLE_EXTERNAL if external_ready else TaskState.BLOCKED,
+            depends_on=("generate_cad",),
             reason=(
-                "No validated incompressible Navier-Stokes/OpenFOAM runtime, "
-                "pressure-flow fan curve, momentum source, wall influence, "
-                "boundary conditions or solver residuals are supplied. "
-                "A real 3D air mesh does NOT imply velocities or pressures."
+                "True source-STEP rotor + dynamic AMI OpenFOAM pimpleFoam CFD is "
+                "available in a SEPARATE Transient Rotating CFD page AFTER "
+                "actual rotor STL extraction and explicit Docker job launch. "
+                "That solver uses the official reference ROOM and verified "
+                "U/p postprocessor. NO CFD solve occurs in this CAD/air-mesh DAG. "
+                "Wall, grille and anchors are NOT included; mesh-convergence "
+                "and fan-curve certification remain unvalidated."
+                if external_ready else
+                "No registered blade-resolved geometry/BC/validated real CFD "
+                "workflow for this incomplete or unsupported request."
             ),
             missing_inputs=(
-                "validated_cfd_solver","fan_curve_or_rotor_source",
-                "boundary_conditions","mesh_convergence",
+                ("real_rotor_STL","explicit_Docker_OpenFOAM_job",
+                 "verified_U_p_solver_outputs")
+                if external_ready else
+                ("registered_rotor_geometry","verified_fluid_solver")
             ),
         ))
     else:

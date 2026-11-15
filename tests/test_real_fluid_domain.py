@@ -51,7 +51,7 @@ def test_real_fan_step_to_tagged_air_tetrahedra_not_fake_flow():
     assert result.evidence()["structural_fea"] is None
     assert any(t.name=="fluid_mesh" and t.status==TaskState.COMPLETED
                for t in result.stage_results)
-    assert any(t.name=="fluid_cfd" and t.status==TaskState.BLOCKED
+    assert any(t.name=="fluid_cfd" and t.status==TaskState.AVAILABLE_EXTERNAL
                for t in result.stage_results)
 
     # Open the exported mesh in an independent Gmsh model, rather than

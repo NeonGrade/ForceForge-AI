@@ -108,7 +108,7 @@ def main():
                 expect(mesher).to_be_visible(timeout=15000)
                 mesher.click()
                 expect(page.get_by_text(
-                    "Tagged 3D fluid mesh generated; CFD solver remains BLOCKED."
+                    "Genuine 3D air mesh generated; blade-resolved CFD requires a separately launched real OpenFOAM job."
                 )).to_be_visible(timeout=125000)
                 expect(
                     page.get_by_role(
@@ -119,7 +119,9 @@ def main():
                 expect(page.get_by_text("Real fluid tetrahedra")).to_be_visible()
                 # Streamlit st.dataframe is canvas-rendered; the physical
                 # rotor_interface group is validated by the native MSH test.
-                expect(page.get_by_text("fluid_cfd — BLOCKED:",exact=False)).to_be_visible()
+                expect(page.get_by_text(re.compile(
+                    "Actual source-STEP rotor OpenFOAM CFD is supported"
+                ))).to_be_visible()
                 page.screenshot(
                     path=str(OUTPUT/"02_real_fan_air_tetra_mesh.png"),full_page=True,
                 )
@@ -130,7 +132,7 @@ def main():
                 assert not js_errors, "Uncaught browser errors: "+"; ".join(js_errors)
                 print(
                     "PASS: Live Chromium created actual fan STEP, real two-zone "
-                    "Gmsh tetra air mesh with named patches; CFD correctly BLOCKED."
+                    "Gmsh tetra air mesh with named patches; real CFD requires a separate OpenFOAM job."
                 )
             finally:
                 context.close()
