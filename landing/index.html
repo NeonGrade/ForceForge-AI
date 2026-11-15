@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#091118">
+<meta name="description" content="ForceForge AI is a physics-verified design studio for exploring, optimizing and challenging truss structures. AI proposes. Physics decides.">
+<meta property="og:title" content="ForceForge AI | Design with evidence">
+<meta property="og:description" content="From structural intuition to physics-verified design. Explore the ForceForge AI engineering studio.">
+<title>ForceForge AI | Make bold ideas. Back them with physics.</title>
+<style>
+:root{color-scheme:dark;--bg:#091118;--bg-2:#0c1820;--surface:#11212a;--surface-2:#142731;--stroke:#29404a;--line:#213740;--ink:#f1f7f6;--pale:#d8e4e5;--muted:#8fa5ab;--mint:#74ecd1;--mint-2:#b0ffe8;--mint-dark:#17433e;--orange:#f4b082;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;font-synthesis:none}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:94px}
+body{margin:0;min-width:320px;background:var(--bg);color:var(--ink);overflow-x:hidden}
+body::selection{background:#75edd3;color:#07231d}
+a{text-decoration:none;color:inherit}button{font:inherit;cursor:pointer}button:focus-visible,a:focus-visible{outline:2px solid var(--mint);outline-offset:5px}svg{display:block}
+.container{width:min(100% - 96px,1252px);margin-inline:auto}
+.eyebrow{font-size:10px;letter-spacing:.23em;font-weight:800;color:var(--mint);text-transform:uppercase}
+.dot{width:7px;height:7px;display:inline-block;background:var(--mint);border-radius:50%;box-shadow:0 0 0 5px #76edcd13}
+.skip{position:fixed;left:14px;top:-70px;background:var(--mint);color:var(--bg);z-index:100;padding:12px 18px;border-radius:5px}.skip:focus{top:12px}
+/* navigation */
+.site-header{height:82px;position:sticky;top:0;z-index:30;background:#09131bd9;border-bottom:1px solid #31414b70;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.header-inner{height:100%;display:flex;align-items:center;gap:28px}.brand{display:inline-flex;align-items:center;gap:11px;flex:none}.brand-mark{width:38px;height:38px;border-radius:11px;border:1px solid #38796e;background:linear-gradient(150deg,#143b3d,#10232a);display:grid;place-items:center;box-shadow:0 0 25px #39e1c114}.brand-mark svg{width:28px;height:28px}.brand-wordmark{display:flex;flex-direction:column;gap:2px}.brand-wordmark strong{font-size:14px;letter-spacing:.115em;font-weight:850;white-space:nowrap}.brand-wordmark strong span{color:var(--mint);margin-left:3px}.brand-wordmark small{font-size:8px;letter-spacing:.24em;color:#8199a3;font-weight:760}.main-nav{display:flex;align-items:center;gap:34px;margin-left:auto}.main-nav a{font-size:12px;color:#a7b9be;font-weight:610;transition:color .2s;white-space:nowrap}.main-nav a:hover{color:var(--mint)}.main-nav .mobile-launch{display:none}.nav-cta{display:inline-flex;align-items:center;justify-content:center;gap:15px;font-size:12px;font-weight:750;border:1px solid #65baa9;background:#173f3c;color:#d2fff0;border-radius:8px;height:40px;padding:0 16px;white-space:nowrap;transition:background .2s,transform .2s}.nav-cta:hover{background:#23584f;transform:translateY(-1px)}.nav-cta svg{width:15px;height:15px}.menu-toggle{display:none;color:var(--pale);background:none;border:1px solid #38505a;border-radius:8px;width:40px;height:40px;align-items:center;justify-content:center;margin-left:auto}.menu-toggle svg{width:18px;height:18px}
+/* hero */
+.hero{position:relative;isolation:isolate;overflow:hidden;background:radial-gradient(ellipse 47% 55% at 77% 45%,#123d3d50,transparent 80%),linear-gradient(180deg,#0b1720 0%,#091118 100%)}
+.hero:before{content:"";position:absolute;inset:0;z-index:-1;background-image:linear-gradient(#82b3b40b 1px,transparent 1px),linear-gradient(90deg,#82b3b40b 1px,transparent 1px);background-size:74px 74px;mask-image:linear-gradient(90deg,transparent 0%,black 45%,black 100%)}
+.hero:after{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(circle at 35% 60%,#2767631a,transparent 28%);pointer-events:none}
+.hero-inner{min-height:676px;display:grid;grid-template-columns:.95fr 1.05fr;align-items:center;gap:24px;padding-top:54px;padding-bottom:65px}
+.hero-copy{position:relative;z-index:2;padding-top:2px}.hero-kicker{display:inline-flex;align-items:center;gap:12px;border:1px solid #386053;background:#14322d86;border-radius:99px;padding:9px 13px 9px 11px;font-size:10px;font-weight:730;letter-spacing:.13em;color:#b2eede}.hero-kicker .dot{width:6px;height:6px}
+h1{font-size:clamp(49px,5.7vw,80px);line-height:1.055;letter-spacing:-.066em;font-weight:760;margin:32px 0 23px;max-width:710px}h1 span{background:linear-gradient(120deg,#e2fff4,#84ebd3 72%,#55bfae);color:transparent;background-clip:text;-webkit-background-clip:text}
+.hero-description{max-width:490px;font-size:16px;line-height:1.78;color:#a8bdc3;letter-spacing:-.01em;margin:0}
+.hero-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:34px}.button{display:inline-flex;align-items:center;justify-content:center;gap:17px;min-height:50px;padding:0 21px;border-radius:8px;font-size:12px;font-weight:760;letter-spacing:.01em;transition:transform .2s,background .2s,border-color .2s}.button:hover{transform:translateY(-2px)}.button.primary{background:var(--mint);color:#082a26;border:1px solid var(--mint);box-shadow:0 5px 35px #74ecd120}.button.primary:hover{background:#a0ffe8}.button.secondary{background:#17242db3;border:1px solid #40545d;color:#e0e9e9}.button.secondary:hover{background:#22333c;border-color:#698b8b}.button .arrow{width:16px;height:16px;flex:none}
+.hero-meta{display:flex;align-items:center;gap:17px;margin-top:58px}.meta-line{width:30px;height:1px;background:#4a7d76}.hero-meta p{font-size:10px;letter-spacing:.16em;font-weight:740;color:#708e97;margin:0;text-transform:uppercase}
+.hero-art{position:relative;min-width:0;display:flex;justify-content:flex-end}.visual-shell{width:100%;max-width:641px;aspect-ratio:1.13;position:relative;overflow:hidden;background:radial-gradient(circle at 52% 42%,#204b4b9c 0%,#122c32 36%,#0d1b26 74%,#0b1821 100%);border:1px solid #355961;border-radius:22px;box-shadow:0 34px 80px #0005,inset 0 0 60px #4bc1ae0b;isolation:isolate}
+.visual-shell:before{content:"";position:absolute;inset:0;background:linear-gradient(140deg,#b0ffeb0a,transparent 31%,#0e18244d 100%);pointer-events:none;z-index:4}.visual-shell:after{content:"";position:absolute;inset:-120%;background:linear-gradient(112deg,transparent 46%,#bcffed0d 50%,transparent 54%);animation:sweep 11s linear infinite;pointer-events:none;z-index:3}
+.visual-topline{position:absolute;top:22px;left:26px;right:26px;display:flex;justify-content:space-between;align-items:center;z-index:7}.visual-label{font-size:9px;font-weight:800;letter-spacing:.18em;color:#8db8b5}.visual-status{font-size:9px;letter-spacing:.1em;color:#b4f5e2;display:flex;align-items:center;gap:10px}.visual-status .dot{width:5px;height:5px}
+.structure{width:100%;height:100%;position:absolute;inset:0;z-index:1}.structure .truss-edge{stroke:#76edcf;stroke-width:8;stroke-linecap:round;transition:stroke .55s,filter .55s}.structure .edge-ghost{stroke:#071d22;stroke-width:18;stroke-linecap:round}.structure .edge-warm{stroke:#f0ad83}.structure .core-node{fill:#dcfff2;stroke:#438b80;stroke-width:4}.structure .inner-node{fill:#8ff4d8;stroke:#143a3a;stroke-width:4}.structure .node-halo{fill:#69efcc2c}.structure .load-arrow{stroke:#f1b186;stroke-width:3;stroke-linecap:round}.structure .load-label{fill:#eeb58c;font:700 12px Inter,Arial,sans-serif;letter-spacing:.1em}.structure .drawing-label{fill:#78999f;font:600 11px Inter,Arial,sans-serif;letter-spacing:.08em}.structure .terrain{stroke:#496e76;stroke-width:1;opacity:.44}.structure .grid-heavy{stroke:#597b80;opacity:.22}.structure .grid-soft{stroke:#597b80;opacity:.12}.structure .bracket{stroke:#718a97;stroke-width:1.2;fill:none;stroke-dasharray:4 5;opacity:.64}.truss-main{filter:drop-shadow(0 0 10px #6becb633)}
+.visual-sticker{position:absolute;z-index:6;left:27px;bottom:28px;border:1px solid #366065;background:#112831df;backdrop-filter:blur(12px);border-radius:11px;padding:14px 16px;min-width:194px;box-shadow:0 14px 25px #0004}.sticker-label{font-size:9px;letter-spacing:.16em;font-weight:750;color:#80a1a9}.sticker-state{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;font-weight:750;color:#d6fff0}.sticker-state svg{height:15px;width:15px}.sticker-sub{font-size:10px;color:#839ba4;margin:6px 0 0}.visual-shell[data-case="challenge"] .truss-edge.edge-warm{stroke:#ee846f;filter:drop-shadow(0 0 5px #ed81666b)}.visual-shell[data-case="challenge"] .sticker-state{color:#ffc29b}.visual-shell[data-case="challenge"] .visual-status{color:#ffbe94}.visual-shell[data-case="challenge"] .visual-status .dot{background:var(--orange)}.visual-shell[data-case="challenge"] .visual-sticker{border-color:#9b655d}.visual-shell[data-case="challenge"] .scene-pass{display:none}.visual-shell:not([data-case="challenge"]) .scene-fail{display:none}.visual-shell[data-case="challenge"] .member-risk{stroke:#f08d77}
+.visual-controls{position:absolute;right:22px;bottom:30px;z-index:8;display:flex;gap:4px;border:1px solid #33505d;border-radius:9px;background:#091b24c7;padding:4px;backdrop-filter:blur(8px)}.visual-controls button{border:1px solid transparent;background:transparent;color:#8aa7ae;border-radius:6px;padding:9px 12px;font-size:10px;font-weight:720;white-space:nowrap}.visual-controls button[aria-pressed="true"]{color:#ddfff5;background:#1d4d47;border-color:#427f73}.visual-controls button:hover{color:#e8fff8}.visual-edge-caption{position:absolute;z-index:7;top:77px;right:30px;font-size:9px;letter-spacing:.14em;color:#8cb0b6;text-align:right;line-height:1.8}
+/* proof ticker */
+.signal-strip{border-block:1px solid #2d474d;background:#0f1c24}.signals{min-height:103px;display:flex;align-items:center;justify-content:space-between;gap:30px}.signal{display:flex;align-items:center;gap:14px}.signal-icon{height:38px;width:38px;display:grid;place-items:center;border:1px solid #335450;background:#153631;border-radius:9px;color:#83ebd6}.signal-icon svg{width:20px;height:20px}.signal strong{display:block;color:#e4f0ef;font-size:12px;font-weight:730}.signal small{display:block;color:#6f9296;font-size:10px;margin-top:4px;letter-spacing:.04em}.signal-arrow{font-size:18px;color:#44736b}
+/* sections */
+.section{padding:119px 0}.section-heading{max-width:730px}.section-heading h2{font-size:clamp(36px,4vw,58px);font-weight:720;line-height:1.12;letter-spacing:-.055em;margin:22px 0 18px}.section-heading p{font-size:15px;line-height:1.8;color:#99aeb6;max-width:620px;margin:0}.accent{color:var(--mint)}
+.features{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px;margin-top:49px}.feature-card{position:relative;overflow:hidden;min-height:255px;background:linear-gradient(155deg,#13252f,#0e1a23);border:1px solid #2b424b;border-radius:15px;padding:28px;transition:transform .25s,border-color .25s,background .25s}.feature-card:hover{transform:translateY(-6px);border-color:#487c77;background:linear-gradient(155deg,#17332f,#11232b)}.feature-icon{height:45px;width:45px;border-radius:11px;background:#1b3d3b;border:1px solid #3a7067;display:grid;place-items:center;color:#87efd7}.feature-icon svg{width:23px;height:23px}.feature-no{position:absolute;right:26px;top:29px;color:#42616c;font-size:11px;font-weight:760;letter-spacing:.12em}.feature-card h3{font-size:17px;letter-spacing:-.03em;margin:30px 0 13px;font-weight:740}.feature-card p{font-size:12px;line-height:1.85;color:#8fa8b0;margin:0}.feature-card .corner{position:absolute;bottom:0;right:0;width:90px;height:90px;opacity:.15;background:linear-gradient(135deg,transparent 49%,#78d8be 50%,transparent 51%)}
+.workflow{padding:112px 0;background:linear-gradient(180deg,#0d1b24,#0f2027 48%,#0b1820);border-block:1px solid #233942}.workflow-layout{display:grid;grid-template-columns:.7fr 1.3fr;gap:80px;align-items:center}.workflow .section-heading h2{max-width:435px}.workflow .section-heading p{max-width:370px}.workflow-steps{display:grid;gap:12px}.step{position:relative;display:grid;grid-template-columns:56px 1fr 36px;gap:19px;align-items:center;min-height:115px;padding:21px 22px;border:1px solid #304951;background:#152a32;border-radius:13px}.step-number{font-size:25px;font-weight:690;color:#7fe4cf;letter-spacing:-.04em}.step h3{font-size:15px;margin:0 0 8px;letter-spacing:-.02em}.step p{margin:0;color:#8ca7af;line-height:1.6;font-size:12px}.step-arrow{width:21px;height:21px;opacity:.7;color:#6caeac}.step:last-child{border-color:#3a6d62;background:linear-gradient(115deg,#17382f,#152b31)}
+.proof{padding:123px 0 118px;background:radial-gradient(circle at 87% 10%,#20493e38,transparent 33%),#091118}.proof-heading{display:flex;justify-content:space-between;align-items:end;gap:30px}.proof-heading .section-heading{max-width:710px}.text-link{display:inline-flex;align-items:center;gap:10px;border-bottom:1px solid #5b8a7c;color:#b9e9db;font-size:12px;font-weight:710;padding-bottom:10px;white-space:nowrap}.text-link:hover{color:#f4fff8}.text-link svg{width:14px;height:14px}.proof-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;margin-top:45px}.case-panel{border-radius:16px;border:1px solid #34515a;background:linear-gradient(137deg,#142933,#101e27);padding:34px 38px 29px;min-height:318px}.panel-top{display:flex;justify-content:space-between;align-items:center;gap:10px}.panel-code{color:#80abb0;font-size:10px;font-weight:800;letter-spacing:.16em}.panel-state{border:1px solid #4d8571;background:#214438;border-radius:99px;padding:7px 10px;color:#a6f5d0;font-size:9px;font-weight:800;letter-spacing:.1em}.panel-state.warn{border-color:#92634c;background:#3d2c29;color:#ffbd96}.case-number{font-size:clamp(60px,7vw,94px);letter-spacing:-.07em;line-height:1;margin:27px 0 3px;font-weight:720}.case-unit{color:#7fe8d0;font-size:16px;font-weight:720;letter-spacing:-.01em}.case-title{font-size:16px;font-weight:740;margin:25px 0 8px}.case-desc{font-size:12px;line-height:1.75;color:#92acb1;margin:0}.case-foot{display:flex;gap:22px;flex-wrap:wrap;border-top:1px solid #2d464f;margin-top:27px;padding-top:17px}.case-foot span{font-size:10px;color:#8da6ab}.case-foot strong{color:#d5f7e9;font-weight:760}.proof-aside{display:grid;grid-template-rows:1fr 1fr;gap:18px}.mini-proof{border:1px solid #2d4850;background:#11212a;border-radius:14px;padding:28px 29px;display:flex;flex-direction:column;justify-content:space-between}.mini-proof strong{font-size:39px;letter-spacing:-.06em;font-weight:720;line-height:1}.mini-proof p{font-size:11px;line-height:1.7;color:#95aeb3;margin:12px 0 0}.mini-proof .subtle{font-size:9px;letter-spacing:.17em;color:#70a2a3;font-weight:800}.mini-proof.orange strong{color:#ffc2a0}.method-note{font-size:10px;line-height:1.7;color:#6e8993;max-width:970px;margin:19px 0 0}
+/* about + cta */
+.about{border-top:1px solid #1e333e;padding:112px 0}.about-layout{display:grid;grid-template-columns:1.1fr .9fr;gap:86px;align-items:center}.about-quote{font-size:clamp(32px,3.5vw,48px);font-weight:650;letter-spacing:-.045em;line-height:1.23;margin:21px 0 0}.about-meta{border-left:1px solid #42675d;padding-left:31px}.about-meta p{font-size:14px;line-height:1.95;color:#a1b5b9;margin:0}.about-meta .tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:24px}.tag{font-size:10px;letter-spacing:.09em;border:1px solid #304c51;background:#142630;color:#91b8b8;padding:9px 11px;border-radius:5px}
+.final-cta{padding:32px 0 94px}.cta-box{overflow:hidden;border:1px solid #4c8072;border-radius:20px;padding:70px 74px;position:relative;background:linear-gradient(110deg,#204f43,#11322f 45%,#10262d);box-shadow:0 25px 70px #0003}.cta-box:after{content:"";position:absolute;right:-100px;top:-100px;width:500px;height:500px;background:repeating-radial-gradient(circle at center,transparent 0 28px,#8fe8cc22 29px 30px,transparent 31px 58px);opacity:.45;pointer-events:none}.cta-box .eyebrow{color:#abfbe2}.cta-box h2{font-size:clamp(39px,4.5vw,60px);max-width:700px;margin:21px 0 14px;line-height:1.09;letter-spacing:-.055em}.cta-box p{color:#a8cfc6;font-size:14px;line-height:1.7;max-width:550px;margin:0 0 27px}.cta-box .button{position:relative;z-index:2}
+footer{border-top:1px solid #233842;padding:30px 0 38px;background:#0a141b}.footer-inner{display:flex;justify-content:space-between;align-items:start;gap:35px}.footer-brand{color:#d8ecea;font-size:13px;font-weight:800;letter-spacing:.13em}.footer-brand span{color:var(--mint)}.footer-copy{font-size:10px;color:#6e8c94;line-height:1.8;max-width:640px;margin-top:10px}.footer-links{display:flex;gap:24px;align-items:center;flex-wrap:wrap}.footer-links a{color:#8eafb2;font-size:11px}.footer-links a:hover{color:var(--mint)}
+.reveal{opacity:1;transform:none}.js-animations .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s ease}.reveal.is-visible{opacity:1;transform:translateY(0)}
+@keyframes sweep{from{transform:translateX(-25%)}to{transform:translateX(25%)}}
+@keyframes pulse{50%{opacity:.52;transform:scale(1.13)}}
+.pulse-node{transform-box:fill-box;transform-origin:center;animation:pulse 2.6s ease-in-out infinite}
+@media(max-width:1120px){.container{width:min(100% - 64px,1200px)}.main-nav{gap:22px}.hero-inner{min-height:620px;grid-template-columns:1fr 1fr}.hero-description{font-size:14px}.features{grid-template-columns:repeat(2,minmax(0,1fr))}.feature-card{min-height:215px}.workflow-layout{gap:45px}.visual-controls{right:15px;bottom:19px}.visual-sticker{left:15px;bottom:18px}}
+@media(max-width:800px){.site-header{height:70px}.header-inner{gap:12px}.container{width:min(100% - 42px,680px)}.menu-toggle{display:flex}.nav-cta{display:none}.main-nav{display:none;position:absolute;top:69px;left:0;right:0;background:#0c1b24;flex-direction:column;align-items:stretch;margin:0;border-bottom:1px solid #365256;padding:14px 21px 23px;gap:0;box-shadow:0 25px 35px #0006}.main-nav.is-open{display:flex}.main-nav a{font-size:14px;padding:15px 10px}.main-nav .mobile-launch{display:block;color:var(--mint);font-weight:760}.hero-inner{grid-template-columns:1fr;gap:40px;padding-top:67px;padding-bottom:75px}.hero-copy{text-align:left}.hero-description{max-width:550px}.hero-meta{margin-top:42px}.hero-art{justify-content:center}.visual-shell{max-width:610px}.signals{display:grid;grid-template-columns:repeat(2,1fr);padding-top:23px;padding-bottom:23px;gap:25px}.signal-arrow{display:none}.section,.workflow,.proof,.about{padding:85px 0}.workflow-layout,.about-layout,.proof-grid{grid-template-columns:1fr;gap:35px}.workflow .section-heading h2{max-width:620px}.workflow .section-heading p{max-width:600px}.proof-heading{align-items:flex-start;flex-direction:column}.proof-aside{grid-template-columns:1fr 1fr;grid-template-rows:auto}.about-meta{margin-top:10px}.cta-box{padding:49px 35px}.final-cta{padding-bottom:62px}}
+@media(max-width:530px){.container{width:calc(100% - 38px)}.brand-mark{height:34px;width:34px}.brand-wordmark strong{font-size:12px}.brand-wordmark small{font-size:7px}.hero-inner{padding-top:53px;gap:34px}.hero-kicker{font-size:9px;letter-spacing:.09em}h1{font-size:clamp(45px,11.2vw,61px);line-height:1.07;margin:23px 0 18px}.hero-description{font-size:14px;line-height:1.75}.hero-actions{margin-top:25px;gap:9px}.button{width:100%;min-height:48px}.hero-meta{margin-top:30px}.hero-meta p{font-size:9px}.visual-shell{aspect-ratio:.96;border-radius:15px}.visual-topline{top:16px;left:15px;right:15px}.visual-label{font-size:8px}.visual-status{font-size:8px}.visual-edge-caption{top:53px;right:15px;font-size:8px}.visual-sticker{min-width:0;padding:11px 12px;bottom:15px;left:12px}.sticker-label{font-size:8px}.sticker-state{font-size:10px}.sticker-sub{font-size:9px}.visual-controls{right:10px;bottom:15px;gap:2px}.visual-controls button{padding:8px 9px;font-size:9px}.signals{gap:24px 12px}.signal{gap:9px}.signal-icon{height:35px;width:35px}.signal strong{font-size:10px}.signal small{font-size:9px}.section,.workflow,.proof,.about{padding:75px 0}.section-heading h2{font-size:37px}.features{grid-template-columns:1fr;gap:10px;margin-top:35px}.feature-card{min-height:0;padding:25px}.feature-card h3{margin:21px 0 9px}.step{grid-template-columns:38px 1fr 17px;padding:19px 15px;gap:13px}.step-number{font-size:21px}.step h3{font-size:14px}.step p{font-size:11px}.case-panel{padding:25px 23px}.proof-aside{grid-template-columns:1fr;gap:12px}.mini-proof{min-height:140px;padding:23px}.about-layout{gap:20px}.about-meta{padding-left:19px}.about-quote{font-size:33px}.cta-box{padding:43px 24px}.cta-box h2{font-size:38px}.footer-inner{flex-direction:column;gap:19px}.footer-links{gap:18px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="#top" aria-label="ForceForge AI home">
+      <span class="brand-mark"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M5 26 16 5l11 21H5Z" stroke="#7cefd5" stroke-width="2.1" stroke-linejoin="round"/><path d="M10.4 16.2h11.2M16 5v21" stroke="#7cefd5" stroke-width="1.6"/><circle cx="5" cy="26" r="2" fill="#7cefd5"/><circle cx="27" cy="26" r="2" fill="#7cefd5"/><circle cx="16" cy="5" r="2" fill="#7cefd5"/></svg></span>
+      <span class="brand-wordmark"><strong>FORCEFORGE<span>AI</span></strong><small>DESIGN WITH EVIDENCE</small></span>
+    </a>
+    <nav class="main-nav" id="mainNav" aria-label="Primary navigation">
+      <a href="#platform">The platform</a><a href="#workflow">How it works</a><a href="#validation">Validation</a><a href="#about">Our story</a>
+      <a href="/workspace" data-workspace-link class="mobile-launch">Open the studio</a>
+    </nav>
+    <a href="/workspace" data-workspace-link class="nav-cta">Open the studio <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12h16m-7-7 7 7-7 7"/></svg></a>
+    <button type="button" class="menu-toggle" id="menuToggle" aria-label="Open navigation" aria-controls="mainNav" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+  </div>
+</header>
+<main id="main">
+  <section class="hero" id="top" aria-labelledby="heroTitle">
+    <div class="container hero-inner">
+      <div class="hero-copy">
+        <div class="hero-kicker"><span class="dot"></span> INTRODUCING FORCEFORGE AI</div>
+        <h1 id="heroTitle">Make bold ideas.<br><span>Back them with physics.</span></h1>
+        <p class="hero-description">From the first structural sketch to a design you can challenge. Explore alternatives, push their limits, and bring AI ideas back to the physics that matter.</p>
+        <div class="hero-actions"><a class="button primary" href="/workspace" data-workspace-link>Launch the design studio <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12h16m-7-7 7 7-7 7"/></svg></a><a class="button secondary" href="#workflow">See how it works <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 4v16m-6-6 6 6 6-6"/></svg></a></div>
+        <div class="hero-meta"><span class="meta-line"></span><p>Built at Hack the Nest 2026 &nbsp;/&nbsp; Eastern Michigan University</p></div>
+      </div>
+      <div class="hero-art" aria-label="Conceptual structural truss illustration. Toggle between a verified design and a more demanding challenge.">
+        <div class="visual-shell" id="visualShell" data-case="design">
+          <div class="visual-topline"><span class="visual-label">STRUCTURAL DESIGN / 001</span><span class="visual-status"><span class="dot"></span><span class="scene-pass">VERIFIED CASE</span><span class="scene-fail">CHALLENGED CASE</span></span></div>
+          <div class="visual-edge-caption">ILLUSTRATIVE 2D TRUSS<br>REFERENCE BENCHMARK</div>
+          <svg class="structure" viewBox="0 0 640 564" role="img" aria-label="A triangular engineering truss on a measurement grid, with stress-state colors and a downward load arrow">
+            <defs>
+              <linearGradient id="deck" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1c4348"/><stop offset="1" stop-color="#0b1e2a"/></linearGradient>
+              <radialGradient id="halo" cx="50%" cy="46%" r="50%"><stop offset="0" stop-color="#6fe5c9" stop-opacity=".19"/><stop offset="1" stop-color="#6fe5c9" stop-opacity="0"/></radialGradient>
+              <marker id="loadhead" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7Z" fill="#f0ae85"/></marker>
+            </defs>
+            <circle cx="320" cy="275" r="258" fill="url(#halo)"/>
+            <g class="floor" aria-hidden="true">
+              <path d="M42 397 431 397 588 494 199 494Z" fill="url(#deck)" stroke="#40646d" stroke-width="1" opacity=".76"/>
+              <path class="grid-heavy" d="M120 397 277 494M198 397 355 494M276 397 433 494M354 397 511 494M82 423h389M123 451h395M161 476h384" fill="none"/>
+              <path class="grid-soft" d="M80 397 237 494M159 397 316 494M236 397 393 494M314 397 471 494M392 397 549 494M61 408h392M104 438h390M142 464h393" fill="none"/>
+            </g>
+            <g aria-hidden="true" opacity=".77">
+              <path d="M131 409V268M501 409V268" stroke="#3d626b" stroke-dasharray="4 6"/>
+              <path d="M123 402h389" stroke="#5c8390" stroke-width="1"/>
+              <path d="M130 416 320 193 501 416" fill="none" stroke="#5ea49f" stroke-width="1" opacity=".32" transform="translate(13 10)"/>
+              <path d="M130 410 320 187 500 410" fill="none" stroke="#4d796e" stroke-width="2" opacity=".25" transform="translate(18 15)"/>
+            </g>
+            <g class="truss-main" fill="none">
+              <path class="edge-ghost" d="M130 403H500M130 403 319 182 500 403"/>
+              <path class="truss-edge" d="M130 403H500"/>
+              <path class="truss-edge edge-warm member-risk" d="M130 403 319 182"/>
+              <path class="truss-edge edge-warm member-risk" d="M319 182 500 403"/>
+              <path d="M131 400H500M131 400 319 182 500 400" stroke="#e8fff1" stroke-width="1.2" opacity=".42"/>
+            </g>
+            <g aria-hidden="true">
+              <path d="M319 105v56" class="load-arrow" fill="none" marker-end="url(#loadhead)"/>
+              <text x="337" y="112" class="load-label">F</text><text x="336" y="126" class="drawing-label">LOAD</text>
+              <path d="M130 419v30M500 419v30M130 443h370" class="bracket"/>
+              <text x="312" y="458" text-anchor="middle" class="drawing-label">SPAN / L</text>
+              <path d="M535 184h16M535 404h16M544 184v220" class="bracket"/>
+              <text x="558" y="298" class="drawing-label">H</text>
+              <path d="M120 414l-12 16h24Z" fill="#79a9b6" opacity=".65"/><path d="M490 414l-12 16h24Z" fill="#79a9b6" opacity=".65"/>
+              <circle cx="130" cy="403" r="19" class="node-halo"/><circle cx="500" cy="403" r="19" class="node-halo"/><circle cx="319" cy="182" r="24" class="node-halo pulse-node"/>
+              <circle cx="130" cy="403" r="8" class="core-node"/><circle cx="500" cy="403" r="8" class="core-node"/><circle cx="319" cy="182" r="9" class="inner-node"/>
+              <path d="M315 182h8M319 178v8" stroke="#effff4" stroke-width="1.4"/>
+            </g>
+            <g aria-hidden="true"><text x="135" y="373" class="drawing-label">NODE 01</text><text x="456" y="373" class="drawing-label">NODE 02</text><text x="336" y="171" class="drawing-label">NODE 03</text></g>
+          </svg>
+          <div class="visual-sticker" aria-live="polite"><div class="sticker-label">REFERENCE RESULT</div><div class="sticker-state scene-pass"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="m6 10 2.6 2.6L14 7"/></svg> Within design limits</div><div class="sticker-state scene-fail"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 2 19 18H1L10 2Z"/><path d="M10 7v5m0 3v1"/></svg> Redesign required</div><p class="sticker-sub scene-pass">+20% load envelope / 0.849 utilization</p><p class="sticker-sub scene-fail">+60% load / 1.132 buckling utilization</p></div>
+          <div class="visual-controls" role="group" aria-label="Reference scenario"><button type="button" data-case="design" aria-pressed="true">Validated</button><button type="button" data-case="challenge" aria-pressed="false">Stress test</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <div class="signal-strip" aria-label="Product principles"><div class="container signals">
+    <div class="signal"><span class="signal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 20 12 4l9 16H3ZM7 13h10M12 4v16"/></svg></span><span><strong>3 truss families</strong><small>Explore viable structures</small></span></div><span class="signal-arrow" aria-hidden="true">/</span>
+    <div class="signal"><span class="signal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9M12 3v9l7 5M12 12l-6 6"/></svg></span><span><strong>Physics at the core</strong><small>Finite element analysis</small></span></div><span class="signal-arrow" aria-hidden="true">/</span>
+    <div class="signal"><span class="signal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 13 9 18 20 6M3 3h18v18H3z"/></svg></span><span><strong>Robust by design</strong><small>Test uncertainty scenarios</small></span></div><span class="signal-arrow" aria-hidden="true">/</span>
+    <div class="signal"><span class="signal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 4v4M12 16v4M4 12h4M16 12h4M8 8l8 8M16 8l-8 8"/><circle cx="12" cy="12" r="3"/></svg></span><span><strong>AI, with guardrails</strong><small>Recommendations rechecked</small></span></div>
+  </div></div>
+  <section class="section" id="platform" aria-labelledby="platformTitle"><div class="container">
+    <div class="section-heading reveal"><span class="eyebrow">THE PLATFORM</span><h2 id="platformTitle">Build better structures.<br><span class="accent">Ask better questions.</span></h2><p>One focused workspace for taking an idea beyond how it looks, toward how it behaves. Designed to make structural decisions clearer, faster, and more defensible.</p></div>
+    <div class="features">
+      <article class="feature-card reveal"><span class="feature-no">01 / EXPLORE</span><span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M2 20 12 3l10 17H2ZM7 12h10M12 3v17"/><circle cx="12" cy="3" r="1" fill="currentColor"/></svg></span><h3>See the structure</h3><p>Inspect forces, stress, displacement, and supports directly on an interactive truss model.</p><span class="corner"></span></article>
+      <article class="feature-card reveal"><span class="feature-no">02 / OPTIMIZE</span><span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/><path d="M12 1v5M23 12h-5"/></svg></span><h3>Find stronger choices</h3><p>Search for lighter feasible designs while respecting critical engineering constraints.</p><span class="corner"></span></article>
+      <article class="feature-card reveal"><span class="feature-no">03 / CHALLENGE</span><span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M9 3h6M10 3v7L4 20h16l-6-10V3M7 16h10"/></svg></span><h3>Push the limits</h3><p>Increase loads, reduce material performance, and discover where a design stops working.</p><span class="corner"></span></article>
+      <article class="feature-card reveal"><span class="feature-no">04 / VERIFY</span><span class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 7A4 4 0 0 0 5 5a4 4 0 0 0-1 6 5 5 0 0 0 3 8c2 1 5 0 5-3V7ZM12 7a4 4 0 0 1 7-2 4 4 0 0 1 1 6 5 5 0 0 1-3 8c-2 1-5 0-5-3V7Z"/><path d="m8 12 3 3 5-5"/></svg></span><h3>Trust, then verify</h3><p>Use ML to suggest candidates, then solve the real physics again before accepting them.</p><span class="corner"></span></article>
+    </div>
+  </div></section>
+  <section class="workflow" id="workflow" aria-labelledby="workflowTitle"><div class="container workflow-layout">
+    <div class="section-heading reveal"><span class="eyebrow">THE EXPERIENCE</span><h2 id="workflowTitle">From first thought to <span class="accent">informed decision.</span></h2><p>No disconnected handoffs. No black-box claims. A continuous workflow that keeps the model, the evidence, and the decision together.</p></div>
+    <div class="workflow-steps">
+      <article class="step reveal"><span class="step-number">01</span><div><h3>Describe the idea</h3><p>Choose a truss layout, geometry, material, and design requirements.</p></div><svg class="step-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12h16m-7-7 7 7-7 7"/></svg></article>
+      <article class="step reveal"><span class="step-number">02</span><div><h3>Explore the possibilities</h3><p>Compare physics-based analysis and optimization results in one place.</p></div><svg class="step-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12h16m-7-7 7 7-7 7"/></svg></article>
+      <article class="step reveal"><span class="step-number">03</span><div><h3>Prove what holds up</h3><p>Challenge the candidate and recheck any AI-suggested improvement with FEA.</p></div><svg class="step-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12h16m-7-7 7 7-7 7"/></svg></article>
+    </div>
+  </div></section>
+  <section class="proof" id="validation" aria-labelledby="proofTitle"><div class="container">
+    <div class="proof-heading"><div class="section-heading reveal"><span class="eyebrow">BUILT ON EVIDENCE</span><h2 id="proofTitle">A design is only as good as <span class="accent">the test it survives.</span></h2><p>We do not ask AI to declare a structure safe. The engineering model is the final judge. Here is one reproducible benchmark from our research prototype.</p></div><a class="text-link" href="https://github.com/NeonGrade/ForceForge-AI" target="_blank" rel="noopener noreferrer">Explore the source <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 20 20 4M8 4h12v12"/></svg></a></div>
+    <div class="proof-grid">
+      <article class="case-panel reveal"><div class="panel-top"><span class="panel-code">REFERENCE STUDY / ROBUST SEARCH</span><span class="panel-state">FEA SCREENED</span></div><div class="case-number">100<span style="color:#5f8587;font-size:.55em"> / 144</span></div><div class="case-unit">feasible candidate designs</div><h3 class="case-title">A lighter design, within its tested limits.</h3><p class="case-desc">Under the example +20% load and -10% modulus/section uncertainty envelope, the lowest-mass feasible triangle uses a 0.80 m height and 180 mm&sup2; bar area.</p><div class="case-foot"><span><strong>6.445 kg</strong> modeled mass</span><span><strong>0.849</strong> maximum utilization</span><span><strong>8</strong> tested scenarios per candidate</span></div></article>
+      <div class="proof-aside">
+        <article class="mini-proof orange reveal"><div class="subtle">A TOUGHER CHALLENGE / +60% LOAD</div><div><strong>1.132</strong><p>Ideal buckling utilization. The original candidate no longer passes the expanded case.</p></div></article>
+        <article class="mini-proof reveal"><div class="subtle">FEA-VERIFIED REDESIGN</div><div><strong style="color:#8defd3">8.235 kg</strong><p>A revised 230 mm&sup2; section passes the expanded screen; 27.8% heavier than the original.</p></div></article>
+      </div>
+    </div>
+    <p class="method-note">Illustrative numerical result, not a physical experiment or structural certification. The prototype uses idealized, linear-static, 2D pin-jointed trusses and simplified member buckling checks. Real construction requires further engineering review and validation.</p>
+  </div></section>
+  <section class="about" id="about" aria-labelledby="aboutTitle"><div class="container about-layout">
+    <div class="reveal"><span class="eyebrow">WHY WE BUILT IT</span><h2 class="about-quote" id="aboutTitle">AI should expand what engineers can explore. <span class="accent">Not replace what engineers need to prove.</span></h2></div>
+    <div class="about-meta reveal"><p>ForceForge AI is a student-built engineering prototype created for Hack the Nest 2026 at Eastern Michigan University. We connect intuitive design exploration with finite element checks, optimization, and AI-assisted discovery in a single browser experience.</p><div class="tag-row"><span class="tag">HACK THE NEST 2026</span><span class="tag">OPEN SOURCE</span><span class="tag">ENGINEERING + AI</span></div></div>
+  </div></section>
+  <section class="final-cta" aria-labelledby="finalTitle"><div class="container"><div class="cta-box"><span class="eyebrow">START EXPLORING</span><h2 id="finalTitle">Good ideas deserve<br>great questions.</h2><p>Bring your next structural idea into a workspace built to test, refine, and understand it.</p><a class="button primary" href="/workspace" data-workspace-link>Enter the engineering studio <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12h16m-7-7 7 7-7 7"/></svg></a></div></div></section>
+</main>
+<footer><div class="container footer-inner"><div><div class="footer-brand">FORCEFORGE <span>AI</span></div><div class="footer-copy">Hack the Nest 2026 &middot; Eastern Michigan University<br>Physics-verified exploration for simplified structures. An educational prototype, not professional structural design certification.</div></div><div class="footer-links"><a href="#top">Back to top</a><a href="https://github.com/NeonGrade/ForceForge-AI" target="_blank" rel="noopener noreferrer">GitHub</a><a href="/workspace" data-workspace-link>Engineering studio</a></div></div></footer>
+<script>
+(() => {
+  'use strict';
+  // The landing page stays usable as a standalone file or from the local Python server.
+  const workspaceHref = location.protocol === 'file:' ? 'http://127.0.0.1:8000/workspace' : '/workspace';
+  document.querySelectorAll('[data-workspace-link]').forEach(link => link.href = workspaceHref);
+
+  const shell = document.getElementById('visualShell');
+  document.querySelectorAll('[data-case]').forEach(button => {
+    if (button.tagName !== 'BUTTON') return;
+    button.addEventListener('click', () => {
+      const next = button.dataset.case;
+      shell.dataset.case = next;
+      document.querySelectorAll('.visual-controls button').forEach(other => other.setAttribute('aria-pressed', String(other === button)));
+    });
+  });
+
+  const toggle = document.getElementById('menuToggle');
+  const menu = document.getElementById('mainNav');
+  function closeMenu(){menu.classList.remove('is-open');toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Open navigation');}
+  toggle.addEventListener('click', () => {
+    const isOpen = menu.classList.toggle('is-open');
+    toggle.setAttribute('aria-expanded',String(isOpen));
+    toggle.setAttribute('aria-label',isOpen ? 'Close navigation' : 'Open navigation');
+  });
+  menu.querySelectorAll('a').forEach(anchor => anchor.addEventListener('click',closeMenu));
+  document.addEventListener('keydown', event => {if (event.key === 'Escape') closeMenu();});
+
+  const reveals = document.querySelectorAll('.reveal');
+  if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    document.documentElement.classList.add('js-animations');
+    const observer = new IntersectionObserver(entries => entries.forEach(entry => {
+      if(entry.isIntersecting){entry.target.classList.add('is-visible');observer.unobserve(entry.target);}
+    }),{threshold:.08,rootMargin:'0px 0px 25px 0px'});
+    reveals.forEach(el => observer.observe(el));
+  } else reveals.forEach(el => el.classList.add('is-visible'));
+})();
+</script>
+</body>
+</html>
