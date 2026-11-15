@@ -139,3 +139,43 @@ def test_dual_hotspot_ui_is_opt_in_and_keeps_previous_fea_results():
     assert not app.exception
     assert "stable_dual_hotspot" in app.session_state
     assert not any(x.label == "Largest fixed-site P90 difference" for x in app.metric)
+
+
+def test_live_cad_copilot_uses_real_step_and_tetra10_not_mock_physics():
+    """One explicit click builds 3 independently checked CAD variations."""
+    app=AppTest.from_file(
+        "../pages/13_Real_STEP_Engineering.py",default_timeout=360
+    ).run()
+    assert not app.exception
+    assert "stable_cad_copilot" not in app.session_state
+    button(app,"Run CAD import + 3D FEA").click().run()
+    assert not app.exception
+    assert "stable_cad_copilot" not in app.session_state
+    button(app,"Generate CAD proposals + verify every candidate with real 3D FEA").click().run()
+    assert not app.exception
+    audit=app.session_state["stable_cad_copilot"]
+    assert audit["proposal"].mode=="RULE_BASED_FULL_SEARCH"
+    assert audit["proposal"].candidates_mm==(10,12,14)
+    assert len(audit["rows"])==3
+    assert not audit["failures"],audit["failures"]
+    assert len(audit["sources"])==3
+    assert len(audit["solutions"])==3
+    hashes=set()
+    base=app.session_state["stable_initial"]["result"]
+    for row in audit["rows"]:
+        assert row.source_sha256 not in hashes
+        assert row.source_sha256 != base.mesh.source_sha256
+        hashes.add(row.source_sha256)
+        solved=audit["solutions"][row.thickness_mm]
+        assert solved.mesh.num_tets==row.tetrahedra>20
+        assert solved.relative_reaction_residual<1e-5
+        assert solved.load==base.load
+        assert solved.mesh.source_sha256==row.source_sha256
+    assert audit["selected"] in (10,12,14)
+    assert "stable_initial" in app.session_state
+    # Changing constraints changes only the screening signature; no
+    # previously computed FEM may be displayed as a new recommendation.
+    next(x for x in app.number_input if x.label=="Target max tip displacement (mm)").set_value(.02).run()
+    assert not app.exception
+    assert "stable_cad_copilot" in app.session_state
+    assert not any("Best among" in m.message for m in app.warning)
