@@ -10,6 +10,7 @@ import pandas as pd
 
 from .design import make_truss, TOPOLOGIES
 from .physics import Material, solve
+from .provenance import truss_context
 
 
 @dataclass(frozen=True)
@@ -108,8 +109,10 @@ def grid_search(req: Requirements, *, heights: tuple | None = None,
                          "area_mm2": float(area), "feasible": False,
                          "reason": str(err)})
     df = pd.DataFrame(rows)
-    return df.sort_values(["feasible", "mass_kg"], ascending=[False,True],
-                          na_position="last").reset_index(drop=True)
+    df = df.sort_values(["feasible", "mass_kg"], ascending=[False,True],
+                        na_position="last").reset_index(drop=True)
+    df.attrs["forceforge_context"] = truss_context(req)
+    return df
 
 
 def pareto_front(df: pd.DataFrame, *, x: str = "mass_kg",

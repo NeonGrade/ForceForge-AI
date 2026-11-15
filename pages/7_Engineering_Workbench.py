@@ -14,6 +14,7 @@ from forceforge.robust import Requirements, evaluate, grid_search, best_feasible
 from forceforge.surrogate import train, propose_and_verify
 from forceforge.agent import interpret, explain_design
 from forceforge.sensitivity import elasticities
+from forceforge.provenance import context_id, truss_context
 
 st.set_page_config(page_title="ForceForge AI 2.0", page_icon="⚙️", layout="wide")
 st.title("Engineering Workbench · FEA, Robust Optimization & ML")
@@ -22,12 +23,12 @@ st.caption("Physics-verified generative truss design · uncertainty challenge ·
 st.warning("Research / education prototype only. Ideal pin-jointed 2D truss, small strain, linear elastic. No joint, fatigue or full structural safety certification.")
 
 @st.cache_data(show_spinner=False)
-def search_cached(req: Requirements):
+def search_cached(req: Requirements, solver_context: str):
     return grid_search(req)
 
 @st.cache_resource(show_spinner=False)
-def surrogate_cached(req: Requirements):
-    return train(grid_search(req))
+def surrogate_cached(req: Requirements, solver_context: str, strategy: str):
+    return train(grid_search(req), validation_strategy=strategy)
 
 with st.sidebar:
     st.header("Design requirements")
@@ -50,9 +51,13 @@ req = Requirements(span_m=span, base_load_n=force, material_E_pa=E,
                    load_uncertainty=load_unc, e_uncertainty=e_unc,
                    area_uncertainty=area_unc)
 
-if st.session_state.get("ml_requirements") != req:
+solver_context = context_id(truss_context(req))
+strategy = st.selectbox("ML validation split", ["design", "height"],
+                       help="Height holds complete height groups out; neither split validates new CAD families.")
+ml_signature = (solver_context, strategy)
+if st.session_state.get("ml_requirements") != ml_signature:
     st.session_state.pop("ml_verified", None)
-    st.session_state["ml_requirements"] = req
+    st.session_state["ml_requirements"] = ml_signature
 
 
 def draw_truss(t, r, exaggeration: float = 250.0):
@@ -138,7 +143,7 @@ with tab2:
     st.subheader("Robust design screening")
     st.caption("All candidates checked by full FEA over 8 corner scenarios, including load increase, E decrease, and section reduction.")
     with st.spinner("FEA-evaluating candidate structures..."):
-        designs=search_cached(req)
+        designs=search_cached(req, solver_context)
     n_feasible=int(designs.feasible.sum())
     st.metric("FEA-verified feasible candidates",f"{n_feasible} / {len(designs)}")
     best=best_feasible(designs)
@@ -214,7 +219,7 @@ with tab2:
 
         if st.button("Find FEA-verified redesign for this challenge",type="primary"):
             with st.spinner("Re-optimizing every candidate over the expanded scenario grid..."):
-                expanded_designs=search_cached(challenge_envelope)
+                expanded_designs=search_cached(challenge_envelope, context_id(truss_context(challenge_envelope)))
                 updated_best=best_feasible(expanded_designs)
             st.write(
                 f"**Expanded search:** {int(expanded_designs.feasible.sum())} / "
@@ -258,12 +263,17 @@ with tab3:
     st.subheader("Train a surrogate from FEA results")
     st.caption("FEA generates labels → Random Forest learns approximate scenario utilization → candidates are FEA-verified again.")
     with st.spinner("Training and validating Random Forest surrogate..."):
-        model,feature_cols,metrics=surrogate_cached(req)
+        model,feature_cols,metrics=surrogate_cached(req, solver_context, strategy)
     mdf=pd.DataFrame([{"Target":name,"MAE (utilization)":x["mae"],"Test R²":x["r2"],
                        "Mean baseline MAE": x["baseline_mae"]}
                       for name,x in metrics.items()])
     st.dataframe(mdf,hide_index=True)
     st.caption(model.forceforge_validation_["method"])
+    st.caption("This model covers the three 2D truss families only. Imported STEP and 3D tetra10 analyses use their actual solvers.")
+    st.download_button("Export ML validation evidence (JSON)", json.dumps({
+        "context_id": solver_context, "context": model.forceforge_context_,
+        "validation": model.forceforge_validation_, "metrics": metrics,
+    }, indent=2), "forceforge_ml_validation.json", "application/json")
     st.warning("Duplicate design combinations stay in the same split. Metrics estimate interpolation under current requirements, not generalization to new topologies or materials. Proposals stay within sampled feature bounds and are FEA-verified.")
     if st.button("Propose with ML and verify with FEA"):
         with st.spinner("Screening random candidates, then verifying shortlisted designs..."):

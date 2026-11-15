@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1219">
+  <meta name="description" content="ForceForge X — a spatial environment for real engineering analysis.">
+  <title>ForceForge X — Level 2 | Spatial Engineering</title>
+  <link rel="stylesheet" href="/studio/styles.css">
+  <link rel="stylesheet" href="/studio/adaptive.css">
+</head>
+<body>
+<div class="spatial-app" id="app">
+  <main class="world" id="world" aria-label="Interactive engineering model workspace">
+    <canvas id="model-canvas" aria-label="3D engineering model. Drag to rotate, scroll to zoom, click a sensor to inspect it."></canvas>
+    <div class="world-ambient" aria-hidden="true"></div>
+    <div class="world-shading" aria-hidden="true"></div>
+    <svg id="world-leaders" class="world-leaders" aria-hidden="true" preserveAspectRatio="none"></svg>
+
+    <header class="floating-header">
+      <div class="brand" aria-label="ForceForge X">
+        <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="brand-words"><strong>forceforge<span> X</span></strong><small>LEVEL 02 · SPATIAL ENGINEERING</small></div>
+      </div>
+      <button type="button" class="scene-selector" id="scene-selector" aria-expanded="false">
+        <span class="scene-sigil" id="scene-sigil">◈</span>
+        <span class="scene-selector-copy"><strong id="scene-name">Solid mechanics</strong><small id="scene-kind">TRUE 3D · COMPUTATIONAL</small></span>
+        <span class="scene-chevron" aria-hidden="true">⌄</span>
+      </button>
+      <div class="header-tray">
+        <span class="solver-status" id="solver-status"><i id="solver-light"></i><span id="solver-status-text">SOLVING</span></span>
+        <button type="button" class="top-icon" id="view-reset" aria-label="Reset camera" title="Reset camera">↺</button>
+        <button type="button" class="top-icon" id="settings-open" aria-label="Advanced parameters" title="Advanced parameters">⚙</button>
+        <button type="button" class="top-icon compact-tools-toggle" id="tools-toggle" aria-label="Choose model control" aria-expanded="false" title="Model controls">⊕</button>
+        <button type="button" class="top-icon" id="help-open" aria-label="Controls and evidence" title="Help">?</button>
+      </div>
+    </header>
+
+    <div class="scene-context">
+      <span class="context-sequence" id="scene-sequence">01 / STRUCTURAL ANALYSIS</span>
+      <span class="context-headline" id="scene-headline">Shape the response.</span>
+      <span class="context-subline" id="scene-subline">Select a handle to interact with the structure.</span>
+    </div>
+
+    <div class="spatial-pins" id="spatial-pins" aria-label="Spatial engineering controls">
+      <button type="button" class="spatial-pin pin-force" id="pin-force" data-pin="force"
+        aria-label="Adjust applied tip force" title="Change applied force">
+        <span class="pin-glyph" aria-hidden="true">↘</span><span class="pin-copy"><small id="force-caption">TIP FORCE</small><strong id="force-readout">200 N</strong></span>
+      </button>
+      <button type="button" class="spatial-pin pin-thickness" id="pin-thickness" data-pin="thickness"
+        aria-label="Adjust model thickness" title="Change section thickness">
+        <span class="pin-glyph" aria-hidden="true">↔</span><span class="pin-copy"><small>THICKNESS</small><strong id="thickness-readout">12 mm</strong></span>
+      </button>
+      <button type="button" class="spatial-pin pin-support" id="pin-support" data-pin="support" hidden
+        aria-label="Adjust rotational support stiffness" title="Change support stiffness">
+        <span class="pin-glyph" aria-hidden="true">⟲</span><span class="pin-copy"><small>SUPPORT kθ</small><strong id="support-readout">10³ N·m/rad</strong></span>
+      </button>
+      <button type="button" class="spatial-pin pin-mode" id="pin-mode" data-pin="mode" hidden
+        aria-label="Select beam vibration mode" title="Choose vibration mode">
+        <span class="pin-glyph" aria-hidden="true">∿</span><span class="pin-copy"><small>MODE SHAPE</small><strong id="mode-readout">B1x</strong></span>
+      </button>
+      <button type="button" class="spatial-pin pin-result" id="pin-result" data-pin="result"
+        aria-label="Inspect principal simulation result" title="Inspect result">
+        <span class="pin-glyph result-symbol" aria-hidden="true">◎</span>
+        <span class="pin-copy"><small id="result-caption">TIP MOVEMENT · FEM</small><strong id="result-readout">— mm</strong></span>
+      </button>
+    </div>
+
+    <div class="spatial-editor" id="spatial-editor" role="group" aria-label="Selected model parameter" hidden>
+      <div class="editor-header"><span class="editor-symbol" id="editor-symbol">↘</span><span id="editor-title">Applied force</span><button type="button" class="ghost-close" id="editor-close" aria-label="Close control">×</button></div>
+      <div class="editor-value-row">
+        <button type="button" class="step-button" id="editor-minus" aria-label="Decrease value">−</button>
+        <label class="editor-input-wrap"><input type="number" id="editor-value" inputmode="decimal" aria-label="Parameter value" step="1"><span id="editor-unit">N</span></label>
+        <button type="button" class="step-button" id="editor-plus" aria-label="Increase value">+</button>
+      </div>
+      <input type="range" id="editor-range" aria-label="Parameter range" min="0" max="100" value="50" step="1">
+      <div class="editor-options" id="editor-options" hidden>
+        <button type="button" data-mode="1">B1</button><button type="button" data-mode="2">B2</button><button type="button" data-mode="3">B3</button>
+      </div>
+      <div class="editor-hint" id="editor-hint">Drag the on-model handle or enter a value</div>
+    </div>
+
+    <aside class="quick-result" id="quick-result" hidden aria-label="Relevant engineering result">
+      <div class="result-header"><span id="quick-title">SIMULATION RESULT</span><button type="button" class="ghost-close" id="quick-close" aria-label="Close result">×</button></div>
+      <div class="result-hero"><strong id="quick-value">—</strong><small id="quick-unit">mm</small></div>
+      <div class="result-minis" id="quick-minis"></div>
+      <button class="inline-action" type="button" id="quick-action">More details <span>↗</span></button>
+    </aside>
+
+    <aside class="project-chooser" id="project-chooser" aria-label="Choose engineering project" hidden>
+      <span class="sheet-kicker">CHOOSE A SPACE</span>
+      <button type="button" class="project-choice" data-workspace="solid">
+        <span class="project-icon">⬡</span><span><strong>Solid mechanics</strong><small>3D stress & deformation</small></span><span class="project-arrow">↗</span>
+      </button>
+      <button type="button" class="project-choice" data-workspace="cad">
+        <span class="project-icon">⌑</span><span><strong>Real CAD</strong><small>STEP geometry · volume FEA · revision</small></span><span class="project-arrow">↗</span>
+      </button>
+      <button type="button" class="project-choice" data-workspace="lab">
+        <span class="project-icon">∿</span><span><strong>Real laboratory</strong><small>Measured modal validation</small></span><span class="project-arrow">↗</span>
+      </button>
+      <button type="button" class="project-choice secondary-project" id="legacy-launch">
+        <span class="project-icon">▤</span><span><strong>Complete engineering toolkit</strong><small>Industry, robust design, ML, advanced labs</small></span><span class="project-arrow">↗</span>
+      </button>
+    </aside>
+    <div class="compact-tools" id="compact-tools" hidden aria-label="Available spatial controls">
+      <button type="button" data-select-pin="force">↘ Applied force</button>
+      <button type="button" data-select-pin="thickness">↔ Section thickness</button>
+      <button type="button" data-select-pin="support">⟲ Support stiffness</button>
+      <button type="button" data-select-pin="mode">∿ Vibration mode</button>
+      <button type="button" data-select-pin="result">◎ Current result</button>
+    </div>
+    <div class="cad-controls" id="cad-controls" hidden>
+      <button type="button" id="cad-source-pin" class="cad-source-pin" aria-label="Change CAD source">
+        <span class="cad-chip-icon">⌑</span><span><small>SOURCE GEOMETRY</small><strong id="cad-source-label">Generated bracket</strong></span>
+      </button>
+      <div class="cad-compact-actions">
+        <button type="button" id="cad-compare-shortcut" aria-label="Open CAD revision comparison">COMPARE ↗</button>
+      </div>
+    </div>
+
+    <div class="field-legend" id="field-legend" aria-label="Stress color scale" hidden>
+      <span>VON MISES · MPa</span><div class="field-gradient"></div><div class="field-range"><span>0</span><strong id="field-max">—</strong></div>
+    </div>
+
+    <div class="space-footer">
+      <div class="footer-left">
+        <span class="space-index" id="space-index">CAE / 001</span>
+        <span class="footer-fidelity" id="footer-fidelity">3D TET10 · NUMERICAL MODEL</span>
+      </div>
+      <div class="camera-cluster" aria-label="Model camera views">
+        <button type="button" class="camera-view active" data-view="iso" title="Isometric view">ISO</button>
+        <button type="button" class="camera-view" data-view="front" title="Front view">FRONT</button>
+        <button type="button" class="camera-view" data-view="right" title="Right view">RIGHT</button>
+        <button type="button" class="camera-view" data-view="top" title="Top view">TOP</button>
+      </div>
+      <div class="footer-right">
+        <button type="button" id="mode-view" class="foot-control" aria-label="Change visualization">MATERIAL <span>⌄</span></button>
+        <button type="button" id="details-open" class="foot-control foot-primary" aria-label="Show complete analysis data">RESULTS <span>↗</span></button>
+      </div>
+    </div>
+
+    <div class="first-use" id="first-use">
+      <span class="tutorial-icon" aria-hidden="true">⌖</span>
+      <span>DRAG TO ORBIT</span><i></i><span>SCROLL TO ZOOM</span><i></i><span>SELECT A MARKER</span>
+      <button type="button" id="dismiss-guide" aria-label="Dismiss controls hint">×</button>
+    </div>
+
+    <div class="notification" id="notification" role="status" aria-live="polite" hidden></div>
+    <div class="loading-veil" id="loading-veil">
+      <div class="loading-symbol" aria-hidden="true">⬡</div>
+      <div><strong>Preparing your workspace</strong><span>Starting the finite element solver…</span></div>
+    </div>
+  </main>
+
+  <div class="panel-backdrop" id="panel-backdrop" hidden></div>
+  <section class="detail-panel" id="detail-panel" aria-label="Engineering details" hidden>
+    <div class="detail-heading"><div><span class="sheet-kicker" id="detail-kicker">SIMULATION / VERIFIED VALUES</span><h2 id="detail-title">Analysis</h2></div><button type="button" class="ghost-close" id="detail-close" aria-label="Close details">×</button></div>
+    <div class="detail-content" id="detail-content"></div>
+  </section>
+  <section class="settings-panel" id="settings-panel" aria-label="Advanced engineering settings" hidden>
+    <div class="detail-heading"><div><span class="sheet-kicker">ENGINEERING SETTINGS</span><h2>Refine the model.</h2></div><button type="button" class="ghost-close" id="settings-close" aria-label="Close settings">×</button></div>
+    <div class="detail-content">
+      <div class="setting-set" id="solid-settings">
+        <div class="setting-heading">SOLID MECHANICS</div>
+        <label for="setting-resolution">Mesh resolution</label>
+        <select id="setting-resolution"><option value="fast">Fast · 2 × 2 × 8</option><option value="refined" selected>Refined · 2 × 2 × 12</option><option value="high">High · 3 × 3 × 12</option></select>
+        <label for="setting-limit">Movement target <output id="setting-limit-value">0.120 mm</output></label>
+        <input id="setting-limit" type="range" min="0.04" max="0.30" step="0.01" value="0.12">
+        <label for="setting-visual">Display deformation <output id="setting-visual-value">60×</output></label>
+        <input id="setting-visual" type="range" min="1" max="120" step="1" value="60">
+        <button type="button" class="sheet-action" id="redesign-run">Find a lighter section <span>↗</span></button>
+      </div>
+      <div class="setting-set" id="cad-settings" hidden>
+        <div class="setting-heading">CAD MODEL / SOURCE</div>
+        <label for="cad-agent-brief">Ask an engineering question · English-first Agent</label>
+        <textarea id="cad-agent-brief" class="agent-brief" rows="3" maxlength="4000" placeholder="Why is this design failing? Or: increase the load by 20% and use a 12 mm mesh."></textarea>
+        <button type="button" class="secondary-action" id="cad-agent-preview">Understand English request</button>
+        <pre id="cad-agent-output" class="small-note" role="status" aria-live="polite"></pre>
+        <button type="button" class="sheet-action" id="cad-agent-confirm" disabled>Confirm parameters and run FEA</button>
+        <span class="small-note">Ask about stress, displacement, mesh evidence or next steps. Questions use the completed FEA result. Parameter changes are previewed and need confirmation; understanding a request never runs a solver.</span>
+        <label for="cad-source-choice">Source type</label>
+        <select id="cad-source-choice"><option value="generated">Generated bracket · example</option><option value="uploaded">Imported STEP (single body)</option></select>
+        <div class="cad-source-actions">
+          <input id="cad-file" type="file" accept=".step,.stp" hidden>
+          <button type="button" id="cad-upload" class="secondary-action">Import STEP…</button>
+          <button type="button" id="cad-nist" class="secondary-action">Fetch NIST official STEP</button>
+        </div>
+        <span class="small-note" id="cad-source-feedback">Generated bracket is a computational sample; NIST geometry is independently sourced, but no static load test is validated.</span>
+        <label for="cad-web">Bracket web thickness</label>
+        <select id="cad-web"><option value="8">8 mm</option><option value="10">10 mm</option><option value="12">12 mm</option><option value="14">14 mm</option></select>
+        <label for="cad-mesh">Target tetra size (mm) <output id="cad-mesh-value">10</output></label>
+        <input id="cad-mesh" type="range" min="2" max="20" step="1" value="10">
+        <label for="cad-force">Applied transverse force (N) <output id="cad-force-value">250</output></label>
+        <input id="cad-force" type="range" min="20" max="2000" step="10" value="250">
+        <label for="cad-direction">Load direction</label>
+        <select id="cad-direction"><option value="+X">+X</option><option value="-X">−X</option><option value="+Y">+Y</option><option value="-Y">−Y</option></select>
+        <label for="cad-boundary">Base-to-tip axis</label>
+        <select id="cad-boundary"><option value="Z">Z</option><option value="X">X</option><option value="Y">Y</option></select>
+        <label for="cad-unit">STEP coordinate unit</label>
+        <select id="cad-unit"><option value="mm">Millimetres (mm)</option><option value="m">Metres (m)</option></select>
+        <div class="setting-heading">ASSUMED MATERIAL</div>
+        <label for="cad-young">Young's modulus (GPa)</label>
+        <input id="cad-young" type="number" min="10" max="400" value="200" step="10">
+        <label for="cad-nu">Poisson's ratio</label>
+        <input id="cad-nu" type="number" min=".1" max=".45" value=".29" step=".01">
+        <label for="cad-density">Density (kg/m³)</label>
+        <input id="cad-density" type="number" min="1000" max="20000" value="8190" step="100">
+        <label for="cad-yield">Assumed yield limit (MPa)</label>
+        <input id="cad-yield" type="number" min="10" max="1800" value="900" step="50">
+        <label for="cad-visual">Display deformation <output id="cad-visual-value">35×</output></label>
+        <input id="cad-visual" type="range" min="1" max="150" value="35" step="1">
+        <div class="setting-heading">REVISE / RE-MESH / RE-SOLVE</div>
+        <label for="cad-revision-web">Revised bracket web (mm)</label>
+        <select id="cad-revision-web"><option value="8">8</option><option value="10">10</option><option value="12" selected>12</option><option value="14">14</option></select>
+        <input id="cad-revision-file" type="file" accept=".step,.stp" hidden>
+        <button id="cad-revision-upload" class="secondary-action" type="button">Import revised STEP…</button>
+        <span class="small-note" id="cad-revision-feedback">Choose a different web thickness, or import a revised STEP.</span>
+        <button type="button" class="sheet-action" id="cad-run-revision">Compare two independently solved CAD revisions <span>↗</span></button>
+        <button type="button" class="secondary-action" id="cad-download-step">Download current STEP</button>
+        <button type="button" class="secondary-action" id="cad-download-audit">Export FEA audit JSON</button>
+        <div class="settings-disclosure">NIST actual geometry is not proof of the assumed static loading. Single watertight solid only. Up to 1,400 input tetrahedra per isolated solve.</div>
+      </div>
+      <div class="setting-set" id="lab-settings" hidden>
+        <div class="setting-heading">REAL LABORATORY</div>
+        <label for="setting-lab-view">Analysis type</label>
+        <select id="setting-lab-view"><option value="modes">Natural vibration</option><option value="static">Illustrative static loading</option></select>
+        <label for="setting-stiffness">Base stiffness log₁₀(kθ) <output id="setting-stiffness-value">3.00</output></label>
+        <input id="setting-stiffness" type="range" min="0" max="6" step="0.05" value="3">
+        <label for="setting-amplitude">Mode amplitude <output id="setting-amplitude-value">28 mm</output></label>
+        <input id="setting-amplitude" type="range" min="5" max="65" step="1" value="28">
+        <label for="setting-elements">Beam finite elements</label>
+        <select id="setting-elements"><option>16</option><option>24</option><option selected>32</option><option>48</option><option>64</option></select>
+        <label for="setting-young">Assumed Young's modulus</label>
+        <select id="setting-young"><option value="190">190 GPa</option><option value="200">200 GPa</option><option value="210" selected>210 GPa</option><option value="220">220 GPa</option><option value="230">230 GPa</option></select>
+        <label class="check-control"><input type="checkbox" id="setting-gauges" checked>Reduced gauge sections</label>
+        <label class="check-control"><input type="checkbox" id="setting-true-scale">Show true beam section proportions</label>
+        <button type="button" class="sheet-action" id="calibrate-run">Calibrate from measured Mode 1 <span>↗</span></button>
+      </div>
+      <div class="settings-disclosure"><strong>Evidence, not decoration.</strong><span id="scientific-limit">Numerical analysis only. No physical safety certification.</span></div>
+    </div>
+  </section>
+</div>
+<script src="/studio/viewport3d.js" defer></script>
+<script src="/studio/app.js" defer></script>
+<script src="/studio/adaptive.js" defer></script>
+<script src="/studio/inspection.js" defer></script>
+</body>
+</html>

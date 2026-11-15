@@ -1,3 +1,11 @@
+# ML / Agent integration preview
+
+Combines engineering v1.0 mesh evidence with Spatial UI v0.2.1. Context-bound truss ML, confirmation-gated CAD briefs and source-locked FE design reviews are available on `codex/ml-agent-upgrade`.
+
+[Launch, task coverage and limitations](docs/ML_AGENT_UPGRADE.md).
+
+---
+
 # ForceForge X v1.0 — Source-Locked Mesh Evidence
 
 The same **actual STEP CAD** is now checked at **three independently generated 3D tetra mesh resolutions**. ForceForge reuses the active FEM solution, runs exactly two additional crash-isolated solves, and reports how actual element counts, global displacement, strain energy, sampled local von Mises, volume preservation and reaction balance vary with mesh refinement.
@@ -33,6 +41,121 @@ python -m streamlit run app.py --server.fileWatcherType none
 If the local branch already exists: `git switch feature/stable-cad-runtime-v9 && git pull --ff-only`.
 
 In the sidebar choose **Real STEP → 3D FEA / CAD redesign**. Page opening should not invoke Gmsh or solve FEM. Click **Run CAD import + 3D FEA** to compute the current case, then **Re-mesh revised CAD and re-run 3D FEA** to compare a changed real STEP.
+
+---
+
+# ForceForge X — Level 2 / Spatial Engineering UI v0.2.1 / Engineering v0.8
+
+**Current integration preview:** UI v0.2 is based on the latest available
+engineering v0.8 branch. It preserves the immersive Spatial Engineering
+experience and adds an actual STEP CAD / Gmsh / tetra10 FEA workflow.
+
+## Interface hierarchy
+
+**Level 2 (Spatial Engineering):** The current immersive 3D engineering workspace, including physical-model controls, coordinate reference grid and finite-element surface probing. **Level 2 is an interface classification, not a version number.** Its UI version remains v0.2.1 and the engineering backend remains v0.8. No Level 1 interface is defined or changed by this naming update.
+
+## Launch on macOS
+
+Before switching branches, check for any uncommitted local files with
+`git status --short` and save them separately.
+
+```bash
+cd ~/ForceForge-AI
+git fetch origin
+git switch --track origin/ui/v0.2-adaptive-spatial
+python3 -m pip install -r requirements.txt
+python3 -m pip install 'gmsh>=4.12,<5'
+python3 studio_server.py
+```
+
+If you already have the branch locally, instead run:
+
+```bash
+git switch ui/v0.2-adaptive-spatial
+git pull --ff-only
+python3 studio_server.py
+```
+
+Open **http://127.0.0.1:8765** in Safari or Chrome. This is a
+loopback-only local website, not a public server. Stop with Control+C.
+
+The optional Gmsh package is required for actual STEP CAD meshing. Without
+it, the solid and laboratory modules remain available; CAD meshing reports
+the real dependency error instead of inventing a solution.
+
+## Spatial inspection and coordinate context — UI v0.2.1
+
+The model workspace now includes a legible depth-tested 3D reference grid,
+true world X/Y/Z axis markers, and a camera-relative XYZ orientation indicator.
+Hover over any rendered triangle to inspect the **undeformed reference
+coordinates (mm)** at the cursor. In a 3D solid or real STEP specimen, the
+probe also reports the solver's original **per-face sampled von Mises
+stress (MPa)** and a perspective-correct interpolation of actual FEA nodal
+displacement magnitude (mm). The displayed mesh can be deformation-exaggerated
+but these local values remain tied to original solver coordinates and results.
+
+The laboratory modal case shows its computed frequency as a **global mode
+quantity**, not a local measured result; experimental sensor markers retain
+their own published locations. In illustrative static loading, actual nodal
+displacement is provided separately from the display multiplier. Probes are
+hidden while a newer solver result is pending. This is not independently
+measured local stress or experimental validation.
+
+Hover inspection is mouse/pointer-based; keyboard-accessible core load,
+geometry and result controls remain available through the spatial UI. The
+grid and compass adjust when a laboratory beam's displayed cross-section
+is returned to its true proportions. Safari performance and layout need
+direct user acceptance.
+
+## New experience
+
+- **Solid mechanics** — existing real tetra10 computational cantilever,
+  model-anchored force and section controls, actual simulated stress.
+- **Real laboratory** — published Hannover modal frequencies, measured
+  sensor locations, independent reduced-order FEM, Mode 1 support fit and
+  held-out Modes 2 and 3.
+- **Real CAD** — load the original generated bracket, import an actual
+  single-solid STEP, or explicitly download a checksum-verified original
+  NIST STEP file; tetra mesh and solve with genuine engineering v0.8
+  routines, change load/material/mesh assumptions, then revise geometry,
+  remesh and independently re-solve and compare.
+- **Complete engineering toolkit** — original Streamlit homepage, industry
+  tools, robust optimization, ML and specialist pages are still present.
+  From another Terminal run
+  `python3 -m streamlit run app.py` and open
+  **http://127.0.0.1:8501**. The Spatial interface links to those tools.
+
+The same full-height 3D space remains central. Compact windows expose
+the currently relevant action, one primary result and an optional tools
+menu; important controls remain accessible without page scrolling.
+Detailed engineering data and settings appear only when requested.
+
+## Engineering evidence and versioning
+
+The NIST published CAD is real geometry; it does **not** validate our
+user-assumed static loading, fixture, material properties or yield limits.
+Original and revised STEP meshes are independently solved. The source
+SHA-256, tetra mesh count/volume audit, displacements and sampled stress
+are recorded. Single-body geometries only; max 5,000 input tets;
+no nonlinear contact or physical safety certification.
+
+UI v0.2 is numbered independently from engineering v0.8.
+The only permanent version history is the root-level English-only
+**CHANGELOG.txt**. Earlier versions are retained.
+
+## Verification
+
+```bash
+python3 -m pytest -q tests/test_studio.py tests/test_studio_cad.py
+node --check studio/app.js
+node --check studio/viewport3d.js
+node --check studio/adaptive.js
+```
+
+With Gmsh installed, run the additional actual CAD integration:
+`python3 -m pytest -q tests/test_studio_cad_gmsh.py`.
+Safari model anchoring and responsive-screen acceptance are required
+before the Draft PR is merged.
 
 ---
 
