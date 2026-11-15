@@ -114,12 +114,13 @@ def test_two_competing_physical_hotspots_are_compared_at_same_xyz_locations():
 def test_two_competing_hotspots_do_not_fake_stability_if_fixed_region_changes():
     first=model(450,20.,peak_y=.012,dual_sites=True)
     second=model(650,20.,peak_y=.012,dual_sites=True)
-    third=model(950,20.8,peak_y=.032,dual_sites=True)
-    # Numerically nearly unchanged global max does not guarantee
-    # that the stress at each physical site is unchanged. Manufacture
-    # such a divergent field explicitly to test the *rejection* path.
+    third=model(950,21.0,peak_y=.032,dual_sites=True)
+    # Global finite-band mean stays at 20 MPa and its P90 changes only
+    # 4.76%, so the broad screen passes. Yet the fixed *left* physical
+    # hotspot changes 20 -> 19 MPa (5.26% using the fine denominator)
+    # and therefore MUST fail the dual-site fixed-ROI requirement.
     third.gauss_von_mises_pa=np.where(
-        third.gauss_points_m[:,1]<.020, 8e6, 40e6
+        third.gauss_points_m[:,1]<.020, 19e6, 21e6
     )
     out=assess_hotspot_refinement(first,second,third,source_hash=SOURCE)
     assert out.status=="MULTIPLE_HOTSPOTS_NOT_CORRELATED"
