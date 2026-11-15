@@ -1,3 +1,36 @@
+## Experimental 3D Solid FEA — stable HTTP view (feature branch)
+
+The 3D work is **not part of the existing 2D truss physics**. It uses a
+Gmsh tetrahedral mesh and a new static 3D linear-elastic finite element
+solver. To avoid the recurring Streamlit `Connection error` during native
+meshing, launch the existing lightweight Python HTTP server, with Gmsh/FEA
+running in a crash-isolated subprocess:
+
+```bash
+git switch feature/step-solid-fea
+git pull --ff-only origin feature/step-solid-fea
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-3d.txt
+python web_server.py
+```
+
+- **2D truss/optimization/AI Workspace:** http://127.0.0.1:8000/
+- **3D Solid FEA:** http://127.0.0.1:8000/solid3d
+- **Solver health:** http://127.0.0.1:8000/api/health
+
+The HTTP 3D page has no Streamlit/WebSocket dependency. It includes a
+rotatable colored surface, interactive deformation display, STEP solid
+import (maximum 4 MB), bounded tetrahedral meshes and explicit child process
+failure/timeout reporting. Original 2D features remain unchanged.
+Legacy `python -m streamlit run app_3d.py` also delegates native meshing to
+the isolated worker, but the HTTP view is the preferred live demo.
+
+For limitations, exact physics assumptions, and acceptance tests, see
+[3D Solid FEA](docs/3d-solid-fea.md). Multi-solid STEP import does **not**
+implement mechanical contact or tie constraints; CFD, mesh convergence,
+nonlinear mechanics and AI-guided CAD modification remain future work.
+
 # ForceForge AI 2.0 — Physics-Verified Generative Truss Design
 
 Hack the Nest 2026 | Eastern Michigan University | Computer Aided Engineering
