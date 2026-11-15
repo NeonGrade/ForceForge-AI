@@ -479,8 +479,8 @@ with st.expander(
         "coordinate (X, Y, Z) = "
         + str(tuple(round(v,2) for v in physical_probe.global_peak_location_mm))
         + " mm. The solver will re-import the identical STEP and apply "
-        "two progressively smaller 3D mesh-size fields centered at that "
-        "physical location, while preserving the same force and support."
+        "two locally refined 3D meshes (60% and 45% target size) "
+        "around this physical location, preserving identical CAD, load and support."
     )
     if physical_probe.global_peak_zone=="NEAR_IDEALIZED_FIXED_FACE":
         st.warning(
