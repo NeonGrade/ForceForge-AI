@@ -82,6 +82,9 @@ with st.form("natural_engineering_input"):
 if parse_clicked:
     st.session_state["nl_interpretation"]=interpret_text(prompt)
     st.session_state.pop("nl_result",None)
+    # Consent is bound to the interpreted input, never silently inherited
+    # after a user describes a different product or changes dimensions.
+    st.session_state["nl_allow_defaults"]=False
 
 interpretation=st.session_state.get("nl_interpretation")
 if interpretation is None:
