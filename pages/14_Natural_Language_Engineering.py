@@ -36,9 +36,9 @@ st.info(
     "thermal results remain blocked until validated solvers are connected. "
     "No flow or wall-stress outputs are invented."
 )
-st.page_link(
-    "pages/13_Real_STEP_Engineering.py",
-    label="Open the existing Real STEP / dual-hotspot / Design Copilot study",
+st.markdown(
+    "[Open the existing Real STEP / dual-hotspot / Design Copilot study]"
+    "(./Real_STEP_Engineering)"
 )
 
 examples={
