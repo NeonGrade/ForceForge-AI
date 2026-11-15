@@ -32,10 +32,11 @@ st.caption(
     "strict geometry/physics inputs · real STEP exports"
 )
 st.info(
-    "Prototype capabilities: real L-bracket STEP + isolated tetra10 FEA; "
-    "conceptual wall-fan STEP + real idealized 3D air-domain Gmsh mesh. "
-    "Fan contact, Navier-Stokes CFD and thermal physics are not solved. "
-    "No flow or wall-stress outputs are invented."
+    "CAD catalog: real L-bracket STEP + validated isolated tetra10 FEA; "
+    "conceptual wall fan STEP + genuine air-domain Gmsh preprocessor; "
+    "new actual parametric hollow shaft and mounting plate STEP generators. "
+    "Only the bracket has validated structural FEA. Other product "
+    "CFD/FEA and wall-anchor physics remain BLOCKED until independently verified."
 )
 st.markdown(
     "[Open the existing Real STEP / dual-hotspot / Design Copilot study]"
@@ -56,6 +57,18 @@ examples={
         "生成腹板厚度8毫米的L型支架，施加载荷250 N，"
         "计算结构受力、应力和变形。"
     ),
+    "Hollow shaft / sleeve (Chinese)": (
+        "设计一个空心轴，外径60mm，内径30mm，长度120mm。"
+    ),
+    "Mounting plate with four holes (Chinese)": (
+        "做一个矩形安装板，长度150mm，宽度100mm，厚度8mm，"
+        "开4个孔，孔径6mm，孔中心距边缘15mm。"
+    ),
+    "Mounting plate (English)": (
+        "Design a rectangular mounting plate length 150 mm width 100 mm "
+        "thickness 8 mm with 4 holes, hole diameter 6 mm "
+        "and hole edge offset 15 mm."
+    ),
 }
 st.markdown("### 1 · Describe the product in ordinary language")
 if "nl_input_text" not in st.session_state:
@@ -74,8 +87,8 @@ with st.form("natural_engineering_input"):
         "What should ForceForge build and analyze?",
         key="nl_input_text",
         max_chars=1200,height=110,
-        help="Currently registered: drilled L-bracket and conceptual wall fan. "
-             "Any unregistered product family is explicitly rejected.",
+        help="Registered: L-bracket, wall fan, hollow shaft, rectangular plate. "
+             "Give exact dimensions. Unknown products are explicitly blocked.",
     )
     parse_clicked=st.form_submit_button(
         "Interpret engineering requirements",type="primary",
@@ -95,7 +108,10 @@ if interpretation is None:
 if interpretation.request is None:
     for issue in interpretation.issues:
         st.error(issue)
-    st.caption("The generator registry can be extended; it cannot invent an arbitrary mechanical product family.")
+    st.caption(
+        "This is a tested family catalog, not unrestricted text-to-any-CAD. "
+        "Requesting a new product requires a validated generator and schema."
+    )
     st.stop()
 if interpretation.request.prompt!=prompt:
     st.warning("The text changed; press Interpret again before running any model.")
@@ -262,7 +278,7 @@ if snapshot is not None:
             hovertemplate="X %{x:.1f} mm · Y %{y:.1f} mm · Z %{z:.1f} mm<extra>Real OCC surface mesh</extra>",
         ))
         fig.update_layout(
-            title="Actual conceptual STEP surface mesh · NO CFD/FEA coloring",
+            title="Actual OpenCASCADE STEP surface mesh · no fabricated CFD/FEA",
             scene=dict(aspectmode="data",xaxis_title="X (mm)",
                        yaxis_title="Y (mm)",zaxis_title="Z (mm)"),
             margin=dict(l=0,r=0,t=50,b=0),height=500,
@@ -270,8 +286,8 @@ if snapshot is not None:
         st.plotly_chart(fig,width="stretch")
     elif cad.concept_only:
         st.warning(
-            "Concept fan STEP is available; surface preview could not be tessellated "
-            "in this worker. No substitute stress/flow plot is shown."
+            "Actual STEP export is available; optional OCC surface preview failed. "
+            "No substitute geometry or fake stress/flow plot is shown."
         )
 
     if execution.structural_fea is not None:
