@@ -372,10 +372,17 @@ if [ -z "$FOAM_TUTORIALS" ]; then
   find /opt -maxdepth 4 -name rotatingFanInRoom -type d -print || true
   exit 42
 fi
-src="$(find "$FOAM_TUTORIALS" -type d -name rotatingFanInRoom -print -quit)"
-if [ -z "$src" ]; then
-  echo "ERROR: rotatingFanInRoom not found in installed OpenFOAM tutorials" >&2
-  ls "$FOAM_TUTORIALS/incompressible/pimpleFoam/RAS" || true
+# The directory name ALSO exists under resources/geometry/, but that
+# directory contains STL assets ONLY and is not a solver-ready tutorial.
+# Prefer the exact documented incompressible/pimpleFoam/RAS path.
+src="$FOAM_TUTORIALS/incompressible/pimpleFoam/RAS/rotatingFanInRoom"
+if [ ! -f "$src/system/controlDict" ]; then
+  src="$(find "$FOAM_TUTORIALS/incompressible" -type f -name controlDict \
+    -path '*/rotatingFanInRoom/system/controlDict' -print -quit 2>/dev/null | sed 's@/system/controlDict$@@')"
+fi
+if [ -z "$src" ] || [ ! -f "$src/constant/dynamicMeshDict" ]; then
+  echo "ERROR: real rotatingFanInRoom solver case (not raw geometry assets) missing" >&2
+  find "$FOAM_TUTORIALS" -type f -path '*/rotatingFanInRoom/system/controlDict' -print | head -n 20 || true
   exit 43
 fi
 echo "Official rotating-fan case: $src"
