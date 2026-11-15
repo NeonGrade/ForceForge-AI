@@ -163,8 +163,29 @@ def _valid_job_root(job_id: str) -> Path:
     return root
 
 
-def launch_reference_job(controls: ReferenceControls) -> str:
-    """Start one real OpenFOAM job; UI may be refreshed without losing it."""
+def launch_reference_job(
+    controls: ReferenceControls, *, custom_rotor_stl: bytes | None = None,
+    custom_source_sha256: str | None = None,
+    custom_diameter_mm: float | None = None,
+) -> str:
+    """Real OpenFOAM: official reference fan or source-STEP custom rotor.
+
+    The custom rotor is inserted in the OFFICIAL reference room; stationary
+    guard, wall-anchor loads and the user's own surrounding room are NOT
+    included. The source SHA is recorded separately from the reference mesh.
+    """
+    if custom_rotor_stl is not None:
+        from .rotor_surface import MAX_STL_BYTES
+        if (not isinstance(custom_rotor_stl,bytes)
+                or not custom_rotor_stl.startswith(b"solid fan")
+                or not 1000<len(custom_rotor_stl)<=MAX_STL_BYTES):
+            raise ValueError("Custom rotor must be genuine bounded ASCII STL data")
+        if not custom_source_sha256 or not re.fullmatch(
+            r"[0-9a-f]{64}",custom_source_sha256
+        ):
+            raise ValueError("Exact source STEP SHA-256 required for custom blade case")
+        if custom_diameter_mm is None or not 100<=custom_diameter_mm<=800:
+            raise ValueError("Known custom rotor diameter required")
     ok,msg=docker_ready()
     if not ok:
         raise RuntimeError(msg)
@@ -172,12 +193,28 @@ def launch_reference_job(controls: ReferenceControls) -> str:
     job_id=secrets.token_hex(8)
     folder=_valid_job_root(job_id)
     folder.mkdir(mode=0o700,parents=False,exist_ok=False)
+    if custom_rotor_stl is not None:
+        (folder/"user_rotor.stl").write_bytes(custom_rotor_stl)
     data={
         "status":"RUNNING","stage":"QUEUED",
         "job_id":job_id,"started_epoch_s":time.time(),
-        "geometry_origin":SCENE_KIND,
-        "reference_only":True,
-        "assumptions":"Official OpenFOAM rotatingFanInRoom geometry, NOT generated ForceForge STEP",
+        "geometry_origin":(
+            "USER_STEP_ROTOR_IN_OFFICIAL_REFERENCE_ROOM"
+            if custom_rotor_stl is not None else SCENE_KIND
+        ),
+        "reference_only":custom_rotor_stl is None,
+        "assumptions":(
+            "Real user STEP rotor wall; official reference room and AMI zone. "
+            "NO user-specific wall-mounted guard, wall or anchors."
+            if custom_rotor_stl is not None else
+            "Official OpenFOAM rotatingFanInRoom geometry, NOT generated ForceForge STEP"
+        ),
+        "custom_source_sha256":custom_source_sha256,
+        "custom_rotor_stl_sha256":(
+            sha256(custom_rotor_stl).hexdigest()
+            if custom_rotor_stl is not None else None
+        ),
+        "custom_diameter_mm":custom_diameter_mm,
         "controls":controls.as_dict(),
         "docker_image_id":msg,
         "solved":False,
@@ -301,8 +338,10 @@ def _collect_vtk(root: Path) -> dict:
 
 def _run_job(root: Path,controls: ReferenceControls):
     data=_load_status(root)
-    if data.get("geometry_origin")!=SCENE_KIND:
-        raise ValueError("Invalid CFD reference-case provenance")
+    if data.get("geometry_origin") not in (
+        SCENE_KIND,"USER_STEP_ROTOR_IN_OFFICIAL_REFERENCE_ROOM"
+    ):
+        raise ValueError("Invalid CFD case provenance")
     try:
         data["stage"]="COPY_OFFICIAL_TUTORIAL";_manifest(root,data)
         copy_script=r'''
@@ -320,6 +359,19 @@ test -f /workspace/case/constant/dynamicMeshDict
 test -f /workspace/case/system/controlDict
 '''
         _docker(root,copy_script,90,"copy_openfoam.log")
+        if not data.get("reference_only",True):
+            source=root/"user_rotor.stl"
+            if not source.is_file() or sha256(source.read_bytes()).hexdigest()!=data.get("custom_rotor_stl_sha256"):
+                raise ValueError("Custom rotor STL missing or tampered")
+            target=root/"case"/"constant"/"triSurface"/"fan.stl"
+            if not target.is_file():
+                raise ValueError(
+                    "Installed tutorial has no replaceable fan.stl reference "
+                    "surface; cannot inject real custom rotor safely"
+                )
+            target.unlink()
+            target.write_bytes(source.read_bytes())
+            data["reference_fan_stl_replaced_by_exact_user_cad"]=True
         settings=adapt_reference_case(root/"case",controls)
         data["case_configuration"]=settings
         data["stage"]="MESH_AND_SOLVE_REAL_TRANSIENT";_manifest(root,data)
@@ -341,6 +393,14 @@ checkMesh > /workspace/checkMesh.log
 pimpleFoam > /workspace/log.pimpleFoam
 '''
         _docker(root,solver_script,TIME_LIMIT_S-90,"solver_console.log")
+        if not data.get("reference_only",True):
+            target=root/"case"/"constant"/"triSurface"/"fan.stl"
+            if (not target.is_file() or
+                    sha256(target.read_bytes()).hexdigest()!=data["custom_rotor_stl_sha256"]):
+                raise ValueError(
+                    "OpenFOAM meshing overwrote source CAD fan.stl; "
+                    "refusing to call this a custom rotor computation"
+                )
         log=(root/"log.pimpleFoam").read_text(errors="replace")
         times=[float(x) for x in re.findall(
             r"(?m)^Time =\s*([0-9.eE+-]+)",log
