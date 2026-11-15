@@ -1,0 +1,43 @@
+name: Devpost backup CFD footage from genuine OpenFOAM fields
+
+on:
+  push:
+    paths:
+      - 'qa/record_verified_cfd_clip.py'
+      - '.github/workflows/devpost-cfd-clip.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verified-reference-cfd-video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Chromium browser recording runtime
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Retrieve actual past OpenFOAM results
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p qa/real_flow_artifact
+          gh run download 43674796795 --repo NeonGrade/ForceForge-AI \
+            --name real-openfoam-ami-transient-evidence --dir qa/real_flow_artifact
+      - name: Record genuine solver U/p behind rotating source rotor STL
+        run: python -m qa.record_verified_cfd_clip
+      - name: Save optional Devpost footage (not a full demo)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: devpost-verified-reference-cfd-video
+          path: qa/devpost_cfd_clip/
+          retention-days: 7
+          if-no-files-found: ignore
