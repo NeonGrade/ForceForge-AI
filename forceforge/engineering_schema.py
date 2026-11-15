@@ -154,7 +154,7 @@ def interpret_text(text: str) -> Interpretation:
     bracket = re.search(r"(l[- ]?bracket|l[- ]?shaped bracket|l型支架|l形支架|l 型支架|支架)", text, re.I)
     if fan:
         family = ProductFamily.WALL_FAN
-        dia = _extract_length(text, r"(?:叶轮)?直径|diameter|外径|扇叶直径")
+        dia = _extract_length(text, r"(?<!轮毂)(?:叶轮|扇叶)?直径|(?<!hub )diameter|外径")
         # Also recognize "30 cm diameter" and Chinese "直径大概30厘米"
         if dia is None:
             m = re.search(rf"{_NUMBER}\s*{_LENGTH_UNIT}\s*(?:直径|diameter)", text, re.I)
@@ -164,12 +164,18 @@ def interpret_text(text: str) -> Interpretation:
             blades = re.search(r"([3-9])\s*(?:片|blades?)", text, re.I)
         hub = _extract_length(text, r"轮毂直径|hub diameter")
         pitch = re.search(r"(?:叶片角度|桨距角|blade pitch|pitch)\s*(?:about|约|为|是|:|：|=)?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:deg|°|度)?", text, re.I)
-        geometry = FanGeometry(
-            diameter_mm=dia, rpm=_extract_rpm(text),
-            blade_count=int(blades.group(1)) if blades else None,
-            hub_diameter_mm=hub,
-            blade_pitch_deg=float(pitch.group(1)) if pitch else None,
-        )
+        try:
+            geometry = FanGeometry(
+                diameter_mm=dia, rpm=_extract_rpm(text),
+                blade_count=int(blades.group(1)) if blades else None,
+                hub_diameter_mm=hub,
+                blade_pitch_deg=float(pitch.group(1)) if pitch else None,
+            )
+        except ValidationError as exc:
+            return Interpretation(issues=(
+                "Fan dimensions exceed the geometry limits: "
+                + "; ".join(e["msg"] for e in exc.errors())[:450],
+            ))
     elif bracket:
         family = ProductFamily.L_BRACKET
         web = _extract_length(text, r"腹板厚度|厚度|web thickness|thickness")
