@@ -23,6 +23,7 @@ from forceforge.isolated_cad import (
 )
 from forceforge.mesh_verification import run_mesh_evidence, select_mesh_sizes
 from forceforge.local_refinement import run_hotspot_refinement
+from forceforge.dual_hotspot import run_dual_hotspot_study
 from forceforge.stress_probe import probe_stress
 import plotly.graph_objects as go
 from forceforge.solid3d import surface_figure
@@ -199,6 +200,7 @@ if run_requested:
     st.session_state.pop("stable_revised", None)
     st.session_state.pop("stable_mesh_evidence", None)
     st.session_state.pop("stable_hotspot_study", None)
+    st.session_state.pop("stable_dual_hotspot", None)
     t0 = time.monotonic()
     try:
         with st.spinner(
@@ -494,6 +496,7 @@ with st.expander(
         key="run_true_local_refinements",
     ):
         st.session_state.pop("stable_hotspot_study",None)
+        st.session_state.pop("stable_dual_hotspot",None)
         try:
             with st.spinner(
                 "Remeshing source STEP locally and running two isolated "
@@ -599,6 +602,121 @@ with st.expander(
             file_name="forceforge_hotspot_stress_audit.json",
             mime="application/json",key="download_hotspot_stress",
         )
+
+        # The second-stage study is only meaningful after two actual
+        # competing physical hotspot positions have been found. Preserve
+        # earlier CAD/FE results if the optional further two jobs fail.
+        if len(details.matched_physical_hotspot_regions)==2:
+            st.markdown("#### Step 3B · Refine BOTH competing hotspots")
+            st.write(
+                "The moving maximum occurred at two distinct physical "
+                "sites. The next study freezes both exact XYZ coordinates "
+                "BEFORE new calculations, re-imports the SAME STEP, and "
+                "creates two independent tetra10 FE meshes with native "
+                "Gmsh Box size fields around BOTH sites simultaneously. "
+                "It requires two additional explicit solver runs. "
+                "No global peak convergence or engineering safety "
+                "will be assumed from stable finite-region averages."
+            )
+            selected_centers=tuple(
+                tuple(float(v) for v in region["center_xyz_mm"])
+                for region in details.matched_physical_hotspot_regions
+            )
+            st.caption(
+                "Frozen physical centers (mm): "
+                + str(tuple(tuple(round(x,3) for x in p) for p in selected_centers))
+                + ". Fixed 7 mm spheres are compared on both new meshes."
+            )
+            if st.button(
+                "Run dual-hotspot re-mesh + 2 independent 3D FEA solves",
+                key="run_true_dual_hotspot",
+            ):
+                st.session_state.pop("stable_dual_hotspot",None)
+                try:
+                    with st.spinner(
+                        "Locally refining BOTH true CAD hotspots in two "
+                        "separate bounded Gmsh / tetra10 FE worker jobs..."
+                    ):
+                        dual=run_dual_hotspot_study(
+                            saved["source"],result,details,
+                            source_label=saved["source_name"],unit=unit,
+                            solve_at=analyze_step_safely,
+                        )
+                    st.session_state["stable_dual_hotspot"]={
+                        "signature":signature,
+                        "source_sha256":mesh.source_sha256,
+                        "centers":selected_centers,
+                        "study":dual,
+                    }
+                except (CadJobError,RuntimeError,ValueError,OSError) as exc:
+                    st.error(
+                        "Dual-site FEM study failed without deleting the "
+                        "original result or the first hotspot study: "
+                        + str(exc) + ". Local stress remains UNVERIFIED."
+                    )
+
+            double=st.session_state.get("stable_dual_hotspot")
+            if double is not None and (
+                double["signature"]!=signature or
+                double["source_sha256"]!=mesh.source_sha256 or
+                double["centers"]!=selected_centers
+            ):
+                st.warning(
+                    "Dual-hotspot results are stale after the CAD, "
+                    "load or hotspot identification changed."
+                )
+                double=None
+            if double is not None:
+                audited=double["study"]
+                st.write("**Dual-hotspot fixed-site screen:**",audited.status)
+                st.write("**Moving peak stress screen:**",audited.global_peak_status)
+                if audited.status=="PRELIMINARY_DUAL_SITE_NUMERICAL_STABILITY":
+                    st.warning(
+                        "The two fixed physical regions meet only a "
+                        "PRELIMINARY NUMERICAL stress screen; "
+                        "this does not prove moving peak convergence "
+                        "or real fixture/contact strength."
+                    )
+                else:
+                    st.error(
+                        "DUAL-SITE NUMERICAL VERIFICATION INCOMPLETE — "
+                        + audited.status
+                    )
+                st.write(audited.explanation)
+                st.dataframe(
+                    pd.DataFrame([r.as_dict() for r in audited.steps]),
+                    hide_index=True,width="stretch",
+                )
+                if audited.site_rows:
+                    st.dataframe(
+                        pd.DataFrame(audited.site_rows),
+                        hide_index=True,width="stretch",
+                    )
+                a,b,c=st.columns(3)
+                a.metric(
+                    "Peak movement (mm)",
+                    f"{audited.global_peak_movement_mm:.3f}",
+                )
+                b.metric(
+                    "Largest fixed-site mean difference",
+                    (f"{audited.maximum_site_mean_change_percent:.2f}%"
+                     if audited.maximum_site_mean_change_percent is not None
+                     else "UNVERIFIED"),
+                )
+                c.metric(
+                    "Largest fixed-site P90 difference",
+                    (f"{audited.maximum_site_p90_change_percent:.2f}%"
+                     if audited.maximum_site_p90_change_percent is not None
+                     else "UNVERIFIED"),
+                )
+                st.caption(audited.limitations)
+                st.download_button(
+                    "Download dual-hotspot FEA evidence JSON",
+                    json.dumps(audited.as_dict(),indent=2),
+                    file_name="forceforge_dual_hotspot_stress_audit.json",
+                    mime="application/json",
+                    key="download_dual_hotspot_stress",
+                )
 
 st.subheader("Step 4 · Independently re-mesh a revised STEP")
 st.write(
