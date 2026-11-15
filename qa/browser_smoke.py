@@ -95,6 +95,12 @@ def main():
                 expect(page.locator(".inspector")).to_be_visible()
                 page.screenshot(path=str(ARTIFACTS / "original-2d-retained.png"), full_page=True)
 
+                # Old standalone bookmarks must return into the full shell.
+                page.goto(url + "/solid3d", wait_until="domcontentloaded", timeout=20000)
+                page.wait_for_url(url + "/#solid3d", timeout=12000)
+                expect(page.locator('button[data-panel="solid3d"]')).to_have_attribute("aria-pressed", "true")
+                expect(page.locator("#solidWorkspaceFrame")).to_be_visible()
+
                 # Parent HTTP service must remain alive after the 3D worker.
                 with urlopen(url + "/api/health", timeout=4) as response:
                     assert json.load(response)["status"] == "ok"
