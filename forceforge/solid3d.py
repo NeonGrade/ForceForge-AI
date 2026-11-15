@@ -5,10 +5,14 @@ only first-order 4-node tetrahedra are accepted. No contact or fatigue.
 """
 from dataclasses import dataclass
 from pathlib import Path
+from threading import RLock
 import tempfile
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import spsolve
+
+
+_GMSH_LOCK = RLock()
 
 
 @dataclass
@@ -48,45 +52,69 @@ def import_step(data: bytes, mesh_size=0.01):
 
 
 def _gmsh_mesh(step_data, mesh_size, box=None):
+    """Mesh in a serialized Gmsh session, respecting an existing initialization.
+
+    Gmsh uses process-global state. Streamlit reruns must not fail merely
+    because another call (or a host library) already initialized it.
+    """
     try:
         import gmsh
     except ImportError as exc:
         raise RuntimeError("Install optional 3D dependencies: pip install -r requirements-3d.txt") from exc
-    if gmsh.isInitialized():
-        raise RuntimeError("Gmsh already initialized; run meshing operations sequentially.")
-    gmsh.initialize()
-    try:
-        gmsh.option.setNumber("General.Terminal", 0)
-        gmsh.model.add("forceforge_solid")
-        if box is not None:
-            gmsh.model.occ.addBox(0, 0, 0, *box)
+
+    with _GMSH_LOCK:
+        initialized_here = not bool(gmsh.isInitialized())
+        previous_model = None
+        added_model = False
+        if initialized_here:
+            gmsh.initialize()
         else:
-            with tempfile.TemporaryDirectory() as directory:
-                path = Path(directory) / "part.step"
-                path.write_bytes(step_data)
-                gmsh.model.occ.importShapes(str(path))
-        gmsh.model.occ.synchronize()
-        volumes = gmsh.model.getEntities(3)
-        if not volumes:
-            raise ValueError("STEP file has no closed solid volumes.")
-        gmsh.option.setNumber("Mesh.CharacteristicLengthMin", mesh_size)
-        gmsh.option.setNumber("Mesh.CharacteristicLengthMax", mesh_size)
-        gmsh.option.setNumber("Mesh.ElementOrder", 1)
-        gmsh.model.mesh.generate(3)
-        tags, coords, _ = gmsh.model.mesh.getNodes()
-        xyz = np.asarray(coords, dtype=float).reshape(-1, 3)
-        tag_to_index = {int(t): i for i, t in enumerate(tags)}
-        types, _, node_groups = gmsh.model.mesh.getElements(3)
-        tetra = []
-        for kind, nodes in zip(types, node_groups):
-            if int(kind) == 4:
-                tetra.extend(np.asarray(nodes, dtype=np.int64).reshape(-1, 4).tolist())
-        if not tetra:
-            raise ValueError("No linear tetrahedral volume elements generated.")
-        tet = np.asarray([[tag_to_index[int(t)] for t in row] for row in tetra], dtype=np.int64)
-        return Mesh(xyz, tet)
-    finally:
-        gmsh.finalize()
+            previous_model = gmsh.model.getCurrent()
+        try:
+            gmsh.option.setNumber("General.Terminal", 0)
+            gmsh.model.add("forceforge_solid")
+            added_model = True
+            if box is not None:
+                gmsh.model.occ.addBox(0, 0, 0, *box)
+            else:
+                with tempfile.TemporaryDirectory() as directory:
+                    path = Path(directory) / "part.step"
+                    path.write_bytes(step_data)
+                    gmsh.model.occ.importShapes(str(path))
+            gmsh.model.occ.synchronize()
+            volumes = gmsh.model.getEntities(3)
+            if not volumes:
+                raise ValueError("STEP file has no closed solid volumes.")
+            gmsh.option.setNumber("Mesh.CharacteristicLengthMin", mesh_size)
+            gmsh.option.setNumber("Mesh.CharacteristicLengthMax", mesh_size)
+            gmsh.option.setNumber("Mesh.ElementOrder", 1)
+            gmsh.model.mesh.generate(3)
+            tags, coords, _ = gmsh.model.mesh.getNodes()
+            xyz = np.asarray(coords, dtype=float).reshape(-1, 3)
+            tag_to_index = {int(t): i for i, t in enumerate(tags)}
+            types, _, node_groups = gmsh.model.mesh.getElements(3)
+            tetra = []
+            for kind, nodes in zip(types, node_groups):
+                if int(kind) == 4:
+                    tetra.extend(np.asarray(nodes, dtype=np.int64).reshape(-1, 4).tolist())
+            if not tetra:
+                raise ValueError("No linear tetrahedral volume elements generated.")
+            tet = np.asarray(
+                [[tag_to_index[int(t)] for t in row] for row in tetra],
+                dtype=np.int64,
+            )
+            return Mesh(xyz, tet)
+        finally:
+            if initialized_here:
+                # Close only sessions owned by this call.
+                gmsh.finalize()
+            elif added_model:
+                # Do not finalize someone else's Gmsh session.
+                try:
+                    gmsh.model.remove()
+                finally:
+                    if previous_model:
+                        gmsh.model.setCurrent(previous_model)
 
 
 def scale_mesh(mesh, coordinate_to_m):
