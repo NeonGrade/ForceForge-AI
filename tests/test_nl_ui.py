@@ -2,7 +2,7 @@
 from streamlit.testing.v1 import AppTest
 
 
-PAGE="pages/14_Natural_Language_Engineering.py"
+PAGE="../pages/14_Natural_Language_Engineering.py"
 
 
 def test_natural_language_ui_requires_explicit_confirmation_and_run():
