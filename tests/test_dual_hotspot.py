@@ -32,6 +32,7 @@ def model(n, peak=20., *, source=SOURCE_SHA, load=LOAD,
         mesh=SimpleNamespace(
             source_sha256=source,
             num_tets=n,
+            mesh_size_mm=12.,
             local_refinement=settings,
             mesh_volume_m3=VOLUME,
             bbox_m=np.array([[0,0,0],[.075,.040,.058]]),
