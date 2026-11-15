@@ -410,7 +410,7 @@ def _collect_vtk(
     if selected_time_names is not None and len(paths)!=len(selected_time_names):
         raise ValueError(
             f"Found {len(paths)} VTK files, expected "
-            f"{len(selected_time_names)} authentic solver write times"
+            f"{len(selected_time_names)} genuine solver write times"
         )
     times=[]
     xyz_frames=[]
