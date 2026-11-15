@@ -48,7 +48,7 @@ def test_hard_fixture_never_passes_even_if_global_peak_is_stable():
     assert result.refinement_mono
     assert result.peak_near_fixed_boundary
     assert result.status=="SUPPORT_SINGULARITY_RISK"
-    assert "bolt/contact" in result.explanation
+    assert "attachment geometry/contact" in result.explanation
 
 
 def test_local_peak_17_percent_change_is_not_converged():
