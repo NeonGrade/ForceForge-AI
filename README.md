@@ -1,3 +1,40 @@
+## Natural-language mechanical engineering v0.1 (PR #16)
+
+**Additive to the existing ForceForge X app:** ordinary Chinese/English
+mechanical descriptions → a strict versioned **engineering parameters
+schema** → **registered STEP CAD generator** → explicit capability and
+dependency plan → execute **only actually supported** CFD/FEA stages.
+
+Start the unchanged app:
+
+```bash
+python -m pip install -r requirements.txt 'gmsh>=4.12,<5'
+python -m streamlit run app.py --server.fileWatcherType none
+```
+
+Then select **Natural language → real CAD / FEA plan** from the original
+sidebar. The existing **Real STEP → tetra10 FEA / Design Copilot** page
+continues to work unchanged.
+
+Two currently registered examples:
+- **L-bracket:** plain text → real generated STEP → existing isolated
+  3D Tetra10 FEA, only after explicit load/material/support inputs or
+  user-approved labeled demo defaults.
+- **Wall fan:** plain text → actual OpenCASCADE multi-solid **concept
+  STEP** (impeller, guard, motor/mount) with visible assumptions.
+  **CFD and mounting FEA remain BLOCKED**; no fabricated airflow
+  or bolt/anchor stress results.
+
+The architecture is extensible by adding a typed product spec, a trusted
+isolated CAD adapter, physics capability declaration and independent tests.
+It does **not** currently turn arbitrary product prompts into verified CAD
+assemblies or run CFD.
+
+Full technical contract, test commands, status semantics and limitations:
+[Natural Language Engineering Architecture v0.1](docs/NATURAL_LANGUAGE_ENGINEERING_V01.md).
+
+---
+
 ## Hack The Nest 2026 — Live CAD Design Copilot (experimental)
 
 **One workflow, one existing app**: Real STEP CAD → Gmsh volume mesh → real
