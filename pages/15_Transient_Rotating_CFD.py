@@ -33,32 +33,41 @@ st.markdown(
     "[Real 3D Solid FEA](./Real_STEP_Engineering)"
 )
 
+rotor_source=st.session_state.get("forceforge_custom_rotor_input")
 mode=st.radio(
     "Select provenance / geometry scope",
     [
         "Official OpenFOAM blade-resolved rotating-fan reference case",
-        "My generated wall-fan STEP — custom sliding mesh not yet verified",
+        "My STEP-derived rotor in the official OpenFOAM reference room",
     ],index=0,
 )
-if mode.startswith("My generated"):
-    st.error(
-        "CUSTOM GEOMETRY NOT YET SOLVER-READY: the existing 3D "
-        "actuator-domain .msh contains a cylindrical air zone without "
-        "actual fan blade wall surfaces or paired AMI sliding interface. "
-        "We cannot solve a 300 mm/1500 RPM blade-resolved CFD case from it. "
-        "Required: remove the real CAD blade/hub solids from the rotor "
-        "fluid volume, build nonconformal rotor/stator interface patches, "
-        "convert and validate the cellZones, and run the solver."
+use_custom=mode.startswith("My STEP-derived")
+if use_custom:
+    if not isinstance(rotor_source,dict):
+        st.error(
+            "CUSTOM ROTOR NOT LOADED: open Natural Language Engineering, "
+            "generate the fan STEP, then click Extract actual rotating blades. "
+            "This workflow does not accept the earlier actuator-only air .msh "
+            "as a blade-resolved CFD mesh."
+        )
+        st.stop()
+    st.warning(
+        "CUSTOM ROTOR + REFERENCE ROOM: the real rotating blade and hub "
+        "surfaces come from the exact CAD STEP, but the air domain, static "
+        "room, moving-cylinder AMI geometry and supports remain the official "
+        "OpenFOAM tutorial. This is NOT validated wall-fan installation CFD."
     )
-    st.stop()
-
-st.info(
-    "This path solves the **official OpenFOAM rotatingFanInRoom tutorial** "
-    "with a rotating blade surface and a real AMI sliding interface. "
-    "The flow fields ARE computed by OpenFOAM. Its original reference "
-    "geometry is not equivalent to your automatically generated 300 mm STEP; "
-    "do not present the two as a single validated CAD→CFD run."
-)
+    st.caption(
+        "Source STEP SHA-256: "+str(rotor_source["cad_source_sha256"])
+        +" · rotor STL SHA-256: "+str(rotor_source["rotor_stl_sha256"])
+    )
+else:
+    st.info(
+        "OFFICIAL REFERENCE: This path solves OpenFOAM rotatingFanInRoom "
+        "with its own original fan blades, a real moving grid and AMI. "
+        "The flow fields are computed, but geometry is unrelated to your "
+        "newly generated 300 mm STEP."
+    )
 ok,environment=docker_ready()
 if not ok:
     st.warning("OpenFOAM runtime not ready: "+environment)
@@ -77,7 +86,8 @@ else:
 a,b,c=st.columns(3)
 rpm=a.number_input(
     "Reference fan rotational speed (RPM)",
-    min_value=100,max_value=2400,value=1500,step=100,
+    min_value=100,max_value=2400,
+    value=(int(rotor_source["rpm"]) if use_custom else 600),step=100,
 )
 end=b.number_input(
     "Real transient duration (s)",
@@ -113,7 +123,15 @@ if st.button(
     disabled=not ok,type="primary",key="reference_cfd_run",
 ):
     try:
-        job=launch_reference_job(controls)
+        if use_custom:
+            job=launch_reference_job(
+                controls,
+                custom_rotor_stl=rotor_source["stl_bytes"],
+                custom_source_sha256=rotor_source["cad_source_sha256"],
+                custom_diameter_mm=float(rotor_source["diameter_mm"]),
+            )
+        else:
+            job=launch_reference_job(controls)
         st.session_state["forceforge_reference_cfd_job"]=job
     except (RuntimeError,OSError,ValueError) as exc:
         st.error("Could not start native CFD: "+str(exc))
@@ -304,10 +322,12 @@ if job:
 st.divider()
 st.markdown("#### Scope and engineering gates")
 st.write(
-    "This authentic OpenFOAM solver branch demonstrates **actual moving "
-    "fan blades and solved transient Navier–Stokes fields on the official "
-    "reference geometry**. For a valid custom ForceForge 300 mm wall-fan "
-    "simulation, we must next remove the custom CAD blades/hub from a rotor "
-    "fluid region, build two sliding AMI patches, model wall blockage "
-    "and verify rotation, solver residuals, mesh sensitivity and flow/thrust."
+    "This adapter can run official blades or replace the reference "
+    "fan wall with a **source-STEP-derived rotating rotor STL**, then "
+    "remesh and solve on the official OpenFOAM AMI reference-room flow. "
+    "The uploaded actuator-only MSH is NOT the rotating-blade mesh. "
+    "Physical wall-mount boundary conditions, actual fan casing/guard "
+    "surfaces, source-specific AMI convergence and thrust/fixture validation "
+    "are still missing. Live OpenFOAM results must pass CI before claims "
+    "of correct custom transient CFD are made."
 )
