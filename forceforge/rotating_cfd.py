@@ -472,7 +472,7 @@ pimpleFoam > /workspace/log.pimpleFoam
         export_script=r'''
 set -eu
 cd /workspace/case
-foamToVTK -ascii -fields '(U p)' > /workspace/foamToVTK.log
+foamToVTK -legacy -ascii -no-boundary -fields '(U p)' > /workspace/foamToVTK.log
 '''
         _docker(root,export_script,100,"export_console.log")
         summary=_collect_vtk(root)
