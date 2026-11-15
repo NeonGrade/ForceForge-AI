@@ -12,8 +12,7 @@ python -m pytest -q
 python web_server.py
 ```
 
-Open **http://127.0.0.1:8000/solid3d**. The original 2D truss workspace
-remains at **http://127.0.0.1:8000/**, with a navigation link to 3D.
+Open **http://127.0.0.1:8000/** for all six tools. Select **3D Solid FEA** in the original left rail, or navigate to **http://127.0.0.1:8000/#solid3d**. The original 2D modules stay mounted and their current input state is retained when switching to 3D. Old /solid3d bookmarks redirect into the integrated view.
 
 This 3D page is a normal HTTP/Canvas application **without Streamlit
 WebSockets or external JavaScript libraries**. The long-running web server
@@ -78,7 +77,7 @@ curl http://127.0.0.1:8000/api/health
 - If `/api/health` is offline, the parent web server was stopped, the device
   slept, or the local port is unavailable. Restart `python web_server.py`.
 - If the old `localhost:8501` page shows a Streamlit **Connection error**,
-  use `http://127.0.0.1:8000/solid3d` to avoid the Streamlit/WebSocket stack.
+  use `http://127.0.0.1:8000/` then open the sixth 3D tool to avoid the Streamlit/WebSocket stack.
 - Multiple solver button clicks are guarded by a single-worker semaphore.
   A second request gets a safe busy error without overloading memory.
 
