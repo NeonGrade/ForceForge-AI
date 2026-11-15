@@ -1,0 +1,36 @@
+name: Judge dashboard visual browser smoke
+
+on:
+  push:
+    paths:
+      - "hackathon_app.py"
+      - "qa/hackathon_home_browser_smoke.py"
+      - ".github/workflows/hackathon-visual-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chrome-dashboard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install minimal UI and Chromium tools
+        run: |
+          python -m pip install numpy 'meshio>=5.3,<6' 'streamlit>=1.35,<2' 'plotly>=5.22,<7' playwright
+          python -m playwright install --with-deps chromium
+      - name: Verify desktop and mobile dashboard visuals
+        run: python qa/hackathon_home_browser_smoke.py
+      - name: Store accepted real UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forceforge-judge-ui-visuals
+          path: qa/judge_home_visual/*.png
+          retention-days: 7
+          if-no-files-found: ignore
