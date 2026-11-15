@@ -28,7 +28,7 @@ from forceforge.modal_benchmark import (
 )
 from forceforge.solid3d import SolidCase, solve_solid
 import studio_cad_api as cad_api
-from forceforge.engineering_agent import CadProposal, propose_cad_inputs, confirm_cad_inputs
+from forceforge.engineering_agent import CadProposal, propose_cad_inputs, confirm_cad_inputs, is_parameter_request
 
 ROOT = Path(__file__).resolve().parent
 WEB = ROOT / "studio"
@@ -439,7 +439,7 @@ class StudioHandler(BaseHTTPRequestHandler):
         if route not in ("/api/solve", "/api/calibrate", "/api/redesign",
                          "/api/cad/solve", "/api/cad/revise", "/api/cad/import",
                          "/api/cad/fetch-nist", "/api/cad/agent/preview",
-                         "/api/cad/agent/confirm"):
+                         "/api/cad/agent/confirm", "/api/cad/agent/ask"):
             self.send_error(404, "Unknown API endpoint")
             return
         try:
@@ -459,13 +459,16 @@ class StudioHandler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(size).decode("utf-8"))
             if not isinstance(payload, dict):
                 raise ValueError("Body must be a JSON object")
-            if route in ("/api/cad/agent/preview", "/api/cad/agent/confirm"):
+            if route in ("/api/cad/agent/preview", "/api/cad/agent/confirm", "/api/cad/agent/ask"):
                 if not isinstance(payload.get("current"), dict):
                     raise ValueError("Current CAD parameters must be a JSON object")
                 current = cad_api.options(payload["current"])
-                if route.endswith("preview"):
+                if route.endswith("ask") and not is_parameter_request(payload["prompt"]):
+                    answer = cad_api.answer_question(payload["prompt"], payload.get("review_id"), current)
+                    return self._json({"kind":"answer", "answer":answer})
+                if route.endswith(("preview", "ask")):
                     proposal = propose_cad_inputs(payload["prompt"], current)
-                    return self._json({"proposal": proposal.model_dump(),
+                    return self._json({"kind":"proposal", "proposal": proposal.model_dump(),
                                        "note": "Preview only; no geometry or FEA calculation started."})
                 confirmed = confirm_cad_inputs(CadProposal.model_validate(payload["proposal"]), current)
                 return self._json({"parameters": confirmed,

@@ -280,8 +280,19 @@ const cadUI = (() => {
       agentProposal=null;$cad("cad-agent-confirm").disabled=true;
       const snapshot=JSON.stringify(param),prompt=$cad("cad-agent-brief").value;
       try{
-        const response=await request("/api/cad/agent/preview",{current:{...param},prompt});
+        const effective={...param};
+        if(showRevision&&revision?.revision){
+          if(param.source==="generated")effective.web_mm=param.revision_web_mm;
+          else effective.token=param.revision_token;
+        }
+        const response=await request("/api/cad/agent/ask",{current:effective,prompt,
+          review_id:display()?.engineering_review?.review_id});
         if(snapshot!==JSON.stringify(param)||prompt!==$cad("cad-agent-brief").value)throw Error("Inputs changed; preview again.");
+        if(response.kind==="answer"){
+          $cad("cad-agent-output").textContent=response.answer.text+"\n\n"+response.answer.note;
+          return;
+        }
+        if(showRevision)throw Error("Switch to the original CAD result before proposing changes to its controls.");
         agentProposal=response.proposal;agentSnapshot=snapshot;agentPrompt=prompt;
         $cad("cad-agent-output").textContent=JSON.stringify(agentProposal.changes,null,2)+"\n"+response.note;
         $cad("cad-agent-confirm").disabled=false;

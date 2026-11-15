@@ -20,11 +20,13 @@ from forceforge.step_mesh import (
 )
 from forceforge.cad_solid import CadLoad, solve_cad_mesh
 from forceforge.isolated_cad import generate_bracket_safely, analyze_step_safely
-from forceforge.engineering_agent import review_cad_result
+from forceforge.engineering_agent import review_cad_result, answer_cad_question
+from forceforge.provenance import context_id
 
 _MAX_CACHE_BYTES = 64 * 1024 * 1024
 _CACHE: OrderedDict[str, tuple[bytes, str]] = OrderedDict()
 _LOCK = RLock()
+_REVIEWS: OrderedDict[str, tuple[str, str]] = OrderedDict()
 ALLOWED_WEB_MM = (8, 10, 12, 14)
 
 
@@ -151,7 +153,7 @@ def _mesh_payload(result, scale):
     }
 
 
-def _report(result, token, scale, include_mesh=True) -> dict:
+def _report(result, token, scale, include_mesh=True, *, input_context=None) -> dict:
     m, load = result.mesh, result.load
     bbox = np.asarray(m.bbox_m) * 1000
     body = {
@@ -185,13 +187,31 @@ def _report(result, token, scale, include_mesh=True) -> dict:
     }
     if include_mesh:
         body["mesh"] = _mesh_payload(result, scale)
+    if input_context is not None:
+        review = body["engineering_review"]
+        with _LOCK:
+            _REVIEWS[review["review_id"]] = (context_id(input_context), json.dumps(review, allow_nan=False))
+            _REVIEWS.move_to_end(review["review_id"])
+            while len(_REVIEWS) > 32:
+                _REVIEWS.popitem(last=False)
     return body
+
+
+def answer_question(question: str, review_id: str, current: dict) -> dict:
+    """Retrieve server-held FE evidence, never accept client-authored results."""
+    with _LOCK:
+        entry = _REVIEWS.get(review_id)
+    if entry is None:
+        raise ValueError("No completed CAD evidence is available; run the current case first")
+    if entry[0] != context_id(options(current)):
+        raise ValueError("CAD inputs changed; solve the current case before asking about its results")
+    return answer_cad_question(question, json.loads(entry[1]))
 
 
 def analyze(payload: dict) -> dict:
     p = options(payload)
     result, token = _solve(p)
-    return _report(result, token, p["visual_scale"])
+    return _report(result, token, p["visual_scale"], input_context=p)
 
 
 def revise(payload: dict) -> dict:
@@ -214,8 +234,8 @@ def revise(payload: dict) -> dict:
         raise ValueError("The revised STEP has the same source SHA-256 as the original")
     return {
         "workspace": "cad",
-        "original": _report(original, old_token, p["visual_scale"], False),
-        "revision": _report(new, new_token, p["visual_scale"], True),
+        "original": _report(original, old_token, p["visual_scale"], False, input_context=p),
+        "revision": _report(new, new_token, p["visual_scale"], True, input_context=revised_input),
         "mass_delta_percent": 100 * (new.mass_kg / original.mass_kg - 1),
         "model_note": "Both actual STEP geometries were meshed and solved independently "
                       "under the same assumed material, fixture and transverse loading.",

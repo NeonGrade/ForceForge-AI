@@ -508,3 +508,8 @@ Integrated engineering v0.9 isolated CAD runtime and v1.0 three-mesh evidence wi
 Added solver/input-bound truss training, whole-height holdout, prediction-versus-FEA evidence, and stale-model rejection.
 Added bilingual CAD brief preview, explicit context-checked confirmation, and deterministic source-locked FE critiques. Spatial CAD jobs now use bounded isolated workers.
 Preserved earlier version records; no physical static qualification, arbitrary-CAD surrogate, local-stress convergence or certification is asserted.
+
+ENGLISH-FIRST ENGINEERING AGENT — 2026-11-14
+Made English engineering questions and natural parameter requests the primary Agent acceptance path. Added value-before-noun phrases, percentage changes and double/halve requests with explicit confirmation.
+Added English evidence-grounded diagnosis, result, mesh, redesign-workflow, ML-scope and validation answers from bounded server-held FE reviews; changed inputs require new evidence. Questions never run the solver or accept client-invented results.
+Retained Chinese compatibility; documented supported topics and clarification behavior.

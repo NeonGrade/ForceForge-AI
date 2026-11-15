@@ -172,12 +172,12 @@
       </div>
       <div class="setting-set" id="cad-settings" hidden>
         <div class="setting-heading">CAD MODEL / SOURCE</div>
-        <label for="cad-agent-brief">Design brief · offline Agent</label>
-        <textarea id="cad-agent-brief" class="agent-brief" rows="3" maxlength="4000" placeholder="Force 250 N, mesh 12 mm, web 10 mm"></textarea>
-        <button type="button" class="secondary-action" id="cad-agent-preview">Preview extracted parameters</button>
+        <label for="cad-agent-brief">Ask an engineering question · English-first Agent</label>
+        <textarea id="cad-agent-brief" class="agent-brief" rows="3" maxlength="4000" placeholder="Why is this design failing? Or: increase the load by 20% and use a 12 mm mesh."></textarea>
+        <button type="button" class="secondary-action" id="cad-agent-preview">Understand English request</button>
         <pre id="cad-agent-output" class="small-note" role="status" aria-live="polite"></pre>
         <button type="button" class="sheet-action" id="cad-agent-confirm" disabled>Confirm parameters and run FEA</button>
-        <span class="small-note">Only explicit CAD inputs are proposed. Preview never starts a solver; changing controls invalidates the proposal.</span>
+        <span class="small-note">Ask about stress, displacement, mesh evidence or next steps. Questions use the completed FEA result. Parameter changes are previewed and need confirmation; understanding a request never runs a solver.</span>
         <label for="cad-source-choice">Source type</label>
         <select id="cad-source-choice"><option value="generated">Generated bracket · example</option><option value="uploaded">Imported STEP (single body)</option></select>
         <div class="cad-source-actions">

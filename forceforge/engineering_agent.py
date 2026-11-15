@@ -45,20 +45,39 @@ def propose_cad_inputs(prompt: str, current: dict, *, profile="studio") -> CadPr
     prompt = prompt.replace("−", "-")
     number = r"([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)"
     fields = {
-        "force_n": (r"\bforce\b|\bload\b|载荷|荷载|力", r"kN|N|千牛|牛顿", {"kn":1000, "n":1, "千牛":1000, "牛顿":1}),
-        "mesh_size_mm": (r"\bmesh(?:\s+size)?\b|网格(?:尺寸)?", r"mm|cm|m|毫米|厘米|米", {"mm":1, "cm":10, "m":1000, "毫米":1, "厘米":10, "米":1000}),
+        "force_n": (r"\bforce\b|\bload\b|\bapply(?:\s+a)?\b|载荷|荷载|力", r"kN|newtons?|N|千牛|牛顿", {"kn":1000, "newton":1, "newtons":1, "n":1, "千牛":1000, "牛顿":1}),
+        "mesh_size_mm": (r"\bmesh(?:\s+(?:size|spacing))?\b|\belement\s+size\b|网格(?:尺寸)?", r"mm|cm|m|毫米|厘米|米", {"mm":1, "cm":10, "m":1000, "毫米":1, "厘米":10, "米":1000}),
         "web_mm": (r"\bweb(?:\s+thickness)?\b|腹板(?:厚度)?", r"mm|cm|m|毫米|厘米|米", {"mm":1, "cm":10, "m":1000, "毫米":1, "厘米":10, "米":1000}),
         "E_gpa": (r"\bYoung(?:'s)?(?:\s+modulus)?\b|\bmodulus\b|\bE\b|弹性模量", r"GPa|MPa", {"gpa":1, "mpa":.001}),
         "yield_mpa": (r"\byield(?:\s+(?:stress|limit))?\b|屈服(?:应力|强度)?", r"GPa|MPa", {"gpa":1000, "mpa":1}),
     }
     changes = {}
     for key, (label, units, factors) in fields.items():
-        pattern = (rf"(?:{label})\s*(?:(?:to|of|is|为|设为|改为|=|:|：)\s*)?"
+        pattern = (rf"(?:{label})\s*(?:(?:is\s+set\s+to|should\s+be|to|at|of|is|为|设为|改为|=|:|：)\s*)?"
                    rf"{number}\s*({units})(?![A-Za-z])")
         matches = list(re.finditer(pattern, prompt, re.I))
-        if re.search(label, prompt, re.I) and not matches:
-            raise ValueError(f"Specify an explicit numeric value and supported unit for {key}")
+        # English commonly puts a value before its noun: 'a 12 mm mesh'.
+        suffix = rf"{number}\s*({units})(?![A-Za-z])\s+(?:{label})"
+        matches += list(re.finditer(suffix, prompt, re.I))
         values = [float(m.group(1)) * factors[m.group(2).lower()] for m in matches]
+        percentages = list(re.finditer(
+            rf"\b(increase|raise|reduce|decrease|lower)\s+(?:the\s+)?(?:{label})\s+by\s+{number}\s*(?:%|percent\b)",
+            prompt, re.I))
+        multipliers = list(re.finditer(rf"\b(double|halve)\s+(?:the\s+)?(?:{label})", prompt, re.I))
+        if percentages or multipliers:
+            base = current.get(key)
+            if isinstance(base, bool) or not isinstance(base, (int, float)) or not math.isfinite(base):
+                raise ValueError(f"Relative changes require a finite current {key}")
+            for match in percentages:
+                percent = float(match.group(2))
+                if not math.isfinite(percent) or percent < 0:
+                    raise ValueError("Percentage must be finite and nonnegative")
+                sign = 1 if match.group(1).lower() in ("increase", "raise") else -1
+                values.append(base * (1 + sign * percent / 100))
+            for match in multipliers:
+                values.append(base * (2 if match.group(1).lower() == "double" else .5))
+        if re.search(label, prompt, re.I) and not values:
+            raise ValueError(f"Specify an explicit numeric value and supported unit for {key}")
         if values:
             if not all(math.isclose(v, values[0], rel_tol=1e-12, abs_tol=1e-12) for v in values):
                 raise ValueError(f"Conflicting values for {key}")
@@ -74,6 +93,78 @@ def confirm_cad_inputs(proposal: CadProposal, current: dict) -> dict:
         raise ValueError("Inputs changed after the proposal; preview it again before confirming")
     _validate_changes(proposal.changes, current, proposal.profile)
     return {**current, **proposal.changes}
+
+
+def is_parameter_request(prompt: str) -> bool:
+    """Route ordinary English questions separately from bounded input changes."""
+    if not isinstance(prompt, str) or not 0 < len(prompt) <= 4000:
+        raise ValueError("Engineering question must contain 1–4000 characters")
+    if re.match(r"\s*(why\b|what\s+(?:is|are)\b|how\s+(?:accurate|much)\b|is\s+this\b|has\b|which\b)", prompt, re.I):
+        return False
+    return bool(re.search(r"\d|\b(?:double|halve)\b", prompt, re.I))
+
+
+def answer_cad_question(question: str, review: dict) -> dict:
+    """Answer English engineering questions only from a completed solver review."""
+    if not isinstance(question, str) or not 0 < len(question) <= 4000:
+        raise ValueError("Engineering question must contain 1–4000 characters")
+    evidence = {key:value for key,value in review.items() if key != "review_id"}
+    if review.get("review_id") != context_id(evidence):
+        raise ValueError("Review evidence has changed; obtain a fresh solver review")
+    text = question.lower()
+    m, source = review["metrics"], review["source_sha256"]
+    citation = ["source_sha256", "assumed_load_and_material.force_n"]
+    load = review["assumed_load_and_material"]["force_n"]
+    if re.search(r"\bsafe\b|certif|real.world|physical.*valid|measured", text):
+        topic = "validation_scope"
+        answer = "This computed result cannot establish real-world safety or certification. " + " ".join(review["limitations"])
+        citation += ["limitations"]
+    elif re.search(r"\bml\b|surrogate|machine learning", text):
+        topic = "ml_scope"
+        answer = ("The Random Forest surrogate is trained for the three 2D truss families, not imported STEP "
+                  "or tetra10 CAD solids. Use the actual CAD FE solver for this case; its results cannot be "
+                  "replaced by the truss model's accuracy metrics.")
+        citation += ["limitations"]
+    elif re.search(r"\bfail|\bpass|\bwhy\b|\bproblem|wrong", text):
+        topic = "diagnosis"
+        ratio = m["sampled_von_mises_mpa"] / m["assumed_yield_mpa"]
+        answer = (f"The reported sampled elastic stress is {m['sampled_von_mises_mpa']:.3f} MPa "
+                  f"against an assumed yield of {m['assumed_yield_mpa']:.3f} MPa (ratio {ratio:.3f}). ")
+        answer += ("That exceeds the assumed yield; the linear-elastic result is insufficient. " if ratio > 1 else
+                   "It does not exceed that particular assumed limit; this is not an overall safety pass. ")
+        answer += "Review findings: " + ("; ".join(review["issues"]) or "only a preliminary numerical screen is available") + "."
+        citation += ["metrics.sampled_von_mises_mpa", "metrics.assumed_yield_mpa", "issues"]
+    elif re.search(r"mesh|converg|accurac|reliab", text):
+        topic = "mesh_evidence"
+        answer = (f"Mesh assessment: {review['mesh_assessment']}. "
+                  f"This solve uses {review['tetrahedra']} input tetrahedra at target size {review['mesh_size_mm']:g} mm. "
+                  "Use the source-locked three-mesh study to check sensitivity. Global displacement stability "
+                  "does not establish convergence of local peak stress.")
+        citation += ["mesh_assessment", "tetrahedra", "mesh_size_mm"]
+    elif re.search(r"lighter|optimi|redesign|improv|next|recommend|reduce.*mass", text):
+        topic = "next_steps"
+        answer = (f"The reported mass is {m['mass_kg']:.5f} kg. To assess a lighter design, use the CAD revision "
+                  "workflow to independently remesh and solve candidate geometry under the same load, material "
+                  "and supports, then compare mass, displacement and sampled stress. Run the mesh-sensitivity "
+                  "study as a separate evidence check. No improved candidate has been calculated by this answer.")
+        citation += ["metrics.mass_kg", "mesh_assessment"]
+    elif re.search(r"stress|von.?mises|displacement|deflection|movement|mass|result", text):
+        topic = "results"
+        answer = (f"Reported tip displacement: {m['tip_displacement_mm']:.5f} mm; "
+                  f"maximum nodal displacement: {m['max_displacement_mm']:.5f} mm; "
+                  f"sampled von Mises: {m['sampled_von_mises_mpa']:.3f} MPa; mass: {m['mass_kg']:.5f} kg. "
+                  "These are FE predictions, not physical measurements.")
+        citation += ["metrics.tip_displacement_mm", "metrics.max_displacement_mm", "metrics.sampled_von_mises_mpa", "metrics.mass_kg"]
+    else:
+        topic = "clarification"
+        answer = ("I can explain this completed result, diagnose assumed-limit or mesh-evidence gaps, and "
+                  "suggest a verified redesign workflow. Try 'Why is this design failing?', 'Has the mesh "
+                  "converged?', or 'How can I make this lighter?'. For a new calculation, specify a change "
+                  "such as 'Increase the load to 300 N' and confirm the extracted parameters.")
+    return {"language":"en", "topic":topic,
+            "text": f"For the completed {load:g} N case (CAD {source[:12]}): " + answer,
+            "evidence_fields":citation, "review_id":review["review_id"],
+            "note":"No new solve was run. Change requests require parameter preview and confirmation."}
 
 
 def review_cad_result(result, *, mesh_evidence=None, expected_source=None,
