@@ -232,11 +232,28 @@ def _collect_vtk(root: Path) -> dict:
         except Exception:
             continue
         fields={k.lower():v for k,v in obj.point_data.items()}
-        if "u" not in fields or "p" not in fields:
-            continue
-        pts=np.asarray(obj.points,dtype=float)
-        vel=np.asarray(fields["u"],dtype=float)
-        pres=np.asarray(fields["p"],dtype=float).reshape(-1)
+        if "u" in fields and "p" in fields:
+            pts=np.asarray(obj.points,dtype=float)
+            vel=np.asarray(fields["u"],dtype=float)
+            pres=np.asarray(fields["p"],dtype=float).reshape(-1)
+        else:
+            # foamToVTK frequently writes cell-centred finite-volume
+            # fields rather than nodal fields. Sample actual cell centres,
+            # never fill absent solver values with zeros or approximations.
+            blocks=obj.cell_data
+            names={k.lower():v for k,v in blocks.items()}
+            if "u" not in names or "p" not in names:
+                continue
+            if len(names["u"])!=len(obj.cells) or len(names["p"])!=len(obj.cells):
+                continue
+            pts=np.concatenate([
+                np.asarray(obj.points,dtype=float)[cell.data].mean(axis=1)
+                for cell in obj.cells
+            ])
+            vel=np.concatenate([np.asarray(v,dtype=float) for v in names["u"]])
+            pres=np.concatenate([
+                np.asarray(v,dtype=float).reshape(-1) for v in names["p"]
+            ])
         if (pts.ndim!=2 or pts.shape[1]!=3 or vel.shape!=pts.shape
                 or pres.shape!=(len(pts),) or len(pts)<20):
             continue
