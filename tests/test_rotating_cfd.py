@@ -182,6 +182,92 @@ def test_polyhedron_resistance_and_field_only_recovery(tmp_path, monkeypatch):
         assert f["physical_time_s"].tolist()==[.002,.004,.006]
 
 
+
+def _make_polyhedron_vtk_fixture(path: Path, flow_speed: float):
+    """Construct VTK type-42 cells with U/p data; NOT a CFD solver."""
+    vtk=pytest.importorskip("vtk")
+    from vtkmodules.util.numpy_support import numpy_to_vtk
+    volume=vtk.vtkUnstructuredGrid()
+    points=vtk.vtkPoints()
+    volume.SetPoints(points)
+    offsets=((0,0,0),(1,0,0),(1,1,0),(0,1,0),
+             (0,0,1),(1,0,1),(1,1,1),(0,1,1))
+    faces=((0,3,2,1),(4,5,6,7),(0,1,5,4),
+           (1,2,6,5),(2,3,7,6),(3,0,4,7))
+    for j in range(30):
+        ids=[points.InsertNextPoint(j*.2+dx*.1,dy*.1,dz*.1)
+             for dx,dy,dz in offsets]
+        face_stream=vtk.vtkCellArray()
+        for face in faces:
+            face_stream.InsertNextCell(4,[ids[k] for k in face])
+        volume.InsertNextCell(vtk.VTK_POLYHEDRON,8,ids,face_stream)
+    u=numpy_to_vtk(np.tile([flow_speed,.1,0.],(30,1)),deep=True)
+    u.SetName("U")
+    volume.GetCellData().AddArray(u)
+    p=numpy_to_vtk(np.linspace(.1,.3,30),deep=True)
+    p.SetName("p")
+    volume.GetCellData().AddArray(p)
+    writer=vtk.vtkUnstructuredGridWriter()
+    writer.SetFileName(str(path))
+    writer.SetFileTypeToASCII()
+    writer.SetInputData(volume)
+    assert writer.Write()==1
+
+
+def test_old_type42_vtk_recovers_without_docker(tmp_path,monkeypatch):
+    import forceforge.rotating_cfd as cfd
+    root_dir=tmp_path/"jobs"
+    job_id="f"*16
+    root=root_dir/job_id
+    vdir=root/"case"/"VTK"
+    vdir.mkdir(parents=True)
+    for index in (1,2,3):
+        _make_polyhedron_vtk_fixture(vdir/f"case_{index}.vtk",float(index))
+    solver=("Courant Number mean: 0.01 max: 0.1\n"
+            "Time = 0.002\nTime = 0.004\nTime = 0.006\nEnd\n")
+    (root/"log.pimpleFoam").write_text(solver)
+    (root/"status.json").write_text(json.dumps({
+        "status":"FAILED",
+        "stage":"POSTPROCESS_RECOVERY_FAILED",
+        "solved":True,
+        "geometry_origin":SCENE_KIND,
+        "solver_log_sha256":sha256(solver.encode()).hexdigest(),
+        "controls":{"end_time_s":0.006},
+    }))
+    monkeypatch.setattr(cfd,"ROOT",root_dir)
+    def no_docker(*args,**kwargs):
+        raise AssertionError("No Docker or foamToVTK allowed for existing VTK")
+    monkeypatch.setattr(cfd,"docker_ready",no_docker)
+    monkeypatch.setattr(cfd,"_docker",no_docker)
+    solved=recover_fields_only(job_id)
+    assert solved["status"]=="COMPLETED"
+    assert solved["stage"]=="REAL_TRANSIENT_FIELDS_READY"
+    assert solved["recovery_method"]=="EXISTING_VTK_NO_DOCKER"
+    assert solved["result"]["frame_count"]==3
+    assert "type 42" in solved["result"]["polyhedron_handling"]
+    assert len(solved["result"]["source_vtk_files"])==3
+    with np.load(root/"actual_cfd_frames.npz",allow_pickle=False) as result:
+        assert result["physical_time_s"].tolist()==[.002,.004,.006]
+        assert result["velocity_m_s"].shape==(3,30,3)
+        assert result["velocity_m_s"][2,0,0]==pytest.approx(3.0)
+    assert recover_fields_only(job_id)["status"]=="COMPLETED"
+
+
+def test_old_vtk_time_mapping_uses_verified_solver_log(tmp_path):
+    import forceforge.rotating_cfd as cfd
+    vtk_dir=tmp_path/"case"/"VTK"
+    vtk_dir.mkdir(parents=True)
+    for index in (0,2,4,8):
+        (vtk_dir/f"case_{index}.vtk").write_text("fixture marker")
+    records=cfd._legacy_vtk_records(
+        tmp_path,[.001,.002,.003,.004,.005,.006,.007,.008]
+    )
+    assert [path.name for path,t in records]==[
+        "case_2.vtk","case_4.vtk","case_8.vtk"
+    ]
+    assert [t for path,t in records]==[.002,.004,.008]
+
+
 def test_meshio_system_exit_fails_closed_instead_of_stale_running(
     tmp_path,monkeypatch
 ):
