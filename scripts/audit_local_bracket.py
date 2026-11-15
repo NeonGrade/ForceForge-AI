@@ -49,7 +49,16 @@ def main():
         "local_refinement_tetra":[r.mesh_tetra_count for r in local_study.steps],
         "local_refinement_status":local_study.status,
         "local_last_peak_percent":local_study.peak_change_percent,
-        "local_last_probe_mean_percent":local_study.region_mean_change_percent
+        "local_last_probe_mean_percent":local_study.region_mean_change_percent,
+        "local_last_probe_p90_percent":local_study.region_p90_change_percent,
+        "local_hotspot_movement_mm":local_study.hotspot_move_mm,
+        "local_peak_near_ideal_support":local_study.peak_near_fixed_boundary,
+        "local_refinement_monotone":local_study.refinement_mono,
+        "local_verdict_explanation":local_study.explanation,
+        "local_peak_coordinates_mm":[r.peak_xyz_mm for r in local_study.steps],
+        "local_sampled_stresses_mpa":[r.global_peak_mpa for r in local_study.steps],
+        "local_probe_mean_mpa":[r.region_mean_mpa for r in local_study.steps],
+        "local_probe_p90_mpa":[r.region_p90_mpa for r in local_study.steps],
     },indent=2))
     # Do not claim targeted refinement when actual tetra counts fail to grow.
     if not local_study.refinement_mono:
