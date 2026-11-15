@@ -53,10 +53,14 @@ def test_one_port_serves_both_real_api_namespaces(tmp_path):
     try:
         with urlopen(base + '/') as response:
             html = response.read().decode()
+            assert '<title>ForceForge AI' in html
+            assert 'id="intro"' in html
+            assert 'href="/workspace/"' in html
+        with urlopen(base + '/workspace/') as response:
+            html = response.read().decode()
+            assert 'WORKSPACE v1.0' in html
             assert 'id="open3d"' in html
             assert 'id="integratedStudioFrame"' in html
-        with urlopen(base + '/workspace/') as response:
-            assert b'WORKSPACE v1.0' in response.read()
         with urlopen(base + '/api/workspace') as response:
             info = json.load(response)
             assert info['workspace_version'] == WORKSPACE_VERSION
