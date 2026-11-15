@@ -47,7 +47,7 @@ with sync_playwright() as tool:
         check=True,timeout=180)
     (out/'SOURCE_AND_SCOPE.txt').write_text(
        'Real OpenFOAM reference rotor + genuine solved U/p snapshot.\n'
-       'Source CI: https://github.com/NeonGrade/ForceForge-AI/actions/runs/43674796795\n'
+       'Source CI: https://github.com/NeonGrade/ForceForge-AI/actions/runs/43675405946\n'
        'Only original STL geometry rotates. NOT interpolated CFD or custom wall.\n'
        f'Browser steps: {steps}\n',encoding='utf-8')
     print('PASS: genuine reference-case OpenFOAM clip:',target,'steps',steps)

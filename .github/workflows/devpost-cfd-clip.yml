@@ -29,7 +29,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p qa/real_flow_artifact
-          gh run download 43674796795 --repo NeonGrade/ForceForge-AI \
+          gh run download 43675405946 --repo NeonGrade/ForceForge-AI \
             --name real-openfoam-ami-transient-evidence --dir qa/real_flow_artifact
       - name: Record genuine solver U/p behind rotating source rotor STL
         run: python -m qa.record_verified_cfd_clip
