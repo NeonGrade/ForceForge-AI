@@ -5,6 +5,7 @@ on:
       - main
       - "feature/**"
       - "ui/**"
+      - "integration/**"
   pull_request:
     branches:
       - main
