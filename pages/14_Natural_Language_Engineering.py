@@ -56,14 +56,21 @@ examples={
     ),
 }
 st.markdown("### 1 · Describe the product in ordinary language")
+if "nl_input_text" not in st.session_state:
+    st.session_state["nl_input_text"]=examples["Wall fan (Chinese)"]
+
+def use_selected_example():
+    st.session_state["nl_input_text"]=examples[st.session_state["nl_example_choice"]]
+
+st.selectbox(
+    "Load a supported example",
+    list(examples),
+    key="nl_example_choice",on_change=use_selected_example,
+)
 with st.form("natural_engineering_input"):
-    preset=st.selectbox(
-        "Example (optional)",["Wall fan (Chinese)","Wall fan (English)",
-                               "Real bracket FEA (Chinese)"],
-    )
     prompt=st.text_area(
         "What should ForceForge build and analyze?",
-        value=st.session_state.get("nl_input_text", examples["Wall fan (Chinese)"]),
+        key="nl_input_text",
         max_chars=1200,height=110,
         help="Currently registered: drilled L-bracket and conceptual wall fan. "
              "Any unregistered product family is explicitly rejected.",
@@ -73,7 +80,6 @@ with st.form("natural_engineering_input"):
     )
 
 if parse_clicked:
-    st.session_state["nl_input_text"]=prompt
     st.session_state["nl_interpretation"]=interpret_text(prompt)
     st.session_state.pop("nl_result",None)
 
