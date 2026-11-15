@@ -18,3 +18,10 @@ input[type=number],select{border:1px solid #395061;background:#1a2b3a;color:var(
 [hidden]{display:none!important}
 @media(max-width:1050px){.top-nav{margin-left:15px}.layout{grid-template-columns:300px minmax(0,1fr)}.sidebar{padding:23px 18px}.metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.metrics article{min-height:66px}.metrics strong{font-size:18px}}
 @media(max-width:720px){body{overflow:auto}.workspace{height:auto;min-height:100dvh}.topbar{padding:10px 15px;min-height:64px;height:auto;flex-wrap:wrap}.top-nav{order:3;width:100%;margin:3px 0 0}.top-nav>*{padding:6px 9px;font-size:9px}.health{margin-left:auto}.brand-copy{min-width:150px}.layout{display:flex;flex-direction:column;min-height:auto}.sidebar{overflow:visible;border-right:0;border-bottom:1px solid var(--line);padding:18px}.sidebar-header{margin-bottom:15px}.mainview{padding:18px;overflow:visible;min-height:680px}.viewport{height:430px;min-height:430px;flex:none}.color-scale{right:9px;top:9px;transform:scale(.84);transform-origin:top right}.view-toolbar{align-items:flex-start}.view-actions{flex-direction:column}.view-actions button{padding:5px 8px}.control-strip{flex-wrap:wrap;gap:5px}.control-strip label{width:100%}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metrics article:last-child{grid-column:1/-1}}
+
+/* Shared-shell mode: the original ForceForge header/rail live in the parent. */
+body.embedded .topbar{display:none}
+body.embedded .workspace{height:100dvh}
+body.embedded .layout{min-height:0}
+body.embedded .sidebar{scrollbar-width:thin}
+@media(max-width:720px){body.embedded .workspace{height:auto;min-height:100dvh}}
