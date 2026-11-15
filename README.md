@@ -15,11 +15,11 @@ python -m pip install -r requirements-3d.txt
 python web_server.py
 ```
 
-- **2D truss/optimization/AI Workspace:** http://127.0.0.1:8000/
-- **3D Solid FEA:** http://127.0.0.1:8000/solid3d
+- **Single engineering workspace (all six tools):** http://127.0.0.1:8000/
+- **3D Solid FEA in the same shell:** http://127.0.0.1:8000/#solid3d
 - **Solver health:** http://127.0.0.1:8000/api/health
 
-The HTTP 3D page has no Streamlit/WebSocket dependency. It includes a
+The unified browser keeps all five original 2D tools and the new 3D mode in the same engineering shell. An old /solid3d URL redirects to the integrated sixth tool. The HTTP 3D page has no Streamlit/WebSocket dependency. It includes a
 rotatable colored surface, interactive deformation display, STEP solid
 import (maximum 4 MB), bounded tetrahedral meshes and explicit child process
 failure/timeout reporting. Original 2D features remain unchanged.
