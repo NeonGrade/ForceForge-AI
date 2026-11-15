@@ -59,6 +59,10 @@ def main():
         "local_sampled_stresses_mpa":[r.global_peak_mpa for r in local_study.steps],
         "local_probe_mean_mpa":[r.region_mean_mpa for r in local_study.steps],
         "local_probe_p90_mpa":[r.region_p90_mpa for r in local_study.steps],
+        "matched_two_physical_hotspot_regions":list(local_study.matched_physical_hotspot_regions),
+        "maximum_fixed_site_mean_change_percent":local_study.maximum_fixed_site_mean_change_percent,
+        "maximum_fixed_site_p90_change_percent":local_study.maximum_fixed_site_p90_change_percent,
+        "fixed_two_site_verdict":local_study.status,
     },indent=2))
     # Do not claim targeted refinement when actual tetra counts fail to grow.
     if not local_study.refinement_mono:
