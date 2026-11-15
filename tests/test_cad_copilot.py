@@ -58,7 +58,7 @@ def test_missing_api_key_is_not_mislabeled_ai(monkeypatch):
         baseline=BASE, limits=LIMITS, use_api=True,
     )
     assert plan.mode=="RULE_BASED_FULL_SEARCH"
-    assert "no API key" in plan.message.lower()
+    assert "no api key" in plan.message.lower()
 
 
 def test_valid_llm_only_changes_priority_not_eval_coverage(monkeypatch):
