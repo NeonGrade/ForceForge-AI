@@ -263,6 +263,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {"status": "ok", "backend": "forceforge", "topologies": TOPOLOGIES})
             return
         if route in ("/", "/index.html"):
+            path = ROOT / "landing" / "index.html"
+        elif route in ("/workspace", "/workspace/"):
             path = STATIC_DIR / "index.html"
         elif route in ("/style.css", "/app.js"):
             path = STATIC_DIR / route.lstrip("/")
