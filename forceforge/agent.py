@@ -26,7 +26,8 @@ def _validate(x: ProposedRequirements) -> ProposedRequirements:
 
 
 def parse_offline(prompt: str) -> ProposedRequirements:
-    number = r"(?<![\w.])([-+]?(?:\d+(?:\.\d*)?|\.\d+))\s*"
+    prompt = prompt.replace("−", "-")
+    number = r"(?<![A-Za-z0-9_.])([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)\s*"
     defaults = []
 
     def read(pattern, factors, default, label):

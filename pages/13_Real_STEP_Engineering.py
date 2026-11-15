@@ -22,6 +22,7 @@ from forceforge.isolated_cad import (
     analyze_step_safely, generate_bracket_safely,
 )
 from forceforge.mesh_verification import run_mesh_evidence, select_mesh_sizes
+from forceforge.engineering_agent import propose_cad_inputs, review_cad_result
 from forceforge.solid3d import surface_figure
 from forceforge.step_mesh import (
     MAX_CAD_BYTES, NIST_BRIDGE_URL, NIST_DATASET_DOI, NIST_PINNED_SHA256,
@@ -174,6 +175,20 @@ else:
 signature = (
     selection, source_token, float(mesh_size), unit, case,
 )
+
+with st.expander("Agent · preview CAD design requirements", expanded=False):
+    brief = st.text_input("CAD design brief", "Force 250 N, mesh 12 mm")
+    if st.button("Preview CAD parameters (no solve)"):
+        try:
+            proposed = propose_cad_inputs(brief, {
+                "source": "generated" if web is not None else "uploaded",
+                "source_token": source_token, "load": asdict(case),
+                "mesh_size_mm": mesh_size, "unit": unit,
+            }, profile="stable")
+            st.json(proposed.model_dump())
+            st.info("Review extracted values and enter them in the sidebar, then press Run. No CAD or FEA job has started.")
+        except ValueError as exc:
+            st.error(str(exc))
 
 st.subheader("Step 1 · Explicitly run the CAD-to-FEA calculation")
 if source_bytes is None and selection != "Editable 3D L-bracket":
@@ -542,6 +557,20 @@ if revised_record is not None:
         file_name="forceforge_cad_fea.json",
         mime="application/json",
     )
+
+with st.expander("Agent · evidence-grounded design review", expanded=True):
+    evidence_record = st.session_state.get("stable_mesh_evidence")
+    evidence = (evidence_record["study"] if evidence_record is not None
+                and evidence_record["signature"] == signature else None)
+    review = review_cad_result(result, mesh_evidence=evidence,
+                              expected_source=sha256(saved["source"]).hexdigest(),
+                              expected_load=case)
+    st.write(review["summary"])
+    for issue in review["issues"]:
+        st.warning(issue)
+    st.caption(" ".join(review["limitations"]))
+    st.download_button("Export Agent review (JSON)", json.dumps(review, indent=2),
+                       "forceforge_agent_review.json", "application/json")
 
 with st.expander("Source, numerical limits and qualification gaps"):
     st.write(
