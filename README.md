@@ -458,3 +458,26 @@ AI-generated approval stamp.
 For demo: `python -m streamlit run app.py` → sidebar page **Cross Industry
 Platform**. The previously working main FEA and Advanced Structural Lab pages
 are retained. See `docs/CROSS_INDUSTRY_PLATFORM.md` for model scope and tests.
+
+
+## Plain language CAD product catalog (PR #16)
+
+The Natural Language Engineering page is an extensible, bounded catalog:
+real OpenCASCADE STEP generated from explicit dimensions, never an
+arbitrary-language general-purpose feature-tree CAD engine.
+
+| Supported description | Inputs needed | Real deliverable | Numerical boundary |
+| --- | --- | --- | --- |
+| L-bracket | thickness in {8,10,12,14} mm | real drilled STEP; validated isolated tetra10 FEA with specified/approved loads | qualified joints/fatigue NOT supplied |
+| Wall-mounted axial fan | diameter, blades, hub diameter, blade pitch | conceptual multibody STEP; separate idealized air-domain mesh | wall anchor/contact/CFD of this design still BLOCKED |
+| Hollow shaft/sleeve | outer diameter, bore diameter, length | real single-solid STEP (subtractive bore) | FEA/CFD BLOCKED |
+| Rectangular mounting plate | length, width, thickness; optional 4 hole diameters and edge margin | real OCC STEP with genuine through-holes | FEA/CFD BLOCKED |
+
+Example: "Make a hollow shaft outer diameter 60 mm inner diameter 30 mm length 120 mm".
+Example: "Make a mounting plate length 150 mm width 100 mm thickness 8 mm with 4 holes, hole diameter 6 mm, hole edge offset 15 mm".
+
+The transient CFD page can additionally display the actual rotor surface from
+a COMPLETED OpenFOAM solver case as a continuous kinematic loop beside a
+fixed verified U/p field snapshot. Three computed flow snapshots do not
+become forty-nine physically computed CFD time frames through this display.
+OpenFOAM job-state recovery uses the original solver evidence.

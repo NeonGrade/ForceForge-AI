@@ -32,3 +32,20 @@ def test_nl_page_handles_unknown_product_without_invoking_cad():
     assert not app.exception
     assert app.session_state["nl_interpretation"].request is None
     assert "nl_result" not in app.session_state
+
+
+
+def test_extended_plain_language_catalog_is_idle_until_clicked():
+    app=AppTest.from_file(PAGE,default_timeout=45).run()
+    assert not app.exception
+    choice=next(x for x in app.selectbox if x.label=="Load a supported example")
+    assert "Hollow shaft / sleeve (Chinese)" in choice.options
+    choice.set_value("Hollow shaft / sleeve (Chinese)").run()
+    source=next(x for x in app.text_area
+                if x.label=="What should ForceForge build and analyze?")
+    assert "外径60mm" in source.value
+    submit=next(x for x in app.button if x.label=="Interpret engineering requirements")
+    submit.click().run()
+    assert not app.exception
+    assert app.session_state["nl_interpretation"].request.family.value=="hollow_shaft"
+    assert "nl_result" not in app.session_state

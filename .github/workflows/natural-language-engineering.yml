@@ -17,6 +17,7 @@ on:
       - 'tests/test_real_fluid_domain.py'
       - 'tests/test_rotor_surface.py'
       - 'tests/test_nl_ui.py'
+      - 'tests/test_parametric_products.py'
       - '.github/workflows/natural-language-engineering.yml'
   pull_request:
     paths:
@@ -32,6 +33,7 @@ on:
       - 'tests/test_real_fluid_domain.py'
       - 'tests/test_rotor_surface.py'
       - 'tests/test_nl_ui.py'
+      - 'tests/test_parametric_products.py'
   workflow_dispatch:
 
 permissions:
@@ -56,7 +58,7 @@ jobs:
       - name: Schema, planner and Streamlit non-execution tests
         run: python -m pytest -q tests/test_engineering_schema.py tests/test_engineering_pipeline.py tests/test_nl_ui.py
       - name: Real isolated Gmsh/OpenCASCADE STEP + genuine bracket tetra10 FEA
-        run: python -m pytest -q tests/test_nl_native_cad.py tests/test_real_fluid_domain.py tests/test_rotor_surface.py
+        run: python -m pytest -q tests/test_nl_native_cad.py tests/test_parametric_products.py tests/test_real_fluid_domain.py tests/test_rotor_surface.py
       - name: Existing CAD/FEA regression samples
         run: python -m pytest -q tests/test_step_gmsh.py tests/test_cad_solid.py tests/test_isolated_cad.py tests/test_real_step_ui.py
 
@@ -72,4 +74,4 @@ jobs:
       - name: Install physics and native Gmsh on Mac
         run: python -m pip install -r requirements.txt 'gmsh>=4.12,<5'
       - name: Real STEP families, physical pipeline, and UI compatibility
-        run: python -m pytest -q tests/test_engineering_schema.py tests/test_engineering_pipeline.py tests/test_nl_native_cad.py tests/test_real_fluid_domain.py tests/test_rotor_surface.py tests/test_nl_ui.py
+        run: python -m pytest -q tests/test_engineering_schema.py tests/test_engineering_pipeline.py tests/test_parametric_products.py tests/test_nl_native_cad.py tests/test_real_fluid_domain.py tests/test_rotor_surface.py tests/test_nl_ui.py
