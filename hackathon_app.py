@@ -245,7 +245,7 @@ def _sourced_velocity_plot(fields:dict)->go.Figure:
     axis=dict(
         showbackground=False,showgrid=True,gridcolor="#264358",
         zeroline=False,tickfont=dict(color="#bfd3e0",size=9),
-        titlefont=dict(color="#bfd3e0",size=10)
+        color="#bfd3e0"
     )
     fig.update_layout(
         height=350,showlegend=False,margin=dict(l=0,r=0,t=0,b=0),
