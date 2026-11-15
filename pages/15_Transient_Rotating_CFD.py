@@ -215,6 +215,25 @@ if st.button(
     except (RuntimeError,OSError,ValueError) as exc:
         st.error("Could not start native CFD: "+str(exc))
 
+# Persisted on disk as a bounded, hash-keyed job. A browser refresh or
+# Streamlit WebSocket restart must NOT force re-running the Navier-Stokes solve.
+with st.expander("Recover an existing real CFD job after browser reconnect"):
+    remembered=st.text_input(
+        "Existing verified local CFD job ID",
+        max_chars=16,key="forceforge_restore_cfd_id",
+    )
+    if st.button("Restore existing CFD results",key="forceforge_restore_button"):
+        try:
+            snapshot=job_status(remembered.strip())
+            if snapshot.get("status") not in (
+                "RUNNING","SOLVER_FINISHED_UNVERIFIED_FIELDS","COMPLETED","FAILED"
+            ):
+                raise ValueError("No persisted actual CFD run exists for that job ID")
+            st.session_state["forceforge_reference_cfd_job"]=remembered.strip()
+            st.success("Recovered the original CFD job without starting another solver")
+        except (ValueError,OSError,KeyError) as exc:
+            st.error("Cannot restore requested real CFD job: "+str(exc))
+
 job=st.session_state.get("forceforge_reference_cfd_job")
 if job:
     with st.container(border=True):
