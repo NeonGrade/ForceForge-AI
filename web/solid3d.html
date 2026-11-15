@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="theme-color" content="#0b111b"/>
+  <title>ForceForge AI | 3D Solid FEA</title>
+  <link rel="stylesheet" href="/solid3d.css"/>
+  <script src="/solid3d.js" defer></script>
+</head>
+<body>
+  <div class="workspace">
+    <header class="topbar">
+      <div class="brand-mark" aria-hidden="true">F<span>F</span></div>
+      <div class="brand-copy"><strong>FORCEFORGE <em>AI</em></strong><small>ENGINEERING WORKSPACE / 3D SOLID</small></div>
+      <nav class="top-nav"><a href="/" title="Return to the existing 2D truss workspace">2D TRUSS WORKSPACE</a><span class="tab-current">3D SOLID FEA</span></nav>
+      <div id="health" class="health"><span class="light"></span><span id="healthText">Checking server</span></div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <div class="sidebar-header"><span class="eyebrow">STUDY SETUP</span><h1>3D Solid Mechanics</h1><p>Real tetrahedral FEA with a crash-isolated Gmsh solver.</p></div>
+        <form id="studyForm">
+          <section class="form-section">
+            <h2><span class="section-number">01</span> GEOMETRY</h2>
+            <label class="field-label" for="geometry">Source geometry</label>
+            <select id="geometry" name="geometry"><option value="box">Built-in solid block</option><option value="step">Import STEP solid (experimental)</option></select>
+            <div id="boxFields" class="grid-fields">
+              <label>Length · X (mm)<input id="length" type="number" min="20" max="500" step="1" value="100" required/></label>
+              <label>Width · Y (mm)<input id="width" type="number" min="5" max="150" step="1" value="20" required/></label>
+              <label>Height · Z (mm)<input id="height" type="number" min="5" max="150" step="1" value="20" required/></label>
+            </div>
+            <div id="stepFields" hidden>
+              <label class="file-target" for="stepFile">Choose a STEP file · .step / .stp<input id="stepFile" type="file" accept=".step,.stp" /></label>
+              <div id="filename" class="field-hint">No file selected · maximum 4 MB</div>
+              <label class="field-label" for="cadUnit">STEP coordinate unit</label>
+              <select id="cadUnit"><option value="mm">Millimeters (mm)</option><option value="m">Meters (m)</option><option value="inch">Inches (in)</option></select>
+              <p class="field-hint">STEP imported solids are meshed; contact/tie between parts is not modeled.</p>
+            </div>
+            <label class="field-label" for="meshSize">Target tetrahedral size (mm)</label>
+            <div class="range-header"><span>Coarse ↔ Fine</span><output id="meshSizeValue">8</output></div>
+            <input id="meshSize" type="range" min="2" max="25" step="1" value="8"/>
+            <p class="field-hint">Maximum 6,000 tetrahedra for demonstration stability. Use a coarser mesh if needed.</p>
+          </section>
+
+          <section class="form-section">
+            <h2><span class="section-number">02</span> MATERIAL &amp; BOUNDARIES</h2>
+            <div class="grid-fields">
+              <label>Young's modulus (GPa)<input id="E" type="number" min=".001" max="500" step=".5" value="200" required/></label>
+              <label>Poisson ratio<input id="poisson" type="number" min="-.9" max=".49" step=".01" value=".30" required/></label>
+              <label>Signed face force (N)<input id="force" type="number" min="-100000" max="100000" step="100" value="1000" required/></label>
+            </div>
+            <label class="field-label" for="axis">Fix minimum face / load maximum face</label>
+            <select id="axis"><option value="X">X axis</option><option value="Y">Y axis</option><option value="Z">Z axis</option></select>
+            <p class="field-hint">The total load is distributed equally to nodes on the selected end face. This is an idealized nodal load, not a uniform pressure.</p>
+          </section>
+
+          <button class="primary" id="solveButton" type="submit"><span id="solveLabel">GENERATE MESH &amp; SOLVE</span><span aria-hidden="true">↗</span></button>
+          <div id="statusMessage" role="status" aria-live="polite" class="status-message">Ready · simulation runs in a separate process.</div>
+        </form>
+        <p class="disclaimer">Research prototype only. No verified fatigue, yielding, joint contact, CFD, certification or mesh convergence. Do not use for safety decisions.</p>
+      </aside>
+
+      <section class="mainview">
+        <div class="view-toolbar"><div><span class="eyebrow">STRESS VISUALIZATION</span><h2>Solid model viewport</h2></div><div class="view-actions"><button id="fitButton" type="button">FIT VIEW</button><button id="exportButton" type="button" disabled>EXPORT RESULT JSON</button></div></div>
+        <div class="viewport" id="viewport">
+          <canvas id="solidCanvas" aria-label="Rotatable 3D solid finite-element stress contour" role="img"></canvas>
+          <div id="placeholder" class="placeholder"><div class="cube-icon" aria-hidden="true">⬡</div><strong>READY FOR SOLID ANALYSIS</strong><span>Choose geometry and select Generate Mesh &amp; Solve</span></div>
+          <div class="viewport-note">Drag to rotate · Wheel to zoom · Smoothed nodal von Mises color</div>
+          <div class="color-scale"><div class="legend-title">VON MISES <span>MPa</span></div><div class="colorbar"></div><div class="legend-range"><span id="legendTop">—</span><span id="legendBottom">0.00</span></div></div>
+        </div>
+        <div class="control-strip"><label for="amplification">Deformation display amplification</label><input id="amplification" type="range" min="0" max="300" value="100"/><output id="amplificationValue">100×</output></div>
+        <div class="metrics">
+          <article><span>NODES</span><strong id="nodesMetric">—</strong></article>
+          <article><span>TETRAHEDRA</span><strong id="tetMetric">—</strong></article>
+          <article><span>MAX VON MISES</span><strong id="stressMetric">—</strong><small>MPa</small></article>
+          <article><span>MAX DISPLACEMENT</span><strong id="dispMetric">—</strong><small>mm</small></article>
+          <article><span>FORCE BALANCE RESIDUAL</span><strong id="balanceMetric">—</strong><small>N</small></article>
+        </div>
+        <div class="footnote" id="footnote">All values are computed by the Python 3D solver. Stress coloring is element-to-node averaged; peaks can differ from displayed colors.</div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
