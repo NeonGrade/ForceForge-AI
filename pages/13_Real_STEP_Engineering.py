@@ -414,11 +414,51 @@ with st.expander(
             "Mesh count · coarse → fine",
             f"{rows[0]['tetrahedra']:,} → {rows[2]['tetrahedra']:,}",
         )
-        st.line_chart(
-            df.set_index("3D tetrahedra")[
-                ["Tip displacement (mm)"]
-            ],
+        st.caption(
+            "Fine/medium stress difference = "
+            "|fine stress − medium stress| / |fine stress| × 100 "
+            "(using unrounded FEA values). "
+            f"Fixed physical-band mean difference: "
+            f"{evidence.fine_medium_probe_mean_percent:.2f}%; "
+            f"physical-band P90 difference: "
+            f"{evidence.fine_medium_probe_p90_percent:.2f}%; "
+            f"global peak moved {evidence.fine_medium_hotspot_drift_mm:.2f} mm."
         )
+        left_chart,right_chart=st.columns(2)
+        with left_chart:
+            fig=go.Figure(go.Scatter(
+                x=[row.tetrahedra for row in evidence.ordered_rows],
+                y=[row.tip_mm for row in evidence.ordered_rows],
+                mode="lines+markers", name="Physical tip movement",
+                line=dict(width=3),
+            ))
+            fig.update_layout(
+                title="Global displacement convergence",
+                xaxis_title="Actual tetrahedral elements",
+                yaxis_title="Displacement (mm)",
+                height=335,margin=dict(t=48,b=50,l=50,r=15),
+            )
+            st.plotly_chart(fig,width="stretch",key="mesh_disp_verified")
+        with right_chart:
+            fig=go.Figure()
+            for label, attr in [
+                ("Moving sampled maximum","peak_sampled_mises_mpa"),
+                ("Fixed-band volume mean","probe_weighted_mean_mpa"),
+                ("Fixed-band weighted P90","probe_weighted_p90_mpa"),
+            ]:
+                fig.add_trace(go.Scatter(
+                    x=[row.tetrahedra for row in evidence.ordered_rows],
+                    y=[getattr(row,attr) for row in evidence.ordered_rows],
+                    mode="lines+markers",name=label,
+                ))
+            fig.update_layout(
+                title="Local stress mesh sensitivity",
+                xaxis_title="Actual tetrahedral elements",
+                yaxis_title="von Mises (MPa)",
+                legend=dict(orientation="h",y=-.40),
+                height=335,margin=dict(t=48,b=80,l=50,r=15),
+            )
+            st.plotly_chart(fig,width="stretch",key="mesh_stress_verified")
         st.caption(evidence.limitations)
         st.download_button(
             "Download mesh-sensitivity evidence (JSON)",
