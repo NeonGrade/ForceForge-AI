@@ -9,6 +9,8 @@ import argparse
 import json
 import math
 import mimetypes
+from collections import OrderedDict
+from threading import Lock
 from dataclasses import replace
 from functools import lru_cache
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -19,6 +21,9 @@ import numpy as np
 import pandas as pd
 
 from forceforge.agent import interpret
+from forceforge.engineering_agent import is_parameter_request
+from forceforge.provenance import context_id, truss_context
+from forceforge.truss_agent import propose_truss_inputs, confirm_truss_inputs, answer_truss_question
 from forceforge.design import TOPOLOGIES, make_truss
 from forceforge.physics import solve
 from forceforge.robust import Requirements, best_feasible, evaluate, grid_search, pareto_front
@@ -49,6 +54,8 @@ MATERIALS = {
     "steel": (200e9, 7850.0, 250e6),
     "aluminum": (70e9, 2700.0, 150e6),
 }
+_REVIEWS = OrderedDict()
+_REVIEW_LOCK = Lock()
 
 
 class InputError(ValueError):
@@ -93,6 +100,20 @@ def parse_config(data: dict) -> tuple[Requirements, str, float, float]:
     )
     req.validate()
     return req, topology, height, area
+
+
+def canonical_config(data: dict) -> dict:
+    req, topology, height, area = parse_config(data)
+    return {"topology":topology, "material":data.get("material", "steel"),
+            "span_m":req.span_m, "height_m":height, "area_mm2":area,
+            "base_load_n":req.base_load_n, "max_displacement_mm":req.max_displacement_mm,
+            "yield_safety_factor":req.yield_safety_factor, "buckling_safety_factor":req.buckling_safety_factor,
+            "load_uncertainty":req.load_uncertainty, "e_uncertainty":req.e_uncertainty,
+            "area_uncertainty":req.area_uncertainty}
+
+
+def review_context(current: dict) -> dict:
+    return {"config":current, "physics":truss_context(parse_config(current)[0])}
 
 
 def clean(value):
@@ -172,11 +193,31 @@ def cached_grid(req: Requirements) -> pd.DataFrame:
 
 
 @lru_cache(maxsize=4)
-def cached_surrogate(req: Requirements):
-    return train(cached_grid(req))
+def cached_surrogate(req: Requirements, strategy: str = "design"):
+    return train(cached_grid(req), validation_strategy=strategy)
 
 
 def handle_api(route: str, data: dict) -> dict:
+    if route in ("/api/agent/ask", "/api/agent/confirm"):
+        if not isinstance(data.get("current"), dict):
+            raise InputError("Supply the current workspace inputs")
+        current = canonical_config(data["current"])
+        if route == "/api/agent/confirm":
+            parameters = confirm_truss_inputs(data.get("proposal"), current)
+            return {"parameters":canonical_config(parameters), "requires_review":False}
+        prompt = data.get("prompt")
+        if not isinstance(prompt, str) or not 1 <= len(prompt.strip()) <= 1600:
+            raise InputError("Enter an English question or request (1–1600 characters)")
+        if is_parameter_request(prompt):
+            proposal = propose_truss_inputs(prompt, current)
+            parameters = canonical_config(confirm_truss_inputs(proposal, current))
+            return {"kind":"proposal", "proposal":proposal.model_dump(), "parameters":parameters,
+                    "requires_review":True, "note":"Only the listed changes will be applied after confirmation. No solve has run."}
+        with _REVIEW_LOCK:
+            saved = _REVIEWS.get(data.get("review_id"))
+        if saved is None or saved[0] != context_id(review_context(current)):
+            raise InputError("Analyze the current inputs first; completed evidence is missing or stale")
+        return {"kind":"answer", "answer":answer_truss_question(prompt, json.loads(saved[1]))}
     if route == "/api/interpret":
         prompt = data.get("prompt", "")
         if not isinstance(prompt, str) or not 1 <= len(prompt.strip()) <= 1600:
@@ -189,7 +230,7 @@ def handle_api(route: str, data: dict) -> dict:
 
     req, topology, height, area = parse_config(data)
     if route == "/api/solve":
-        return {
+        payload = {
             "analysis": analysis_payload(req, topology, height, area),
             "robust": evaluate(topology, height, area, req),
             "requirements": {
@@ -199,6 +240,15 @@ def handle_api(route: str, data: dict) -> dict:
                 "load_uncertainty": req.load_uncertainty,
             },
         }
+        evidence = {"analysis":payload["analysis"], "robust":payload["robust"], "context":truss_context(req)}
+        evidence["review_id"] = context_id(evidence)
+        with _REVIEW_LOCK:
+            _REVIEWS[evidence["review_id"]] = (context_id(review_context(canonical_config(data))),
+                                               json.dumps(clean(evidence), allow_nan=False))
+            _REVIEWS.move_to_end(evidence["review_id"])
+            while len(_REVIEWS) > 32:
+                _REVIEWS.popitem(last=False)
+        return {**payload, "review_id":evidence["review_id"]}
     if route == "/api/search":
         designs = cached_grid(req)
         best = best_feasible(designs)
@@ -241,7 +291,10 @@ def handle_api(route: str, data: dict) -> dict:
             }
         return response
     if route == "/api/ml":
-        model, columns, metrics = cached_surrogate(req)
+        strategy = data.get("validation_strategy", "design")
+        if strategy not in ("design", "height"):
+            raise InputError("Validation strategy must be design or height")
+        model, columns, metrics = cached_surrogate(req, strategy)
         proposed = data.get("propose", True)
         if not isinstance(proposed, bool):
             raise InputError("propose must be a boolean")
@@ -250,6 +303,8 @@ def handle_api(route: str, data: dict) -> dict:
             "metrics": clean(metrics),
             "validation": clean(model.forceforge_validation_),
             "domain": clean(model.forceforge_domain_),
+            "context": model.forceforge_context_,
+            "requirements_id": model.forceforge_context_id_,
             "verified": clean(verified),
             "note": "Interpolation under current requirements only; every proposed candidate is re-solved using FEA.",
         }
@@ -300,7 +355,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         route = urlsplit(self.path).path
         if route not in {"/api/solve", "/api/search", "/api/challenge", "/api/ml",
-                         "/api/interpret", "/api/sensitivity"}:
+                         "/api/interpret", "/api/sensitivity", "/api/agent/ask", "/api/agent/confirm"}:
             self._json(404, {"error": "Unknown endpoint"})
             return
         origin = self.headers.get("Origin")

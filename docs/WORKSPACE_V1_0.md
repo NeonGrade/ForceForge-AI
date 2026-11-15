@@ -34,7 +34,7 @@ The interface is **Workspace v1.0.0**. This does not relabel the underlying 3D U
 | --- | --- |
 | `/workspace/` | Canonical engineering workspace; default 2D scene |
 | `/workspace/?space=3d` | Same workspace with embedded 3D Spatial Studio |
-| `/` | Backwards-compatible workspace entrance |
+| `/` | Project homepage; launch the workspace through its studio links |
 | `/api/workspace` | Workspace v1.0.0 capability metadata (3D availability flag) |
 | `/api/solve`, `/api/search`, `/api/challenge`, `/api/ml`, `/api/interpret` | Unchanged 2D physical/numerical service contract |
 | `/api/3d/catalog`, `/api/3d/solve`, `/api/3d/cad/*` | Original 3D service contract, namespaced without changing the underlying solver |

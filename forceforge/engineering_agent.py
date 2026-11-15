@@ -99,7 +99,8 @@ def is_parameter_request(prompt: str) -> bool:
     """Route ordinary English questions separately from bounded input changes."""
     if not isinstance(prompt, str) or not 0 < len(prompt) <= 4000:
         raise ValueError("Engineering question must contain 1–4000 characters")
-    if re.match(r"\s*(why\b|what\s+(?:is|are)\b|how\s+(?:accurate|much)\b|is\s+this\b|has\b|which\b)", prompt, re.I):
+    polite_change = re.match(r"\s*(?:(?:can|could|would)\s+you\s+(?:please\s+)?|what\s+if\s+I\s+)(?:set|change|increase|raise|reduce|decrease|lower|double|halve|apply)\b", prompt, re.I)
+    if not polite_change and re.match(r"\s*(?:why|what|how|is|are|has|have|which|can|could|would|does|do)\b", prompt, re.I):
         return False
     return bool(re.search(r"\d|\b(?:double|halve)\b", prompt, re.I))
 
@@ -125,7 +126,7 @@ def answer_cad_question(question: str, review: dict) -> dict:
                   "or tetra10 CAD solids. Use the actual CAD FE solver for this case; its results cannot be "
                   "replaced by the truss model's accuracy metrics.")
         citation += ["limitations"]
-    elif re.search(r"\bfail|\bpass|\bwhy\b|\bproblem|wrong", text):
+    elif re.search(r"\bfail|\bpass|\bwhy\b|\bproblem|wrong", text) and not re.search(r"mesh|converg|accurac|reliab", text):
         topic = "diagnosis"
         ratio = m["sampled_von_mises_mpa"] / m["assumed_yield_mpa"]
         answer = (f"The reported sampled elastic stress is {m['sampled_von_mises_mpa']:.3f} MPa "
@@ -141,6 +142,13 @@ def answer_cad_question(question: str, review: dict) -> dict:
                   "Use the source-locked three-mesh study to check sensitivity. Global displacement stability "
                   "does not establish convergence of local peak stress.")
         citation += ["mesh_assessment", "tetrahedra", "mesh_size_mm"]
+        if "stress_assessment" in review:
+            stress = review["stress_assessment"]
+            answer += (f" Local peak stress: {stress['local_peak_status']}; fixed physical band: "
+                       f"{stress['physical_band_stress_status']}; overall evidence: {stress['engineering_evidence_status']}.")
+            if stress.get("fine_vs_medium_stress_percent") is not None:
+                answer += f" Fine-to-medium sampled peak-stress change: {stress['fine_vs_medium_stress_percent']:.2f}%."
+            citation += ["stress_assessment"]
     elif re.search(r"lighter|optimi|redesign|improv|next|recommend|reduce.*mass", text):
         topic = "next_steps"
         answer = (f"The reported mass is {m['mass_kg']:.5f} kg. To assess a lighter design, use the CAD revision "
@@ -198,6 +206,8 @@ def review_cad_result(result, *, mesh_evidence=None, expected_source=None,
     if metrics["sampled_von_mises_mpa"] > metrics["assumed_yield_mpa"]:
         issues.append("Sampled elastic stress exceeds the assumed yield; linear elasticity is insufficient")
     mesh_status = "NOT_EVALUATED"
+    stress_assessment = {"local_peak_status":"NOT_EVALUATED", "physical_band_stress_status":"NOT_EVALUATED",
+                         "engineering_evidence_status":"NOT_EVALUATED"}
     if mesh_evidence is not None:
         if mesh_evidence.source_sha256 != mesh.source_sha256 or mesh_evidence.load != load:
             raise ValueError("Mesh evidence belongs to a different CAD or engineering context")
@@ -207,6 +217,22 @@ def review_cad_result(result, *, mesh_evidence=None, expected_source=None,
                    for row in mesh_evidence.ordered_rows):
             raise ValueError("The current FE solve is not a baseline in this mesh study")
         mesh_status = mesh_evidence.decision
+        # v1.1 adds separate stress screens; v1.0 cannot imply their presence.
+        for field in stress_assessment:
+            value = getattr(mesh_evidence, field, "NOT_EVALUATED")
+            if not isinstance(value, str):
+                raise ValueError("Invalid local-stress evidence status")
+            stress_assessment[field] = value
+        for field in ("fine_vs_medium_stress_percent", "fine_medium_probe_mean_percent",
+                      "fine_medium_probe_p90_percent", "fine_medium_hotspot_drift_mm"):
+            value = getattr(mesh_evidence, field, None)
+            if value is not None and (not math.isfinite(value) or value < 0):
+                raise ValueError("Invalid local-stress evidence metric")
+            stress_assessment[field] = value
+        for field in ("local_peak_status", "physical_band_stress_status"):
+            status = stress_assessment[field]
+            if status != "NOT_EVALUATED" and not status.startswith("PRELIMINARY_"):
+                issues.append("Local stress study: " + status)
         if mesh_status != "PRELIMINARY_GLOBAL_DISPLACEMENT_STABILITY":
             issues.append("Mesh study: " + mesh_status)
     else:
@@ -219,6 +245,7 @@ def review_cad_result(result, *, mesh_evidence=None, expected_source=None,
         "tetrahedra": int(mesh.num_tets),
         "metrics": metrics,
         "mesh_assessment": mesh_status,
+        "stress_assessment": stress_assessment,
         "assessment": "REVIEW_REQUIRED" if issues else "PRELIMINARY_NUMERICAL_SCREEN_ONLY",
         "issues": issues,
         "summary": (

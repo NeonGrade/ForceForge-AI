@@ -5,10 +5,15 @@ on:
       - main
       - "feature/**"
       - "ui/**"
+      - "integration/**"
+      - "codex/**"
   pull_request:
     branches:
       - main
       - "feature/**"
+      - "integration/**"
+      - "codex/**"
+      - "ui/**"
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -27,8 +32,10 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
       - name: Python source syntax
-        run: python -m compileall -q app.py studio_server.py studio_cad_api.py forceforge pages tests
+        run: python -m compileall -q app.py web_server.py studio_server.py studio_cad_api.py forceforge pages tests
       - name: Studio JavaScript syntax
         run: node --check studio/app.js && node --check studio/viewport3d.js && node --check studio/adaptive.js && node --check studio/inspection.js
+      - name: Unified workspace JavaScript syntax
+        run: node --check web/app.js && node --check web/spatial-shell.js
       - name: Numerical verification and golden-case regression
         run: python -m pytest -q

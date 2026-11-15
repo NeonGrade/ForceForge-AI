@@ -165,6 +165,25 @@ def test_cad_review_refuses_stale_or_nonfinite_evidence(cad_results):
         review_cad_result(baseline, mesh_evidence=replace(evidence, source_sha256="b"*64))
 
 
+def test_v11_stress_status_is_not_promoted_from_displacement_stability(cad_results):
+    from types import SimpleNamespace
+    baseline = cad_results[1]
+    evidence = assess_mesh_evidence(cad_results, baseline.mesh.source_sha256, baseline.load)
+    compatible = SimpleNamespace(**{**evidence.__dict__,
+        "decision":"PRELIMINARY_GLOBAL_DISPLACEMENT_STABILITY",
+        "local_peak_status":"PEAK_STRESS_UNRESOLVED",
+        "physical_band_stress_status":"PRELIMINARY_FINITE_REGION_STRESS_STABILITY",
+        "engineering_evidence_status":"GLOBAL_DISPLACEMENT_STABLE_LOCAL_STRESS_UNVERIFIED",
+        "fine_vs_medium_stress_percent":17.52})
+    review = review_cad_result(baseline, mesh_evidence=compatible)
+    assert review["assessment"] == "REVIEW_REQUIRED"
+    assert any("PEAK_STRESS_UNRESOLVED" in item for item in review["issues"])
+    answer = answer_cad_question("Has the mesh converged?", review)
+    assert "17.52%" in answer["text"]
+    assert "PEAK_STRESS_UNRESOLVED" in answer["text"]
+    assert review_cad_result(baseline)["stress_assessment"]["local_peak_status"] == "NOT_EVALUATED"
+
+
 def test_preview_and_confirmation_http_do_not_invoke_solver(monkeypatch, cad_results):
     import studio_server
     import studio_cad_api
@@ -234,6 +253,7 @@ def test_english_relative_changes_remain_bounded_and_unambiguous(prompt):
     ("Why is this design failing?", "diagnosis"),
     ("What is the current displacement and stress?", "results"),
     ("Has the mesh converged?", "mesh_evidence"),
+    ("Why has the mesh not converged?", "mesh_evidence"),
     ("How accurate is the mesh result?", "mesh_evidence"),
     ("How can I make this bracket lighter?", "next_steps"),
     ("What should I do next?", "next_steps"),
