@@ -330,11 +330,11 @@ def generate_parametric_product(request: EngineeringRequest) -> CADProduct:
         return CADProduct(
             family=shape,step_bytes=content,sha256=sha256(content).hexdigest(),
             description=(
-                "Real OpenCASCADE hollow cylindrical sleeve STEP with explicit "
-                "outer/inner diameters and axial length; FEA/CFD unvalidated"
+                "Real OpenCASCADE hollow sleeve STEP with explicit dimensions; "
+                "genuine tetra10 FEA optional under stated idealized static fixtures"
                 if shape=="hollow_shaft" else
-                "Real OpenCASCADE rectangular mounting plate STEP with explicit "
-                "dimensions and optionally four through-holes; FEA/CFD unvalidated"
+                "Real OpenCASCADE plate STEP with optional four through-holes; "
+                "genuine tetra10 FEA optional under stated idealized static fixtures"
             ),
             concept_only=True,solid_parts=int(info["solids"]),
             preview_nodes_mm=nodes,preview_faces=triangles,

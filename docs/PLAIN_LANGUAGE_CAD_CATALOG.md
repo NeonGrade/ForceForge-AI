@@ -45,3 +45,22 @@ adapters before claiming any physical analyses.
   is executed merely by typing, switching tabs or refreshing.
 - Final Mac/Chrome interactive acceptance remains manual before contest
   demonstration.
+
+
+## November 15 extension · actual FEA and wall load transfer
+
+Actual CAD-derived volumetric Gmsh/tetra10 FEA is supported for
+single-solid hollow shafts and mounting plates as well as brackets.
+Real FEA only starts after explicit load, material and planar-support
+assumptions are supplied or approved. The generic STEP upload workflow
+can also solve *other* single-solid geometry with compatible flat
+support/load boundary surfaces and manageable mesh size.
+
+The Wall Mount Load Transfer page performs ideal rigid four-anchor
+force and moment equilibrium with transparent source declarations.
+It accepts user-measured inputs, and has a validation-gated CSV input
+for a single physical OpenFOAM pressure-patch time, converting
+kinematic pressure to SI pressure with user-supplied density.
+This is NOT a verified automatic link to the existing reference case;
+source surface correspondence and actual wall/bolt FE stresses
+still require independent modeling.

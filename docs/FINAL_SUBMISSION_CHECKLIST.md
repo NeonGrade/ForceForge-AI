@@ -97,3 +97,16 @@ labeled accordingly if used as part of the full demo.
   https://github.com/NeonGrade/ForceForge-AI/actions/runs/43675409014
 - Hackathon-specific landing and replay smoke:
   https://github.com/NeonGrade/ForceForge-AI/actions/runs/43721821071
+
+
+## Recorded fallback demo available
+
+A complete 75.6-second no-audio screen recording, assembled from
+REAL Chromium natural-language CAD / tetra10 FEA sessions plus an
+independently verified OpenFOAM **reference** CFD clip, is available:
+
+https://github.com/NeonGrade/ForceForge-AI/actions/runs/43723778286/artifacts/14166096118
+
+Download the artifact ZIP, extract the MP4, upload as an Unlisted
+YouTube video, and paste the watch URL into Devpost. Confirm the
+embedded video actually plays in an incognito browser.

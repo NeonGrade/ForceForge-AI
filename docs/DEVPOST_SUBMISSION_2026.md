@@ -28,8 +28,9 @@ https://github.com/NeonGrade/ForceForge-AI/tree/hack-the-nest-2026-submission
 
 **Opt-ins available if team criteria are met**:
 Department of Computer Science Track; Best Beginner (majority first-time).
-The formerly listed GameAbove College of Engineering track is not visible
-on the currently published Devpost official event track list.
+The team selected the Department of Computer Science and GameAbove College of
+Engineering options in its event app. Award opt-ins must match the team's
+actual eligibility and live Devpost form, not assumptions.
 
 **Built with**: Python, Streamlit, Gmsh, OpenCASCADE, STEP CAD, SciPy,
 NumPy, OpenFOAM v2512, pimpleFoam, AMI rotating mesh, VTK, Docker,
@@ -59,10 +60,21 @@ Our working workflows include:
   wall-mounted fan assembly, hollow shaft/sleeve, and rectangular mounting
   plate with optional four through-holes. Each generator produces an actual
   OpenCASCADE STEP file, not a mesh screenshot.
-- **True structural FEA:** the supported bracket workflow builds a real
-  Gmsh tetrahedral mesh, performs quadratic tetra10 finite-element analysis,
-  and reports displacement, sampled von Mises stress, reaction equilibrium,
-  mass and design constraints.
+- **True structural FEA:** brackets, hollow sleeves, and mounting plates
+  can be independently Gmsh volume-meshed and solved with a real isolated
+  quadratic tetra10 solver under explicit/user-approved material, uniform
+  traction and ideal planar support assumptions. The existing engineering
+  studio can also import other permitted single-body STEP geometries.
+  Source hashes, displacement, sampled von Mises, force equilibrium, mass
+  and mesh bounds are reported. Real bearings, bolts and contact are not
+  mechanically validated.
+- **Wall mounting loads:** an idealized rigid four-anchor statics model
+  converts explicitly supplied gravity, fan thrust, external forces and
+  torque to per-anchor tension/shear demands. A separate user-supplied
+  pressure-face CSV parser can integrate kinematic p times density over
+  surface faces and pass the force/moment into the statics model with SHA
+  evidence. The CSV is not automatically linked to the OpenFOAM solver
+  job, and no wall material or fastener FEA is claimed.
 - **Physics-checked redesign:** the CAD Design Copilot can prioritize
   a bounded set of bracket thickness alternatives with an optional LLM.
   Each candidate is independently regenerated and solved; missing API
