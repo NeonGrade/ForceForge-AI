@@ -404,15 +404,41 @@ fi
             source=root/"user_rotor.stl"
             if not source.is_file() or sha256(source.read_bytes()).hexdigest()!=data.get("custom_rotor_stl_sha256"):
                 raise ValueError("Custom rotor STL missing or tampered")
-            target=root/"case"/"constant"/"triSurface"/"fan.stl"
-            if not target.is_file():
-                raise ValueError(
-                    "Installed tutorial has no replaceable fan.stl reference "
-                    "surface; cannot inject real custom rotor safely"
-                )
-            target.unlink()
-            target.write_bytes(source.read_bytes())
-            data["reference_fan_stl_replaced_by_exact_user_cad"]=True
+            # The official rotatingFanInRoom Allrun.pre copies
+            # tutorials/resources/geometry/rotatingFanInRoom/*.stl.gz INTO
+            # constant/triSurface. Thus the real fan surface DOES NOT
+            # exist at this stage. Inject the source CAD rotor immediately
+            # after this official copy and immediately BEFORE meshing.
+            pre=root/"case"/"Allrun.pre"
+            if not pre.is_file():
+                raise ValueError("Official case does not provide a meshing preparation script")
+            raw=pre.read_text(encoding="utf-8")
+            anchor="runApplication surfaceFeatureExtract"
+            if raw.count(anchor)!=1:
+                raise ValueError("No uniquely identified native surface meshing stage for source rotor")
+            insert=r'''
+# ForceForge: exact source-STEP rotor wall, inserted after official
+# tutorial geometry copy and BEFORE real feature extraction / snappyHexMesh.
+ff_rotor="$(find constant/triSurface -type f \( -name 'fan.stl.gz' -o -name 'fan.stl' \) -print -quit)"
+if [ -z "$ff_rotor" ]; then
+    echo "Missing original fan CAD wall asset after copy" >&2; exit 61
+fi
+if [ ! -s /workspace/user_rotor.stl ]; then
+    echo "Original STEP-derived blade STL is absent" >&2; exit 62
+fi
+case "$ff_rotor" in
+    *.gz)
+        gzip -c /workspace/user_rotor.stl > "$ff_rotor"
+        gzip -dc "$ff_rotor" | sha256sum | cut -d' ' -f1 > /workspace/source_rotor_mesh_sha256
+        ;;
+    *)
+        cp /workspace/user_rotor.stl "$ff_rotor"
+        sha256sum "$ff_rotor" | cut -d' ' -f1 > /workspace/source_rotor_mesh_sha256
+        ;;
+esac
+'''
+            pre.write_text(raw.replace(anchor,insert+"\n"+anchor,1),encoding="utf-8")
+            data["source_step_rotor_injected_before_actual_meshing"]=True
         settings=adapt_reference_case(root/"case",controls)
         data["case_configuration"]=settings
         data["stage"]="MESH_AND_SOLVE_REAL_TRANSIENT";_manifest(root,data)
@@ -449,13 +475,14 @@ pimpleFoam > /workspace/log.pimpleFoam
                     "dictionary; cannot claim the requested RPM or transient duration"
                 )
         if not data.get("reference_only",True):
-            target=root/"case"/"constant"/"triSurface"/"fan.stl"
-            if (not target.is_file() or
-                    sha256(target.read_bytes()).hexdigest()!=data["custom_rotor_stl_sha256"]):
+            applied=root/"source_rotor_mesh_sha256"
+            if (not applied.is_file() or
+                    applied.read_text(encoding="ascii").strip()!=data["custom_rotor_stl_sha256"]):
                 raise ValueError(
-                    "OpenFOAM meshing overwrote source CAD fan.stl; "
-                    "refusing to call this a custom rotor computation"
+                    "OpenFOAM preprocessing did not inject exact user STEP rotor "
+                    "into snappyHexMesh input; cannot claim custom CAD CFD"
                 )
+            data["verified_mesh_input_rotor_stl_sha256"]=applied.read_text().strip()
         log=(root/"log.pimpleFoam").read_text(errors="replace")
         times=[float(x) for x in re.findall(
             r"(?m)^Time =\s*([0-9.eE+-]+)",log
