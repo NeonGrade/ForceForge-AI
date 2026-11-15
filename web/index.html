@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b131b">
   <meta name="description" content="ForceForge AI: a physics-verified, interactive 2D truss engineering workspace.">
-  <title>ForceForge X | Level 02 · Planar Engineering</title>
+  <title>ForceForge X | Engineering Workspace v1.0</title>
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/spatial-theme.css">
 </head>
@@ -37,20 +37,21 @@
     <header class="topbar">
       <div class="brand" title="ForceForge X Spatial Engineering">
         <div class="brand-icon spatial-brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
-        <div class="brand-name"><strong>forceforge<span> X</span></strong><small>LEVEL 02 · SPATIAL ENGINEERING</small></div>
+        <div class="brand-name"><strong>forceforge<span> X</span></strong><small>WORKSPACE v1.0 · SPATIAL ENGINEERING</small></div>
       </div>
       <div class="header-divider"></div>
-      <button type="button" class="scene-selector-2d" id="sceneSelector" aria-expanded="false" aria-controls="sceneMenu" title="Choose engineering workspace">
+      <button type="button" class="scene-selector-2d" id="sceneSelector" aria-label="Choose 2D or 3D engineering space" aria-expanded="false" aria-controls="sceneMenu" title="Choose engineering workspace">
         <span class="scene-sigil">◈</span><span class="scene-select-copy"><strong>Truss engineering</strong><small>2D AXIAL FEA · COMPUTATIONAL</small></span><span class="scene-chevron">⌄</span>
       </button>
-      <div class="scene-menu-2d" id="sceneMenu" hidden>
+      <div class="scene-menu-2d" id="sceneMenu" role="group" aria-label="Engineering spaces" hidden>
         <span class="menu-kicker">CHOOSE A SPACE</span>
-        <button type="button" class="space-choice active" id="open2d"><span class="space-choice-icon">◈</span><span><strong>Truss engineering</strong><small>2D verified analysis and robust design</small></span><span>✓</span></button>
-        <button type="button" class="space-choice" id="open3d" aria-controls="integratedStudioFrame" title="Open the integrated 3D model workspace"><span class="space-choice-icon">⬡</span><span><strong>3D Spatial Studio</strong><small>3D solid · Real CAD · Laboratory</small></span><span>↗</span></button>
+        <button type="button" class="space-choice active" id="open2d" aria-current="page"><span class="space-choice-icon">◈</span><span><strong>Truss engineering</strong><small>2D FEA · Robust design</small></span><span>✓</span></button>
+        <button type="button" class="space-choice" id="open3d" aria-controls="integratedStudioFrame" title="Open the integrated 3D model workspace"><span class="space-choice-icon">⬡</span><span><strong>3D Spatial Studio</strong><small id="studioAvailability">Solid mechanics · Real CAD · Laboratory</small></span><span>↗</span></button>
+        <div class="space-menu-meta"><span>WORKSPACE v1.0</span><span>NUMERICAL EVIDENCE · NOT CERTIFIED</span></div>
       </div>
       <div class="breadcrumb"><span class="crumb-muted">Workspace</span><span class="crumb-sep">/</span><span class="crumb-current">Truss Study 01</span><span class="file-tag">2D · STATIC</span></div>
       <div class="header-spacer"></div>
-      <div class="status-pill" id="connectionStatus"><span class="status-dot pending"></span><span id="connectionText">Connecting solver</span></div>
+      <div class="status-pill" id="connectionStatus" role="status" aria-live="polite" aria-label="2D finite element solver status"><span class="status-dot pending"></span><span id="connectionText">Connecting solver</span></div>
       <button class="top-icon-button mobile-only" id="mobileLeft" aria-label="Engineering settings" aria-controls="leftPanel" aria-expanded="false" title="Engineering settings"><svg class="icon"><use href="#i-settings"/></svg></button>
       <button class="top-icon-button mobile-only" id="mobileRight" aria-label="Engineering results" aria-controls="rightPanel" aria-expanded="false" title="Results"><svg class="icon"><use href="#i-eye"/></svg></button>
       <button class="top-button secondary" id="btnExport"><svg class="icon"><use href="#i-download"/></svg><span>Export</span></button>
@@ -137,9 +138,21 @@
   </div>
   <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <dialog class="help-dialog" id="helpDialog"><div class="dialog-head"><div><span class="eyebrow">QUICK GUIDE</span><h2>Workspace shortcuts</h2></div><button id="closeHelp" class="top-icon-button" aria-label="Close"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="dialog-body"><div><kbd>1</kbd> <span>Analyze</span></div><div><kbd>2</kbd> <span>Optimize</span></div><div><kbd>3</kbd> <span>Challenge</span></div><div><kbd>4</kbd> <span>ML Verify</span></div><div><kbd>5</kbd> <span>AI Brief</span></div><div><kbd>F</kbd> <span>Fit structure to viewport</span></div><div><kbd>Esc</kbd> <span>Clear selection</span></div><div><kbd>Drag</kbd> <span>Pan model</span></div><div><kbd>Scroll</kbd> <span>Zoom model</span></div><div><kbd>Click</kbd> <span>Inspect member or node</span></div></div><p>FEA outputs come from the Python solver in this repository. The grid and coordinates are in meters; rendered deformation is intentionally exaggerated.</p></dialog>
-  <iframe id="integratedStudioFrame" class="integrated-studio-frame" title="3D Spatial Engineering Studio" aria-label="3D finite element engineering workspace" hidden></iframe>
+  <dialog class="help-dialog" id="helpDialog"><div class="dialog-head"><div><span class="eyebrow">QUICK GUIDE</span><h2>Workspace shortcuts</h2></div><button id="closeHelp" class="top-icon-button" aria-label="Close"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="dialog-body"><div><kbd>1</kbd> <span>Analyze</span></div><div><kbd>2</kbd> <span>Optimize</span></div><div><kbd>3</kbd> <span>Challenge</span></div><div><kbd>4</kbd> <span>ML Verify</span></div><div><kbd>5</kbd> <span>AI Brief</span></div><div><kbd>F</kbd> <span>Fit structure to viewport</span></div><div><kbd>Esc</kbd> <span>Clear selection</span></div><div><kbd>Drag</kbd> <span>Pan model</span></div><div><kbd>Scroll</kbd> <span>Zoom model</span></div><div><kbd>Click</kbd> <span>Inspect member or node</span></div></div><p>Workspace v1.0 · Calculated FEA outputs are not experimental measurements or structural safety certification. The 2D grid uses meters, and displayed deformation is magnified. Input changes are kept in this browser tab; exported JSON contains solver evidence.</p></dialog>
+  <iframe id="integratedStudioFrame" class="integrated-studio-frame" title="3D Spatial Engineering Studio" aria-label="3D finite element engineering workspace" loading="eager" hidden></iframe>
   <button type="button" id="return2D" class="return-2d-studio" title="Return to 2D truss engineering" aria-label="Return to 2D truss engineering" hidden>↶ <span>2D TRUSS</span></button>
+  <section id="workspaceTransition" class="workspace-transition" aria-live="polite" aria-label="Workspace transition status" hidden>
+    <div class="workspace-transition-card">
+      <span class="transition-kicker">FORCEFORGE X · WORKSPACE v1.0</span>
+      <div class="transition-symbol" id="transitionSymbol" aria-hidden="true">⬡</div>
+      <h2 id="transitionTitle">Opening 3D Spatial Studio</h2>
+      <p id="transitionMessage">Checking numerical tools and preparing the spatial viewport.</p>
+      <div class="transition-actions">
+        <button type="button" id="cancel3DLoading" class="transition-secondary">Stay in 2D</button>
+        <button type="button" id="retry3D" class="transition-primary" hidden>Try again</button>
+      </div>
+    </div>
+  </section>
   <script src="/app.js" defer></script>
   <script src="/spatial-shell.js" defer></script>
 </body>

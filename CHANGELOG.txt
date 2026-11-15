@@ -513,3 +513,32 @@ ENGLISH-FIRST ENGINEERING AGENT — 2026-11-14
 Made English engineering questions and natural parameter requests the primary Agent acceptance path. Added value-before-noun phrases, percentage changes and double/halve requests with explicit confirmation.
 Added English evidence-grounded diagnosis, result, mesh, redesign-workflow, ML-scope and validation answers from bounded server-held FE reviews; changed inputs require new evidence. Questions never run the solver or accept client-invented results.
 Retained Chinese compatibility; documented supported topics and clarification behavior.
+
+
+WORKSPACE UI v1.0.0 — 2026-11-14 — DRAFT REVIEW RELEASE
+Branch: ui/workspace-v1.0
+Parent: integration/unified-spatial-2d-3d (PR #20)
+Type: Unified product workspace, not an engineering solver version change.
+Changes:
+- Set the unified engineering site identity to ForceForge X Workspace v1.0.
+- Introduced canonical /workspace/ path, preserving the original root route.
+- Added deep links for 2D/3D scenes and browser Back/Forward navigation.
+- Improved scene selection, transition progress, retry, cancel and 3D failure
+  recovery, without simulating or replacing actual WebGL/FEA calculations.
+- Polished small-screen contrast and accessibility, retaining the model-first
+  canvas, XY coordinate grid and on-model controls.
+- Validated and retained user 2D design inputs within the browser tab, while
+  recomputing all FEA results on reload instead of caching solver evidence.
+- Added explicit solver status for pending, input failure and transport errors,
+  engineering study reset, retry, and versioned JSON evidence export.
+- Preserved previous 2D solver, robust screening, challenge, ML, Agent, 3D
+  solid/CAD and measured laboratory modules and their numerical assumptions.
+Validation:
+- Standalone subset: 12 Python tests passed, 1 genuine 3D test skipped
+  because complete 3D code is only present on the combined GitHub branch.
+- Python compilation, JavaScript syntax and 2D FEA regression checks passed.
+- Static 2D layout checked at 1440/1280/900/430/390 px without page overflow
+  or browser JavaScript exceptions; this is not real 3D browser certification.
+Limits:
+- Full integration CI and user Mac/Safari/WebGL/Gmsh smoke testing must pass
+  before merging. Numerical results are not structural safety certification.

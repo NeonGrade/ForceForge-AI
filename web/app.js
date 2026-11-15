@@ -12,14 +12,39 @@
     yield_safety_factor: 2, buckling_safety_factor: 2,
     load_uncertainty: 0.20, e_uncertainty: 0.10, area_uncertainty: 0.10,
   };
+  // Restore only bounded user inputs in this tab. Never cache a numerical result.
+  // Every restored configuration is re-solved by the Python FEA engine.
+  const sessionKey = 'forceforge.workspace.v1.0.2d-config';
+  const limits = {
+    span_m:[.5,4], height_m:[.1,5], area_mm2:[60,800],
+    base_load_n:[100,3000], max_displacement_mm:[.25,12],
+    yield_safety_factor:[1,4], buckling_safety_factor:[1,4],
+    load_uncertainty:[0,.5], e_uncertainty:[0,.35], area_uncertainty:[0,.25]
+  };
+  function restoreDesign() {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(sessionKey) || 'null');
+      if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return {...cfg0};
+      if (!['Triangle','Warren-2','Fan'].includes(saved.topology)) return {...cfg0};
+      if (!['steel','aluminum'].includes(saved.material)) return {...cfg0};
+      if (!Object.keys(limits).every(key => Number.isFinite(saved[key]) &&
+          saved[key] >= limits[key][0] && saved[key] <= limits[key][1])) return {...cfg0};
+      if (saved.height_m < .2 * saved.span_m || saved.height_m > 1.25 * saved.span_m) return {...cfg0};
+      return Object.fromEntries(Object.keys(cfg0).map(key => [key, saved[key]]));
+    } catch { return {...cfg0}; }
+  }
+  const saveDesign = () => {
+    try { sessionStorage.setItem(sessionKey, JSON.stringify(state.config)); }
+    catch { /* Browsers with blocked storage must still support FEA. */ }
+  };
   const state = {
-    config: {...cfg0}, solve: null, search: null, challenge: null, ml: null,
+    config: restoreDesign(), solve: null, search: null, challenge: null, ml: null,
     parsed: null, mode: 'design', visual: 'stress', showDeform: true,
     deformScale: 300, grid: true, zoom: 1, panX: 0, panY: 0,
     selected: null, hovered: null, tooltip: null,
     challengeMultiplier: 1.4,
     brief: 'Design a lightweight 2 m truss bridge under 1000 N, with displacement limit 2 mm.',
-    useApi: false, busy: new Set(), connected: false, error: null,
+    useApi: false, busy: new Set(), connected: false, error: null, errorKind: null,
   };
   let solveTimer = 0;
   let solveSeq = 0;
@@ -49,20 +74,44 @@
   }
 
   async function post(route, data) {
-    const response = await fetch(route, {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(data), cache: 'no-store',
-    });
+    let response;
+    try {
+      response = await fetch(route, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data), cache: 'no-store',
+      });
+    } catch (cause) {
+      const error = new Error('Could not reach the local Python solver');
+      error.kind = 'network';
+      throw error;
+    }
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.error || `Backend returned HTTP ${response.status}`);
+    if (!response.ok) {
+      const error = new Error(payload.error || `Solver returned HTTP ${response.status}`);
+      error.kind = response.status === 400 ? 'input' : 'solver';
+      error.status = response.status;
+      throw error;
+    }
     return payload;
   }
 
   function setConnected(connected, solving = false) {
     state.connected = connected;
     const dot = $('.status-dot');
-    dot.className = 'status-dot' + (!connected ? ' offline' : solving ? ' pending' : '');
-    $('#connectionText').textContent = !connected ? 'Solver offline' : solving ? 'Solving FEA…' : 'Solver connected';
+    const status = $('#connectionText');
+    if (solving) {
+      dot.className = 'status-dot pending';
+      status.textContent = 'Solving FEA...';
+    } else if (!connected) {
+      dot.className = 'status-dot offline';
+      status.textContent = 'Solver unreachable';
+    } else if (state.error) {
+      dot.className = 'status-dot pending';
+      status.textContent = state.errorKind === 'input' ? 'Check design inputs' : 'Solver error';
+    } else {
+      dot.className = 'status-dot';
+      status.textContent = 'FEA computed';
+    }
   }
 
   function renderControls() {
@@ -99,6 +148,7 @@
     state.hovered = null;
     if (requirementsChanged) { state.search = null; state.ml = null; }
     state.error = null;
+    state.errorKind = null;
   }
 
   function updateConfig(key, value) {
@@ -112,6 +162,7 @@
       state.config.height_m = Number(clamp(state.config.height_m, value*0.2, value*1.25).toFixed(4));
     }
     clearComputed({requirementsChanged});
+    saveDesign();
     renderControls();
     renderScene();
     renderMetrics();
@@ -134,12 +185,14 @@
       if (seq !== solveSeq) return;
       state.solve = result;
       state.error = null;
+      state.errorKind = null;
       setConnected(true, false);
     } catch (err) {
       if (seq !== solveSeq) return;
       state.solve = null;
       state.error = err.message;
-      setConnected(false);
+      state.errorKind = err.kind || 'solver';
+      setConnected(state.errorKind !== 'network', false);
     } finally {
       if (seq === solveSeq) {
         state.busy.delete('solve');
@@ -232,6 +285,7 @@
     state.config.height_m = clamp(height_m, .2*state.config.span_m, 1.25*state.config.span_m);
     state.config.area_mm2 = clamp(area_mm2, 60, 800);
     clearComputed({requirementsChanged:false});
+    saveDesign();
     renderControls(); resetView();
     renderMetrics(); scheduleSolve(); setMode('design');
     toast('FEA-verified candidate loaded into the viewport');
@@ -249,7 +303,7 @@
     state.config.base_load_n = values.load_n;
     state.config.max_displacement_mm = values.max_displacement_mm;
     state.config.height_m = Number((values.span_m * 0.5).toFixed(4));
-    clearComputed(); renderControls(); resetView(); renderMetrics(); scheduleSolve(); setMode('design');
+    clearComputed(); saveDesign(); renderControls(); resetView(); renderMetrics(); scheduleSolve(); setMode('design');
     toast('Reviewed requirements applied — recomputing physics');
   }
 
@@ -448,6 +502,14 @@
 
   function tooltipHTML(hit) {
     const data=model();if(!data||!hit)return '';
+    if(!state.solve && !state.challenge?.challenged_analysis){
+      if(hit.type==='node'){
+        const n=data.nodes[hit.id];
+        return n?`<div class="tooltip-title">NODE N${n.id} / GEOMETRY ONLY</div><div class="tooltip-grid"><span>X / Y</span><strong>${num(n.x_m,3)}, ${num(n.y_m,3)} m</strong><span>FEA fields</span><strong>Pending solver</strong></div>`:'';
+      }
+      const m=data.members[hit.id];
+      return m?`<div class="tooltip-title">MEMBER M${m.id} / GEOMETRY ONLY</div><div class="tooltip-grid"><span>Length</span><strong>${num(m.length_m,3)} m</strong><span>Force and stress</span><strong>Pending solver</strong></div>`:'';
+    }
     if(hit.type==='node'){
       const n=data.nodes[hit.id];if(!n)return '';
       return `<div class="tooltip-title">NODE N${n.id}</div><div class="tooltip-grid"><span>Position</span><strong>${num(n.x_m,3)}, ${num(n.y_m,3)} m</strong><span>Displacement</span><strong>${num(n.displacement_mm,4)} mm</strong><span>Ux / Uy</span><strong>${snum(n.ux_mm,4)} / ${snum(n.uy_mm,4)} mm</strong>${n.fix_x||n.fix_y?`<span>Reaction X / Y</span><strong>${snum(n.rx_n,1)} / ${snum(n.ry_n,1)} N</strong>`:''}</div><div class="tooltip-hint">Click to pin inspection</div>`;
@@ -504,13 +566,22 @@
   }
 
   function designPanel() {
-    if(!state.solve){return `<div class="results-loading"><span class="loading-spinner"></span><div>${state.error?'Could not connect to the FEA backend':'Computing nominal FEA…'}</div></div>${state.error?`<div class="inline-message warning">${esc(state.error)}<br>Run <code>python web_server.py</code> from the repository root.</div>`:''}`;}
+    if(!state.solve){
+      const description = state.errorKind === 'input' ? 'Check your model inputs'
+        : state.errorKind === 'network' ? 'Python solver unreachable'
+        : state.error ? 'FEA calculation unavailable' : 'Computing nominal FEA...';
+      const recovery = state.errorKind === 'network'
+        ? 'Start the server with python3 web_server.py from your project directory.'
+        : 'Review the model geometry and selected constraints, then run the calculation again.';
+      return `<div class="results-loading">${!state.error?'<span class="loading-spinner"></span>':''}<div>${description}</div></div>`+
+        (state.error?`<div class="inline-message warning">${esc(state.error)}<br>${recovery}</div><button class="panel-button" data-action="retry-solve">Retry FEA calculation</button>`:'');
+    }
     const a=state.solve.analysis,r=state.solve.robust;
     const supportNodes=a.nodes.filter(n=>n.fix_x||n.fix_y);
     const maxUsage=r.worst_utilization;
     return `
       <div class="result-overline">SCENARIO SCREENING · 8 CORNERS</div>
-      <div class="result-hero ${r.feasible?'':'failed'}"><div class="hero-top"><span class="dot-label">${r.feasible?'FEA VERIFIED':'CONSTRAINT EXCEEDED'}</span></div><div class="hero-state">${r.feasible?'PASS':'FAIL'}</div><div class="hero-sub">Worst-case utilization <b>${num(maxUsage,3)}</b> / 1.000<br>Material & geometric uncertainty included</div></div>
+      <div class="result-hero ${r.feasible?'':'failed'}"><div class="hero-top"><span class="dot-label">${r.feasible?'FEA SCREEN PASS':'CONSTRAINT EXCEEDED'}</span></div><div class="hero-state">${r.feasible?'PASS':'FAIL'}</div><div class="hero-sub">Worst-case utilization <b>${num(maxUsage,3)}</b> / 1.000<br>Material & geometric uncertainty included</div></div>
       ${selectedCard()}
       <div class="result-card"><div class="result-card-heading">Constraint utilization <small>≤ 1.0 = PASS</small></div>
         ${usage('Axial yield',r.worst_stress_util)}
@@ -524,6 +595,8 @@
       </tbody></table></div>
       <div class="result-card"><div class="result-card-heading">Support reactions <small>ΣF ≈ 0</small></div><div class="compact-list">${supportNodes.map(n=>`<button class="compact-row button-row" data-action="select-node" data-node="${n.id}"><span>N${n.id} <span class="row-kind">${n.fix_x?'PIN':'ROLLER'}</span></span><strong>Ry ${snum(n.ry_n,2)} N</strong></button>`).join('')}</div><div class="section-note">Equilibrium residual: ${num(a.equilibrium_residual_n,7)} N</div></div>
       <button class="panel-button secondary" data-action="download-members">${ICON('download')} Export member results (CSV)</button>
+      <button class="panel-button secondary" data-action="export-study">${ICON('save')} Export engineering study (JSON)</button>
+      <button class="panel-button secondary" data-action="reset-study">Reset 2D study inputs</button>
       <div class="inline-message">Ideal pin-jointed members · point load at the top-center node · magnified deformation is visual only.</div>`;
   }
 
@@ -620,11 +693,23 @@
     setTimeout(()=>URL.revokeObjectURL(url),800);
   }
 
+  function resetDesign() {
+    state.config = {...cfg0};
+    state.search = null; state.ml = null; state.parsed = null;
+    clearComputed(); saveDesign(); renderControls(); resetView();
+    renderMetrics(); renderPanel(); scheduleSolve();
+    toast('Default 2D study restored; recomputing FEA');
+  }
+
   function exportProject() {
-    if(!state.solve){toast('Wait for a verified FEA result before exporting',true);return;}
+    if(!state.solve){toast('Wait for a computed FEA result before exporting',true);return;}
     const payload={
-      project:'ForceForge AI / Workspace II',
+      project:'ForceForge X / Engineering Workspace',
+      workspace_version:'1.0.0',
+      scene:'2D truss',
+      generated_at_utc:new Date().toISOString(),
       method:'2D linear elastic axial truss FEA; ideal pin joints and Euler buckling screen',
+      evidence:'Numerical FE computation under stated assumptions; not independently measured',
       certification:false,
       config:{...state.config},
       nominal_fea:state.solve.analysis,
@@ -655,6 +740,9 @@
       state.selected={type:action==='select-member'?'member':'node',id:Number(target.dataset.member??target.dataset.node)};
       renderScene();renderPanel();
     }
+    else if(action==='retry-solve')runSolve();
+    else if(action==='reset-study')resetDesign();
+    else if(action==='export-study')exportProject();
     else if(action==='download-members'){
       const rows=state.solve?.analysis.members||[];
       if(rows.length)download('forceforge_member_forces.csv',rowsCSV(rows),'text/csv');

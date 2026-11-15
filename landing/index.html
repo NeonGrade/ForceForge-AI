@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07131d">
+  <meta name="description" content="ForceForge AI — physics-verified engineering design, analysis, and optimization. An interactive visual introduction to the engineering workspace.">
+  <meta property="og:title" content="ForceForge AI — Evidence in Motion">
+  <meta property="og:description" content="Design. Analyze. Challenge. Improve. Explore engineering decisions backed by finite-element analysis.">
+  <title>ForceForge AI — Evidence in Motion</title>
+  <style>
+  :root{color-scheme:dark;--bg:#07131d;--paper:#091823;--fog:#102d38;--mint:#a5f5df;--milk:#e8f4ef;--line:#c0e9e0;--muted:#829ba5;--mute2:#55727f;--amber:#e7ad89;--page:clamp(25px,5.8vw,110px);--serif:Georgia,'Iowan Old Style','Times New Roman',serif;--sans:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif}
+  *,*::before,*::after{box-sizing:border-box}
+  html{scroll-behavior:smooth;scroll-padding-top:72px}
+  body{margin:0;min-width:320px;background:var(--bg);font-family:var(--sans);color:var(--milk);overflow-x:hidden;-webkit-font-smoothing:antialiased}
+  body::selection{background:#a3edda;color:#09221f}
+  a{color:inherit;text-decoration:none}
+  button{font:inherit;cursor:pointer}
+  a:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--mint);outline-offset:5px}
+  svg{display:block}
+  .skip{position:fixed;top:-80px;left:18px;padding:12px 18px;color:#031d19;background:var(--mint);z-index:9999;border-radius:3px}.skip:focus{top:14px}
+  .site-header{height:83px;position:absolute;top:0;left:0;right:0;display:flex;align-items:center;padding:0 var(--page);z-index:100;gap:24px}
+  .brand{display:flex;align-items:center;gap:18px;min-width:max-content}.brand-line{height:25px;width:2px;background:var(--mint);box-shadow:0 0 16px #a5f5df3a}.brand-title{font-size:12px;font-weight:740;letter-spacing:.32em;line-height:1.4}.brand-title em{font-style:normal;color:var(--mint)}
+  .nav{margin-left:auto;display:flex;align-items:center;gap:clamp(21px,3.3vw,56px)}.nav a{font-size:10px;letter-spacing:.22em;font-weight:650;color:#acbfc4;transition:color .2s}.nav a:hover,.nav a[aria-current="true"]{color:#dffbf3}
+  .nav-launch{display:inline-flex!important;align-items:center;gap:9px;color:#d8f8ed!important}.nav-launch svg{width:13px;height:13px}
+  .menu-toggle{border:1px solid #57857984;background:#15303d80;display:none;align-items:center;justify-content:center;width:38px;height:36px;border-radius:2px;color:var(--mint);margin-left:auto}.menu-toggle svg{height:17px;width:17px}
+  .section{position:relative;min-height:780px;min-height:100svh;overflow:hidden;isolation:isolate;border-bottom:1px solid #7babb01b}
+  .section::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 85% 10%,#5bb3ca12 0%,transparent 45%),linear-gradient(150deg,#091925 3%,#07131d 58%,#0b2631 100%);z-index:-3}
+  .section::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 68% 75%,#2f747c21,transparent 56%);z-index:-2}
+  .light-beam{position:absolute;right:-30%;top:-50%;width:70%;height:125%;transform:rotate(30deg);pointer-events:none;background:linear-gradient(90deg,transparent 0%,#98e0ef04 38%,#8bd4df09 50%,transparent 68%);filter:blur(21px);z-index:-1}
+  .section-inner{position:relative;z-index:2;min-height:inherit;width:min(100%,1700px);margin:auto;padding:clamp(110px,13vh,190px) var(--page) clamp(55px,8vh,130px)}
+  .section-index{font-size:10px;font-weight:650;letter-spacing:.32em;color:#add6d4;display:flex;gap:15px;align-items:center;text-transform:uppercase}.section-index::before{content:"";display:inline-block;width:2px;height:25px;background:var(--mint)}
+  .editorial-title{font-family:var(--serif);font-size:clamp(41px,5.15vw,91px);font-weight:400;letter-spacing:-.055em;line-height:1.1;margin:0;color:#f0f3ef}.editorial-title em{font-weight:400;color:#b7f2dd}
+  .rule-accent{width:44px;height:1.5px;background:#a9f1d6;box-shadow:0 0 13px #a9f1d659}
+  .section-footnote{font-size:10px;letter-spacing:.17em;text-transform:uppercase;color:#8caeaf}
+  .section-anchor{display:inline-flex;align-items:center;gap:18px;font-size:11px;letter-spacing:.22em;color:#d8fbeb;font-weight:640;transition:transform .25s,color .25s}.section-anchor:hover{color:#fff;transform:translateX(5px)}.section-anchor svg{width:24px;height:24px}
+  .line-world{position:absolute;pointer-events:none;bottom:5%;left:5%;right:5%;height:1px;background:linear-gradient(90deg,transparent,#528b8b7a 30%,#79b8b592 68%,transparent);filter:drop-shadow(0 0 12px #8bdad41e)}
+  .ghost-horizon{position:absolute;pointer-events:none;left:0;right:0;bottom:0;height:20%;background:linear-gradient(0deg,#6dced60c,transparent);z-index:0}
+  .truss-svg{overflow:visible;max-width:100%;width:100%;height:100%;filter:drop-shadow(0 0 8px #b3f5df19)}
+  .member-shadow{stroke:#206473;stroke-width:11;fill:none;stroke-linecap:round;opacity:.18}
+  .member-line{fill:none;stroke:#b9ede4;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:var(--length,1000);stroke-dashoffset:var(--length,1000);transition:stroke-dashoffset 1.55s cubic-bezier(.17,.72,.15,1),stroke .45s,stroke-width .45s;transition-delay:var(--delay,0ms)}
+  .is-visible .member-line{stroke-dashoffset:0}
+  .truss-svg .member-halo{fill:none;stroke:#b6fbe4;stroke-width:7;opacity:.06;stroke-linecap:round}
+  .node-halo{fill:#b8ffe7;opacity:.11}
+  .node-core{fill:#b9f5e5;stroke:#173e4a;stroke-width:2}
+  .truss-joints{opacity:0;transition:opacity 1s .7s}.is-visible .truss-joints{opacity:1}
+  .truss-supports{opacity:0;transition:opacity .8s .6s}.is-visible .truss-supports{opacity:1}
+  .truss-supports path,.truss-supports line,.truss-supports circle{stroke:#8daeb0;stroke-width:1.5;fill:none}
+  .truss-guides{opacity:0;transition:opacity .7s 1s}.is-visible .truss-guides{opacity:1}
+  .truss-guides line,.truss-guides path{stroke:#4e8190;stroke-width:1;fill:none;stroke-dasharray:4 8}
+  .truss-guides text{font:11px var(--sans);letter-spacing:.1em;fill:#739da5}
+  .hero{height:100svh;min-height:740px}.hero .section-inner{height:100%;padding-top:0;padding-bottom:0}
+  .hero-copy{position:absolute;top:31%;left:var(--page);z-index:5;max-width:66%}
+  .hero .editorial-title{font-size:clamp(57px,6.8vw,116px);white-space:nowrap;text-shadow:0 12px 38px #05111cab;margin:25px 0 19px}
+  .hero .editorial-title em{font-style:italic;font-weight:400}
+  .hero-sub{font-size:10px;color:#a0b9c0;letter-spacing:.35em;font-weight:600;text-transform:uppercase}
+  .hero-copy .rule-accent{margin-top:44px}
+  .hero-model{position:absolute;left:28%;right:-3.8%;width:78%;bottom:13.2%;height:47.5%;z-index:2;transition:transform .25s ease-out;will-change:transform}
+  .hero-model .member-line{stroke:#caebe7;stroke-width:2.3}
+  .hero-model::after{content:"";position:absolute;inset:0;z-index:-1;filter:blur(25px);background:radial-gradient(ellipse at 65% 58%,#92d5c91c,transparent 58%)}
+  .hero-water{position:absolute;bottom:8%;left:20%;right:0;height:22%;opacity:.37;transform:scaleY(-.55);filter:blur(3px);mask-image:linear-gradient(transparent,#000 45%,transparent)}
+  .hero-water .truss-svg{opacity:.7}
+  .hero-meta{position:absolute;bottom:55px;left:var(--page);right:var(--page);display:flex;align-items:end;justify-content:space-between;gap:15px;z-index:5}
+  .hero-year,.hero-marker{font-size:10px;color:#6c9199;letter-spacing:.2em;text-transform:uppercase}.hero-marker{display:flex;align-items:center;gap:12px}
+  .hero-marker:after{content:"";width:37px;height:1px;background:#689e9e}
+  .scroll-indicator{display:inline-flex;align-items:center;gap:13px;letter-spacing:.18em;font-size:9px;color:#9bc5c3}.scroll-indicator svg{width:19px;height:19px;animation:indicatorFloat 2.6s ease-in-out infinite}
+  @keyframes indicatorFloat{0%,100%{transform:translateY(-3px)}50%{transform:translateY(4px)}}
+  .discovery::before{background:radial-gradient(ellipse at 81% 17%,#2d637235,transparent 52%),linear-gradient(160deg,#081924,#08202a 63%,#07131c)}
+  .discovery-layout{display:grid;grid-template-columns:minmax(270px,31%) minmax(0,69%);align-items:center;gap:2.5vw;height:100%}
+  .discovery-copy{padding-top:4vh;align-self:center;position:relative;z-index:5}
+  .discovery-copy .editorial-title{font-size:clamp(45px,5.1vw,83px);line-height:1.12;margin:25px 0 38px}.discovery-copy .rule-accent{margin-bottom:20px}
+  .discovery-visual{width:100%;height:65vh;min-height:440px;max-height:760px;position:relative;display:flex;align-items:center}
+  .discovery-visual::before{content:"";position:absolute;inset:18% -5% 15% -7%;background:radial-gradient(ellipse,#19465065,transparent 62%);filter:blur(25px);pointer-events:none}
+  .discovery-svg{width:100%;height:73%;position:relative;z-index:2}
+  .discovery-panel{position:absolute;right:2%;top:4%;display:flex;align-items:center;gap:12px;color:#9bc7cb;letter-spacing:.16em;font-size:9px;z-index:4}
+  .live-dot{width:5px;height:5px;border-radius:50%;background:#a4f6dc;box-shadow:0 0 9px #7edbb7}
+  .discovery-svg .member-line{stroke-width:3}
+  .discovery-svg .member-line.has-state[data-state="compression"]{stroke:#edab82}
+  .discovery-svg .member-line.has-state[data-state="tension"]{stroke:#a0f2de}
+  .discovery-svg .member-line.has-state[data-state="neutral"]{stroke:#8db7c0}
+  .discovery-svg .member-line.is-selected{stroke:#ffffff;stroke-width:5;filter:drop-shadow(0 0 7px #a1f6df)}
+  .member-hit{stroke:transparent;stroke-width:24;fill:none;cursor:crosshair;pointer-events:stroke;stroke-linecap:round}
+  .discovery-visual .hint{position:absolute;bottom:5%;left:7%;font-size:9px;letter-spacing:.21em;color:#7ca1aa;display:flex;align-items:center;gap:13px}
+  .discovery-visual .hint::before{content:"";width:24px;height:1px;background:#7ebdb7}
+  .probe{position:absolute;left:50%;bottom:0;z-index:10;min-width:205px;padding:14px 15px;border:1px solid #47767e80;background:#0d2730e8;backdrop-filter:blur(15px);border-radius:3px;box-shadow:0 20px 38px #0004;opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .2s,transform .2s}
+  .probe.is-active{opacity:1;transform:translateY(0)}.probe .probe-head{font-size:9px;color:#90ced0;letter-spacing:.19em;margin-bottom:9px}.probe .probe-value{font-size:26px;font-weight:540;letter-spacing:-.05em}.probe .probe-value small{font-size:12px;color:#85a7ae;margin-left:7px}.probe .probe-extra{font-size:9px;letter-spacing:.1em;color:#8099a1;margin-top:7px}
+  .discovery-bottom{position:absolute;left:var(--page);right:var(--page);bottom:44px;display:flex;justify-content:space-between;align-items:end;gap:20px;z-index:4}
+  .discovery-bottom small{font-size:9px;letter-spacing:.11em;color:#748e95;max-width:430px;line-height:1.7}
+  .challenge{min-height:850px;min-height:100svh}
+  .challenge::before{background:radial-gradient(ellipse at 32% 90%,#22495143,transparent 65%),linear-gradient(157deg,#08151e,#0a2330 85%)}
+  .challenge .section-inner{display:flex;flex-direction:column;justify-content:center;padding-top:105px;padding-bottom:74px;gap:35px}
+  .challenge-heading{display:flex;align-items:end;gap:30px;justify-content:space-between}
+  .challenge .editorial-title{font-size:clamp(44px,5.2vw,85px);margin-top:19px}
+  .challenge-note{align-self:end;max-width:295px;font-size:10px;line-height:1.75;color:#87a5ac;letter-spacing:.05em;text-align:right}
+  .compare-grid{display:grid;grid-template-columns:minmax(0,1fr) 34px minmax(0,1fr);gap:24px;align-items:center;margin:4vh 0 0}
+  .case{position:relative;min-width:0;padding:0 5px}.case-diagram{height:clamp(170px,19vw,340px);margin:0 -12px;position:relative}.case-diagram svg{width:100%;height:100%}
+  .case .member-line{stroke-width:3.1}.case[data-kind="after"] .member-line{stroke-width:5.2;stroke:#b4f1dd}
+  .case[data-kind="before"] .member-line{stroke:#b5d7d5}
+  .case[data-kind="before"] .member-line.is-risk{stroke:var(--amber)}
+  .case[data-kind="before"] .member-line.is-risk{filter:drop-shadow(0 0 6px #e7ad8942)}
+  .case-top{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10px;letter-spacing:.16em;color:#96afb3}
+  .case-top span:last-child{font-size:9px;color:#7896a1}
+  .case-divider{height:1px;width:100%;background:linear-gradient(90deg,#75ada95a,#80c1b7ab,#75ada92f)}
+  .case-readout{display:flex;align-items:end;justify-content:space-between;gap:12px;padding-top:21px;min-height:107px}
+  .case-metric{display:flex;flex-direction:column;gap:5px}.case-metric small{font-size:9px;color:#819fa7;letter-spacing:.19em;text-transform:uppercase}.case-metric strong{font-size:clamp(37px,4.3vw,70px);font-weight:400;font-family:var(--serif);letter-spacing:-.045em;line-height:1.1}.case-metric strong sup{font:12px var(--sans);letter-spacing:0;color:#9eb9ba;margin-left:5px}
+  .case[data-kind="before"] .case-metric strong{color:#ebb994}.case[data-kind="after"] .case-metric strong{color:#baf1dc}
+  .case-verdict{font-size:9px;letter-spacing:.17em;display:flex;align-items:center;gap:10px;white-space:nowrap;margin-bottom:9px}.case-verdict::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}.case[data-kind="before"] .case-verdict{color:#ebb994}.case[data-kind="after"] .case-verdict{color:#adeacc}
+  .comparison-arrow{height:24px;width:34px;align-self:center;color:#95c5c3;opacity:.9;margin-top:10px}
+  .challenge-footer{display:flex;justify-content:space-between;align-items:center;border-top:1px solid #79a1a333;padding-top:18px;gap:15px}
+  .challenge-footer p{font-size:9px;letter-spacing:.11em;color:#88a6ab;margin:0;line-height:1.6}.challenge-footer b{color:#e7f5e8;font-weight:550}
+  .challenge-small{font-size:9px;color:#6b8992;letter-spacing:.1em;margin-top:0;line-height:1.7}
+  .studio::before{background:radial-gradient(ellipse at 65% 48%,#27616c43,transparent 53%),linear-gradient(166deg,#0a202b,#091822 57%,#07131b)}
+  .studio .section-inner{display:grid;grid-template-columns:minmax(280px,37%) minmax(0,63%);align-items:center;gap:6%;padding-top:110px;padding-bottom:115px}
+  .studio-copy{position:relative;z-index:5}.studio-copy .editorial-title{font-size:clamp(45px,5.2vw,85px);margin:25px 0 34px}.studio-copy .rule-accent{margin-bottom:36px}
+  .studio-cta{display:inline-flex;align-items:center;justify-content:space-between;gap:45px;border:1px solid #a8ecda;padding:19px 20px;min-width:268px;min-height:58px;background:#99f4d708;transition:background .25s,transform .25s,box-shadow .25s;font-size:10px;letter-spacing:.24em;font-weight:710;white-space:nowrap}
+  .studio-cta svg{width:18px;height:18px}.studio-cta:hover{transform:translateY(-3px);background:#8ff3d015;box-shadow:0 12px 40px #75e3cb13}
+  .studio-note{font-size:10px;letter-spacing:.07em;color:#809ba3;max-width:345px;line-height:1.8;margin-top:23px}
+  .studio-visual{height:61vh;min-height:380px;max-height:670px;position:relative;perspective:1000px}
+  .studio-shell{position:absolute;inset:10% 1% 13% 1%;border:1.5px solid #99d7d7b3;border-radius:11px;box-shadow:0 17px 45px #04101b8c,0 0 35px #6dd1d212,inset 0 0 19px #acebdf08;overflow:hidden;background:linear-gradient(145deg,#16343cbf,#081c2cbb);transform:perspective(1100px) rotateX(4deg) rotateY(-7deg);transition:transform .7s ease,box-shadow .7s ease}
+  .studio-visual:hover .studio-shell{transform:perspective(1100px) rotateX(0) rotateY(-2deg);box-shadow:0 27px 60px #03101ba8,0 0 42px #7de4cd20}
+  .window-header{height:37px;border-bottom:1px solid #8eb7bd58;display:flex;align-items:center;gap:7px;padding:0 14px}.window-header i{width:6px;height:6px;border:1px solid #a1ccccb0;border-radius:50%}.window-title{margin:auto;font-size:8px;letter-spacing:.22em;color:#93b7b9}.window-version{font-size:8px;color:#5b8890;letter-spacing:.05em}
+  .window-content{height:calc(100% - 37px);display:flex}.window-rail{height:100%;width:50px;flex:none;display:flex;align-items:center;flex-direction:column;gap:23px;border-right:1px solid #85b2b24d;padding-top:23px}.rail-glyph{width:21px;height:21px;stroke:#88acac;fill:none;stroke-width:1.1}.rail-glyph.active{stroke:#c5ffed}.window-viewport{position:relative;flex:1;overflow:hidden;background:radial-gradient(ellipse at 58% 53%,#1b46515a,transparent 56%)}.viewport-grid{position:absolute;inset:0;opacity:.18;background-image:linear-gradient(#7ab6bb33 1px,transparent 1px),linear-gradient(90deg,#7ab6bb33 1px,transparent 1px);background-size:41px 41px}
+  .window-label{position:absolute;left:25px;top:22px;font-size:8px;color:#8bbdc0;letter-spacing:.17em}.window-mode{position:absolute;right:20px;top:20px;font-size:8px;color:#a5e6d9;letter-spacing:.11em}.studio-truss{position:absolute;left:3%;width:95%;height:70%;top:17%;filter:drop-shadow(0 0 12px #a6f4df17)}
+  .viewport-axis{position:absolute;bottom:20px;left:25px;color:#69939a;font-size:8px;letter-spacing:.16em}.viewport-axis span{color:#b2eddc}.window-legend{position:absolute;right:18px;bottom:18px;display:flex;gap:11px;font-size:8px;color:#7faaa9}.window-legend i{display:inline-block;width:12px;height:2px;background:#8be3cf;vertical-align:middle;margin-right:5px}.window-legend i.amber{background:#daa87e}
+  .studio-haze{position:absolute;z-index:-1;inset:13% 0 0 -10%;background:radial-gradient(ellipse,#2c6e7352,transparent 66%);filter:blur(31px)}
+  .studio-art-caption{position:absolute;right:5%;bottom:7%;color:#769fa4;letter-spacing:.17em;font-size:9px}
+  .site-footer{min-height:115px;padding:24px var(--page);background:#07121b;display:flex;align-items:center;justify-content:space-between;gap:20px;color:#78959d;font-size:10px;letter-spacing:.12em;line-height:1.8}.site-footer strong{color:#b7dbd2;letter-spacing:.22em;font-size:11px}.site-footer a:hover{color:#cbfbe9}.site-footer .footer-links{display:flex;gap:28px}
+  .scroll-dots{position:fixed;right:24px;top:50%;transform:translateY(-50%);z-index:90;display:flex;flex-direction:column;gap:18px;mix-blend-mode:screen}
+  .scroll-dots a{width:4px;height:4px;border:1px solid #8fc3be;border-radius:50%;display:block;background:#72908f88;transition:transform .25s,background .25s,box-shadow .25s}
+  .scroll-dots a[aria-current="true"]{transform:scale(1.8);background:#b8ffe4;box-shadow:0 0 12px #a8f7df85}
+  .js-motion .reveal{opacity:0;transform:translateY(30px);transition:opacity 1s cubic-bezier(.16,.85,.23,1),transform 1s cubic-bezier(.16,.85,.23,1)}
+  .js-motion .is-visible .reveal{opacity:1;transform:translateY(0)}
+  .js-motion .reveal.d1{transition-delay:.1s}.js-motion .reveal.d2{transition-delay:.22s}.js-motion .reveal.d3{transition-delay:.34s}
+  @media (max-width:1100px){.hero-copy{top:28%}.hero-model{left:26%;right:-9%;width:88%;bottom:14%}.discovery-layout{grid-template-columns:minmax(230px,34%) minmax(0,66%)}.studio .section-inner{gap:2%}.case-verdict{font-size:8px}}
+  @media (max-width:820px){
+    .site-header{height:71px}.nav{gap:18px}.nav a{font-size:9px;letter-spacing:.1em}.brand-title{letter-spacing:.19em}
+    .section{min-height:690px}.hero{min-height:740px}.hero-copy{top:29%;max-width:95%}.hero .editorial-title{font-size:clamp(56px,9vw,86px)}.hero-model{width:108%;left:2%;bottom:15%;height:43%}.hero-water{left:0}.hero-meta{bottom:35px}
+    .discovery-layout{display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:20px;padding-top:110px;padding-bottom:100px}.discovery-copy{align-self:start;padding-top:0}.discovery-copy .editorial-title{margin:18px 0 23px}.discovery-visual{height:45vh;min-height:315px;max-height:480px}.discovery-visual .hint{bottom:2%}.discovery-bottom{bottom:28px}
+    .challenge .section-inner{padding-top:115px;padding-bottom:75px}.challenge-note{max-width:210px}.compare-grid{gap:12px;grid-template-columns:minmax(0,1fr) 23px minmax(0,1fr)}.case-diagram{height:230px}.case-readout{display:block}.case-verdict{margin:13px 0 0}.comparison-arrow{width:21px}
+    .studio .section-inner{display:flex;flex-direction:column;justify-content:center;align-items:stretch;padding-top:110px;padding-bottom:72px}.studio-copy .editorial-title{margin:18px 0 25px}.studio-copy .rule-accent{margin-bottom:25px}.studio-note{display:none}.studio-visual{height:49vh;min-height:350px;max-height:470px;margin-top:14px}
+    .scroll-dots{right:10px}
+  }
+  @media (max-width:600px){
+    :root{--page:24px}
+    .brand-title{font-size:11px;letter-spacing:.17em}.site-header{height:68px}.nav{display:none;position:absolute;top:67px;left:0;right:0;margin:0;padding:25px var(--page) 29px;background:#091923f5;box-shadow:0 24px 30px #0006;flex-direction:column;align-items:start;gap:25px;border-bottom:1px solid #6d9e9e3d}.nav.open{display:flex}.nav a{font-size:12px;letter-spacing:.2em}.menu-toggle{display:flex}
+    .section{min-height:650px}.section-inner{padding-top:95px;padding-bottom:70px}
+    .hero{height:100svh;min-height:710px}.hero-copy{top:24%;left:var(--page);right:var(--page)}.hero .editorial-title{font-size:clamp(52px,11vw,80px);margin:20px 0 17px}.hero-sub{font-size:8px;letter-spacing:.15em}.hero-copy .rule-accent{margin-top:30px}.hero-model{left:0;width:100%;height:41%;bottom:16%}.hero-water{left:0;width:100%;bottom:9%;height:18%}.hero-meta{bottom:24px}.hero-year{font-size:8px}.scroll-indicator{font-size:8px}.hero-marker{display:none}
+    .discovery-layout{padding-top:103px;padding-bottom:100px;justify-content:start}.section-index{font-size:9px}.discovery-copy .editorial-title{font-size:clamp(45px,10vw,63px)}.discovery-visual{height:49vh;min-height:280px}.discovery-panel{font-size:7px;right:4%;top:6%}.discovery-visual .hint{font-size:8px;left:4%;bottom:4%}.probe{min-width:165px;left:auto;right:4%;bottom:4%}.probe .probe-value{font-size:21px}.discovery-bottom{bottom:28px}.discovery .line-world{display:none}.discovery-bottom small{font-size:8px;max-width:240px}.discovery-bottom .section-footnote{display:none}
+    .challenge .section-inner{gap:22px;padding-top:97px;padding-bottom:44px}.challenge-heading{display:block}.challenge .editorial-title{font-size:clamp(45px,10vw,65px)}.challenge-note{display:none}.compare-grid{grid-template-columns:1fr;gap:9px;margin:0}.case{padding:0}.case-diagram{height:clamp(135px,32vw,225px);margin:-7px 0 -10px}.case-top{font-size:9px}.case-top span:last-child{font-size:8px}.case-readout{display:flex;min-height:0;padding-top:10px}.case-metric strong{font-size:39px}.case-verdict{margin:0 0 8px}.comparison-arrow{transform:rotate(90deg);justify-self:center;margin:0;width:20px;height:15px}.challenge-footer{padding-top:14px}.challenge-footer p{font-size:8px}.challenge-small{font-size:8px}
+    .studio .section-inner{padding-top:95px;padding-bottom:82px}.studio-copy .editorial-title{font-size:clamp(48px,10vw,66px)}.studio-cta{font-size:9px;padding:17px 15px;min-width:255px}.studio-visual{min-height:290px;height:39vh;margin-top:25px}.studio-shell{inset:4% 1% 13% 1%}.window-rail{width:33px;gap:15px;padding-top:14px}.window-header{height:28px}.window-content{height:calc(100% - 28px)}.window-label,.window-mode{font-size:6px}.window-label{left:11px;top:10px}.window-mode{right:11px;top:10px}.rail-glyph{width:17px}.studio-art-caption{font-size:7px}
+    .site-footer{min-height:120px;padding:20px var(--page);font-size:8px;align-items:start}.site-footer .footer-links{display:flex;flex-direction:column;gap:8px;text-align:right}
+    .scroll-dots{display:none}
+  }
+  @media (max-height:720px) and (min-width:821px){.hero-copy{top:26%}.hero .editorial-title{font-size:clamp(52px,5.6vw,82px)}.hero-model{height:50%;bottom:9%}.section-inner{padding-top:108px;padding-bottom:55px}.challenge .section-inner{padding-top:90px;gap:12px}.case-diagram{height:25vh;min-height:150px}.studio-visual{height:65vh;min-height:340px}}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.scroll-indicator svg,.studio-shell,.hero-model{animation:none!important;transition:none!important}.member-line{stroke-dashoffset:0!important;transition:none!important}.truss-joints,.truss-guides,.truss-supports{opacity:1!important;transition:none!important}.reveal{opacity:1!important;transform:none!important;transition:none!important}}
+  </style>
+</head>
+<body>
+  <a class="skip" href="#intro">Skip to main content</a>
+  <header class="site-header">
+    <a class="brand" href="#intro" aria-label="ForceForge AI home"><span class="brand-line" aria-hidden="true"></span><span class="brand-title">FORCEFORGE <em>AI</em></span></a>
+    <nav class="nav" id="siteNav" aria-label="Main navigation">
+      <a href="#intro">PROJECT</a><a href="#discovery">DISCOVER</a><a href="#challenge">CHALLENGE</a><a class="nav-launch" href="/workspace/" data-studio-link>STUDIO <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 16 16 4M7 4h9v9"/></svg></a>
+    </nav>
+    <button type="button" class="menu-toggle" id="menuToggle" aria-expanded="false" aria-controls="siteNav" aria-label="Open navigation"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7h16M3 15h16"/></svg></button>
+  </header>
+  <nav class="scroll-dots" aria-label="Page sections"><a href="#intro" aria-label="Intro" aria-current="true"></a><a href="#discovery" aria-label="Discover"></a><a href="#challenge" aria-label="Challenge"></a><a href="#studio" aria-label="Studio"></a></nav>
+  <main>
+    <section class="section hero is-visible" id="intro" aria-labelledby="heroTitle">
+      <div class="light-beam"></div><div class="ghost-horizon"></div><div class="line-world" aria-hidden="true"></div>
+      <div class="section-inner">
+        <div class="hero-copy">
+          <div class="section-index reveal">FORCEFORGE AI / 2026</div>
+          <h1 class="editorial-title reveal d1" id="heroTitle">Evidence<br><em>in Motion.</em></h1>
+          <div class="hero-sub reveal d2">PHYSICS-VERIFIED DESIGN EXPLORATION</div>
+          <div class="rule-accent reveal d3" aria-hidden="true"></div>
+        </div>
+        <div class="hero-model" id="heroModel"><svg id="heroTruss" class="truss-svg" viewBox="0 0 1100 520" role="img" aria-label="Exact Warren-2 pin-jointed truss topology, shown as an animated white engineering line drawing"></svg></div>
+        <div class="hero-water" aria-hidden="true"><svg id="heroReflection" class="truss-svg" viewBox="0 0 1100 520"></svg></div>
+        <div class="hero-meta"><span class="hero-year">HACK THE NEST 2026 <span aria-hidden="true">/</span> EMU</span><a href="#discovery" class="scroll-indicator">SCROLL TO EXPLORE <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M11 3v16m-6-6 6 6 6-6"/></svg></a></div>
+      </div>
+    </section>
+    <section class="section discovery" id="discovery" aria-labelledby="discoveryTitle">
+      <div class="light-beam"></div><div class="line-world" aria-hidden="true"></div>
+      <div class="section-inner discovery-layout">
+        <div class="discovery-copy"><div class="section-index reveal">01 / DISCOVERY</div><h2 class="editorial-title reveal d1" id="discoveryTitle">See what<br>structures<br><em>conceal.</em></h2><div class="rule-accent reveal d2" aria-hidden="true"></div><span class="section-footnote reveal d3">FROM GEOMETRY TO ENGINEERING EVIDENCE</span></div>
+        <div class="discovery-visual">
+          <div class="discovery-panel"><i class="live-dot" aria-hidden="true"></i><span id="solverStatus" role="status">REFERENCE GEOMETRY</span></div>
+          <svg id="analysisTruss" class="truss-svg discovery-svg" viewBox="0 0 1100 520" role="img" aria-label="Interactive Warren-2 finite element model. Select a bar to inspect its solved axial force and stress."></svg>
+          <div class="probe" id="probe" aria-live="polite"><div class="probe-head" id="probeHead">MEMBER / 01</div><div class="probe-value" id="probeValue">—</div><div class="probe-extra" id="probeExtra">RUNNING ENGINEERING SOLVER</div></div>
+          <div class="hint" id="hoverHint">HOVER OR TAP A MEMBER</div>
+        </div>
+        <div class="discovery-bottom"><small id="discoveryDisclaimer">Live member results are loaded from the Python FEA solver. Geometry remains visible if the solver is offline.</small><span class="section-footnote">2D / LINEAR ELASTIC FEA</span></div>
+      </div>
+    </section>
+    <section class="section challenge" id="challenge" aria-labelledby="challengeTitle">
+      <div class="section-inner">
+        <div class="challenge-heading"><div><div class="section-index reveal">02 / CHALLENGE</div><h2 class="editorial-title reveal d1" id="challengeTitle">A stronger<br><em>answer.</em></h2></div><div class="challenge-note reveal d2">Same loading envelope. Re-evaluated with finite-element analysis.</div></div>
+        <div class="compare-grid">
+          <div class="case reveal d1" data-kind="before"><div class="case-top"><span>ORIGINAL / TRIANGLE</span><span>+60% LOAD</span></div><div class="case-diagram"><svg id="beforeTruss" class="truss-svg" viewBox="0 0 1100 520" role="img" aria-label="Original 180 square millimeter truss candidate under sixty percent higher load; fails ideal buckling screening"></svg></div><div class="case-divider"></div><div class="case-readout"><div class="case-metric"><small>BUCKLING UTILIZATION</small><strong>1.132<sup>×</sup></strong></div><div class="case-verdict">LIMIT EXCEEDED</div></div></div>
+          <svg class="comparison-arrow" viewBox="0 0 34 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M2 12h29m-9-8 9 8-9 8"/></svg>
+          <div class="case reveal d2" data-kind="after"><div class="case-top"><span>REDESIGNED / TRIANGLE</span><span>+60% LOAD</span></div><div class="case-diagram"><svg id="afterTruss" class="truss-svg" viewBox="0 0 1100 520" role="img" aria-label="Redesigned 230 square millimeter truss candidate satisfies all eight checked scenarios under the challenge envelope"></svg></div><div class="case-divider"></div><div class="case-readout"><div class="case-metric"><small>WORST-CASE UTILIZATION</small><strong>0.693<sup>×</sup></strong></div><div class="case-verdict">FEASIBLE</div></div></div>
+        </div>
+        <div class="challenge-footer"><p>6.445 kg <b>→</b> 8.235 kg <span aria-hidden="true">&nbsp; / &nbsp;</span> a verified redesign under increased load</p><p>144 FEA-SCREENED CANDIDATES</p></div>
+        <div class="challenge-small">Illustrative numerical benchmark, not a fabricated structure or certified safety assessment. Ideal 2D pin joints, linear elasticity and simplified Euler member buckling.</div>
+      </div>
+    </section>
+    <section class="section studio" id="studio" aria-labelledby="studioTitle">
+      <div class="light-beam"></div><div class="line-world" aria-hidden="true"></div>
+      <div class="section-inner">
+        <div class="studio-copy"><div class="section-index reveal">03 / THE STUDIO</div><h2 class="editorial-title reveal d1" id="studioTitle">Design with<br><em>physics.</em></h2><div class="rule-accent reveal d2" aria-hidden="true"></div><a href="/workspace/" data-studio-link class="studio-cta reveal d2">ENTER THE STUDIO <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 11h16m-7-7 7 7-7 7"/></svg></a><p class="studio-note reveal d3">A real engineering workspace. Explore structural models, test challenging conditions, and verify design changes.</p></div>
+        <div class="studio-visual reveal d2"><div class="studio-haze" aria-hidden="true"></div><div class="studio-shell"><div class="window-header"><i></i><i></i><i></i><span class="window-title">FORCEFORGE ENGINEERING WORKSPACE</span><span class="window-version">V1.0</span></div><div class="window-content"><div class="window-rail" aria-hidden="true"><svg class="rail-glyph active" viewBox="0 0 24 24"><path d="M3 21 12 4l9 17H3ZM8 14h8"/></svg><svg class="rail-glyph" viewBox="0 0 24 24"><path d="M3 17h18M3 10h18M8 4v16M17 4v16"/></svg><svg class="rail-glyph" viewBox="0 0 24 24"><path d="M3 12c4-10 6 10 10 0s6-5 8 0"/></svg><svg class="rail-glyph" viewBox="0 0 24 24"><path d="M4 7h16M4 13h16M4 19h16"/></svg></div><div class="window-viewport"><div class="viewport-grid" aria-hidden="true"></div><span class="window-label">STRUCTURE / ANALYSIS</span><span class="window-mode">2D / 3D</span><svg id="studioTruss" class="truss-svg studio-truss" viewBox="0 0 1100 520" role="img" aria-label="Line drawing of the Warren-2 truss in a simplified studio preview"></svg><span class="viewport-axis">X <span>→</span> &nbsp; Y <span>↑</span></span><div class="window-legend"><span><i></i> Axial</span><span><i class="amber"></i> Compression</span></div></div></div></div><div class="studio-art-caption">AN ACTUAL WORKSPACE AWAITS <span aria-hidden="true">↗</span></div></div>
+      </div>
+    </section>
+  </main>
+  <footer class="site-footer"><div><strong>FORCEFORGE AI</strong><div>HACK THE NEST 2026 · EASTERN MICHIGAN UNIVERSITY</div></div><div class="footer-links"><a href="https://github.com/NeonGrade/ForceForge-AI" target="_blank" rel="noopener noreferrer">GITHUB ↗</a><a href="#intro">BACK TO TOP ↑</a></div></footer>
+  <script>
+  (() => {
+    'use strict';
+    const NS = 'http://www.w3.org/2000/svg';
+    const $ = (s, root=document) => root.querySelector(s);
+    const $$ = (s, root=document) => Array.from(root.querySelectorAll(s));
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const line = (a,b) => [a[0],a[1],b[0],b[1]];
+    // Exactly the node/member topology defined in forceforge/design.py.
+    // Display transforms preserve its topology; no arbitrary bridge-like bars are added.
+    const getGeometry = (topology, span=2, height=.8) => {
+      if (topology==='Triangle') return {nodes:[[0,0],[span,0],[span/2,height]],members:[[0,1],[0,2],[1,2]],supports:[0,1],loaded:2};
+      if (topology==='Fan') return {nodes:[[0,0],[span/2,0],[span,0],[span/2,height]],members:[[0,1],[1,2],[0,3],[2,3],[1,3]],supports:[0,2],loaded:3};
+      return {nodes:[[0,0],[span/2,0],[span,0],[span/4,height],[span/2,height],[3*span/4,height]],members:[[0,1],[1,2],[0,3],[3,1],[1,5],[5,2],[3,4],[4,5],[1,4]],supports:[0,2],loaded:4};
+    };
+    const mk=(tag,attrs={},parent=null)=>{const el=document.createElementNS(NS,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,String(v));if(parent)parent.appendChild(el);return el;};
+    const SVG_INSTANCES = new Map();
+    function drawTruss(id,topology,options={}){
+      const svg=document.getElementById(id);if(!svg)return;
+      svg.replaceChildren();
+      const geo=getGeometry(topology,2,.8),points=geo.nodes.map(([x,y])=>({x:75+x/2*950,y:400-y/.8*220}));
+      const guides=mk('g',{class:'truss-guides'},svg);
+      if(options.guides){
+        const [l,r]=[points[geo.supports[0]],points[geo.supports[1]]];
+        mk('line',{x1:l.x,y1:443,x2:r.x,y2:443},guides);
+        const txt=mk('text',{x:550,y:462,'text-anchor':'middle'},guides);txt.textContent='SPAN  /  2.00 m';
+        for(const p of points){if(p.y<350)mk('line',{x1:p.x,y1:p.y+12,x2:p.x,y2:408},guides);}
+      }
+      const membersGroup=mk('g',{class:'truss-members'},svg); const memberEls=[];
+      geo.members.forEach(([a,b],idx)=>{
+        const p=points[a],q=points[b],len=Math.hypot(q.x-p.x,q.y-p.y);
+        const attrs={x1:p.x,y1:p.y,x2:q.x,y2:q.y};
+        mk('line',{...attrs,class:'member-shadow'},membersGroup);
+        mk('line',{...attrs,class:'member-halo'},membersGroup);
+        const m=mk('line',{...attrs,class:'member-line','data-index':idx,'data-state':'neutral',style:`--length:${Math.ceil(len)+3};--delay:${idx*70}ms`},membersGroup);
+        memberEls.push(m);
+        if(options.interactive){
+          const hit=mk('line',{...attrs,class:'member-hit',tabindex:0,role:'button','aria-label':`Inspect member ${idx+1}`,'data-index':idx},membersGroup);
+          const onFocus=()=>inspectMember(idx);
+          hit.addEventListener('pointerenter',onFocus);hit.addEventListener('click',onFocus);hit.addEventListener('focus',onFocus);
+          hit.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();onFocus();}});
+        }
+      });
+      const joints=mk('g',{class:'truss-joints'},svg);
+      points.forEach((p,i)=>{mk('circle',{cx:p.x,cy:p.y,r:12,class:'node-halo'},joints);mk('circle',{cx:p.x,cy:p.y,r:4.7,class:'node-core'},joints);});
+      const supports=mk('g',{class:'truss-supports'},svg);
+      geo.supports.forEach((idx,n)=>{const p=points[idx],cx=p.x,y=p.y+9;mk('path',{d:`M${cx} ${y}l-15 25h30z`},supports);if(n===1){mk('circle',{cx:cx-7,cy:y+38,r:3},supports);mk('circle',{cx:cx+7,cy:y+38,r:3},supports);mk('line',{x1:cx-21,x2:cx+21,y1:y+42,y2:y+42},supports);}else{mk('line',{x1:cx-24,x2:cx+24,y1:y+34,y2:y+34},supports);}});
+      SVG_INSTANCES.set(id,{svg,geo,points,memberEls});
+      return SVG_INSTANCES.get(id);
+    }
+    // Primary model: actual 6-node, 9-member Warren-2 (not an invented long bridge).
+    drawTruss('heroTruss','Warren-2',{guides:false});
+    drawTruss('heroReflection','Warren-2',{guides:false});
+    drawTruss('analysisTruss','Warren-2',{guides:true,interactive:true});
+    drawTruss('beforeTruss','Triangle',{guides:false});
+    drawTruss('afterTruss','Triangle',{guides:false});
+    drawTruss('studioTruss','Warren-2',{guides:true});
+    // Evidence sourced from the project's audited default benchmark.
+    // A=180 mm2 under +60% load: ideal buckling utilization 1.1321 (fails).
+    // A=230 mm2 under +60% envelope: worst utilization 0.6934 (feasible).
+    // The stroke in the redesigned visual is subtly heavier to indicate the larger area.
+    SVG_INSTANCES.get('beforeTruss').memberEls.forEach((m,i)=>{if(i>0)m.classList.add('is-risk');});
+    let analysis = null,selectedMember = null,requested=false;
+    const panel=$('#probe'),head=$('#probeHead'),val=$('#probeValue'),extra=$('#probeExtra');
+    function inspectMember(index){
+      const item=SVG_INSTANCES.get('analysisTruss'); if(!item||!analysis||!analysis.members||!analysis.members[index])return;
+      selectedMember=index;
+      item.memberEls.forEach((m,i)=>m.classList.toggle('is-selected',i===index));
+      const m=analysis.members[index];
+      const force=Number(m.force_n),stress=Number(m.stress_mpa);
+      if(!Number.isFinite(force)||!Number.isFinite(stress))return;
+      head.textContent=`MEMBER / ${String(index+1).padStart(2,'0')}  ·  ${m.state.toUpperCase()}`;
+      val.textContent=`${Math.abs(stress).toFixed(2)}`;
+      const unit=document.createElement('small');unit.textContent='MPa';val.appendChild(unit);
+      extra.textContent=`AXIAL FORCE  ${force.toFixed(1)} N  /  PYTHON FEA`;
+      panel.classList.add('is-active');
+    }
+    async function loadAnalysis(){
+      if(requested)return;requested=true;
+      const status=$('#solverStatus');status.textContent='CONNECTING TO SOLVER';
+      try{
+        const resp=await fetch('/api/solve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topology:'Warren-2',span_m:2,height_m:.8,area_mm2:180,base_load_n:1000})});
+        if(!resp.ok)throw Error(`HTTP ${resp.status}`);
+        const json=await resp.json();
+        if(!json.analysis||!Array.isArray(json.analysis.members)||json.analysis.members.length!==9)throw Error('Missing FEA member data');
+        analysis=json.analysis;
+        const view=SVG_INSTANCES.get('analysisTruss');
+        json.analysis.members.forEach((m,i)=>{const l=view.memberEls[i];l.classList.add('has-state');l.dataset.state=m.state;});
+        status.textContent='LIVE / PYTHON FEA';$('#discoveryDisclaimer').textContent='Computed axial stress and member forces from the active Python finite-element solver. Hover or tap a bar to inspect.';
+        // Highlight the member with the largest absolute solved stress after the geometry appears.
+        const values=json.analysis.members.map(m=>Math.abs(Number(m.stress_mpa)||0));const idx=values.indexOf(Math.max(...values));
+        if(idx>=0)inspectMember(idx);
+      }catch(_){
+        status.textContent='GEOMETRY PREVIEW / OFFLINE';$('#discoveryDisclaimer').textContent="Geometry matches the project's Warren-2 model. Member results are only shown when the Python FEA server is running.";
+        $('#hoverHint').textContent='START THE ENGINEERING SERVER TO INSPECT MEMBERS';
+      }
+    }
+    const sections=$$('.section');
+    // Set navigation current item and reveal each section without hijacking natural scrolling.
+    if('IntersectionObserver' in window && !reducedMotion){document.documentElement.classList.add('js-motion');}
+    function activate(sec){sec.classList.add('is-visible');if(sec.id==='discovery')loadAnalysis();}
+    if('IntersectionObserver' in window){
+      const revealObserver=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting){activate(e.target);revealObserver.unobserve(e.target);}}),{threshold:.08,rootMargin:'0px 0px -6% 0px'});
+      sections.forEach(s=>revealObserver.observe(s));
+      const navObserver=new IntersectionObserver(entries=>entries.forEach(e=>{if(!e.isIntersecting)return;$$('.scroll-dots a,.nav a[href^="#"]').forEach(a=>{a.getAttribute('href')==='#'+e.target.id?a.setAttribute('aria-current','true'):a.removeAttribute('aria-current');});}),{threshold:0,rootMargin:'-38% 0px -48% 0px'});
+      sections.forEach(s=>navObserver.observe(s));
+    }else{sections.forEach(activate);}
+    // Once revealed, the original geometry stays visible even when the visitor scrolls away.
+    const menu=$('#menuToggle'),nav=$('#siteNav');
+    const closeMenu=()=>{nav.classList.remove('open');menu.setAttribute('aria-expanded','false');menu.setAttribute('aria-label','Open navigation');};
+    menu.addEventListener('click',()=>{const open=nav.classList.toggle('open');menu.setAttribute('aria-expanded',String(open));menu.setAttribute('aria-label',open?'Close navigation':'Open navigation');});
+    $$('#siteNav a').forEach(a=>a.addEventListener('click',closeMenu));
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeMenu();panel.classList.remove('is-active');}});
+    // Standalone file previews should still link to a running workspace if one is available.
+    if(location.protocol==='file:')$$('[data-studio-link]').forEach(a=>a.href='http://127.0.0.1:8000/workspace/');
+    if(!reducedMotion){
+      const hero=$('#intro'),model=$('#heroModel');let targetX=0,targetY=0,raf=0;
+      hero.addEventListener('pointermove',e=>{if(e.pointerType==='touch')return;const r=hero.getBoundingClientRect();targetX=((e.clientX-r.left)/r.width-.5)*14;targetY=((e.clientY-r.top)/r.height-.5)*10;if(raf)return;raf=requestAnimationFrame(()=>{model.style.transform=`translate3d(${targetX.toFixed(1)}px,${targetY.toFixed(1)}px,0)`;raf=0;});},{passive:true});
+      hero.addEventListener('pointerleave',()=>{model.style.transform='';},{passive:true});
+    }
+  })();
+  </script>
+</body>
+</html>

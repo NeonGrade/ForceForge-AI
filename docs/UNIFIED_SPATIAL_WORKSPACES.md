@@ -1,6 +1,6 @@
-# ForceForge X — Unified 2D + 3D Spatial Workspaces
+# ForceForge X — Unified 2D + 3D Spatial Workspaces (v1.0 foundation)
 
-**Interface:** 2D Spatial Parity + 3D Spatial Engineering v0.2.1  
+**Interface:** ForceForge X Workspace v1.0.0 (2D Spatial Parity + original 3D Spatial Engineering v0.2.1)  
 **Engineering baseline:** Physics-verified 2D truss and the existing 3D/CAD/real-laboratory modules from the PR #17 integration branch.  
 **State:** Independent review integration; do not merge until CI and Mac/Safari review are complete.
 
@@ -15,7 +15,7 @@ python3 -m pip install 'gmsh>=4.12,<5'
 python3 web_server.py
 ```
 
-Open **http://127.0.0.1:8000**. There is no requirement to launch `studio_server.py` or a second port. If port 8000 is already in use, stop the old server or launch with `python3 web_server.py --port 8001` and use the corresponding address.
+Open **http://127.0.0.1:8000/workspace/**. There is no requirement to launch `studio_server.py` or a second port. If port 8000 is already in use, stop the old server or launch with `python3 web_server.py --port 8001` and use the corresponding address.
 
 For reproducible Mac environments, prefer Python 3.12 in a virtual environment; system/Anaconda 3.14 and native Gmsh combinations have not been accepted on the project demo machine. The original `python3 studio_server.py` remains an independent specialist entry point at port 8765.
 
@@ -57,3 +57,7 @@ The embedded 3D index gets a tiny client-side `fetch` prefix adapter, applied on
 - 2D visual parity: `ui/2d-spatial-parity` (PR #19).
 - 3D engineering, original CAD and ML/Agent integration: `codex/ml-agent-upgrade` (PR #17).
 - Both remain available for independent review. The unified review branch combines them without force-pushing either parent or altering `main`.
+
+## v1.0 product polish
+
+The canonical `/workspace/` route and integration refinements are documented in `docs/WORKSPACE_V1_0.md`. They do not alter the engineering solver release version or independently validate physical hardware.

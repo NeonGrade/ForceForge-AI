@@ -97,7 +97,7 @@ def test_spatial_style_parity_assets_and_engineering_boundary():
     assert 'id="spatialPinArea"' in html
     assert 'id="spatialPinResult"' in html
     assert 'id="sceneSelector"' in html
-    assert 'LEVEL 02 · SPATIAL ENGINEERING' in html
+    assert 'WORKSPACE v1.0 · SPATIAL ENGINEERING' in html
     assert '--accent:#d7efa2' in css
     assert 'window.ForceForge2D' in solver_ui
     assert 'window.ForceForge2D' in js
@@ -109,3 +109,22 @@ def test_spatial_style_parity_assets_and_engineering_boundary():
     assert 'id="integratedStudioFrame"' in html
     assert 'http://127.0.0.1:8765' not in html
     assert "'/api/3d/catalog'" in js
+
+
+def test_v1_workspace_exports_are_explicitly_numerical_and_restorable():
+    from web_server import WORKSPACE_VERSION, workspace_manifest
+    from pathlib import Path
+    from web_server import STATIC_DIR
+    assert WORKSPACE_VERSION == '1.0.0'
+    info = workspace_manifest(studio_available=False)
+    assert info['workspace_path'] == '/workspace/'
+    assert info['spaces']['2d']['available'] is True
+    assert info['spaces']['3d']['available'] is False
+    assert 'no structural certification' in info['evidence']
+    app = (STATIC_DIR / 'app.js').read_text()
+    assert "workspace_version:'1.0.0'" in app
+    assert "certification:false" in app
+    assert "sessionStorage.setItem(sessionKey" in app
+    assert 'restoreDesign()' in app
+    assert "data-action=\"retry-solve\"" in app
+    assert 'Pending solver' in app

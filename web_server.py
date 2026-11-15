@@ -27,6 +27,24 @@ from forceforge.surrogate import propose_and_verify, train
 
 ROOT = Path(__file__).resolve().parent
 STATIC_DIR = ROOT / "web"
+WORKSPACE_VERSION = "1.0.0"
+WORKSPACE_NAME = "ForceForge X / Engineering Workspace"
+
+
+def workspace_manifest(*, studio_available: bool = False) -> dict:
+    """Report capability boundaries; never imply physical certification."""
+    return {
+        "product": WORKSPACE_NAME,
+        "workspace_version": WORKSPACE_VERSION,
+        "workspace_path": "/workspace/",
+        "default_space": "2d",
+        "spaces": {
+            "2d": {"available": True, "method": "2D linear elastic axial truss FEA"},
+            "3d": {"available": studio_available,
+                   "method": "Separate volumetric, CAD and modal solvers"},
+        },
+        "evidence": "Numerical analysis under stated assumptions; no structural certification",
+    }
 MATERIALS = {
     "steel": (200e9, 7850.0, 250e6),
     "aluminum": (70e9, 2700.0, 150e6),
@@ -241,7 +259,7 @@ def handle_api(route: str, data: dict) -> dict:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "ForceForgeWorkspace/1.0"
+    server_version = "ForceForgeWorkspace/1.0.0"
 
     def _reply(self, status: int, body: bytes, content_type: str) -> None:
         self.send_response(status)
@@ -262,7 +280,12 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/api/health":
             self._json(200, {"status": "ok", "backend": "forceforge", "topologies": TOPOLOGIES})
             return
+        if route == "/api/workspace":
+            self._json(200, workspace_manifest())
+            return
         if route in ("/", "/index.html"):
+            path = ROOT / "landing" / "index.html"
+        elif route in ("/workspace", "/workspace/"):
             path = STATIC_DIR / "index.html"
         elif route in ("/style.css", "/app.js", "/spatial-theme.css", "/spatial-shell.js"):
             path = STATIC_DIR / route.lstrip("/")
@@ -312,9 +335,20 @@ STUDIO_API_BOOTSTRAP = r"""<script>
   window.fetch = function (resource, options) {
     if (typeof resource === 'string' && resource.startsWith('/api/')) {
       resource = '/api/3d' + resource.substring(4);
+    } else if (resource instanceof Request) {
+      const url = new URL(resource.url);
+      if (url.origin === window.location.origin && url.pathname.startsWith('/api/')) {
+        url.pathname = '/api/3d' + url.pathname.substring(4);
+        resource = new Request(url, resource);
+      }
     }
     return studioFetch(resource, options);
   };
+  document.addEventListener('DOMContentLoaded', function () {
+    // The integrated shell is v1.0; underlying 3D engineering version is unchanged.
+    const subtitle = document.querySelector('.brand-words small');
+    if (subtitle) subtitle.textContent = 'WORKSPACE V1.0 / SPATIAL ENGINEERING';
+  });
 })();
 </script>"""
 
@@ -322,7 +356,8 @@ STUDIO_API_BOOTSTRAP = r"""<script>
 def make_integrated_handler(studio_handler, studio_index: Path | None = None):
     """Compose independent, real 2D/3D solvers without altering their endpoints.
 
-    /                -> 2D Truss Workspace
+    /                -> Project landing page
+    /workspace/      -> 2D Truss Workspace
     /studio/         -> existing WebGL Spatial Studio
     /api/solve       -> 2D truss solver
     /api/3d/solve    -> 3D solid or modal solver
@@ -331,7 +366,7 @@ def make_integrated_handler(studio_handler, studio_index: Path | None = None):
     studio_index = studio_index or ROOT / 'studio' / 'index.html'
 
     class IntegratedHandler(Handler, studio_handler):
-        server_version = 'ForceForgeUnifiedSpatial/1.0'
+        server_version = 'ForceForgeUnifiedSpatial/1.0.0'
 
         def _json(self, *args, **kwargs):
             if getattr(self, '_studio_dispatch', False):
@@ -351,6 +386,8 @@ def make_integrated_handler(studio_handler, studio_index: Path | None = None):
 
         def do_GET(self):
             route = urlsplit(self.path).path
+            if route == '/api/workspace':
+                return self._json(200, workspace_manifest(studio_available=True))
             if route in ('/studio', '/studio/'):
                 if not studio_index.is_file():
                     return self._json(404, {'error': '3D Studio files missing'})
@@ -391,7 +428,8 @@ def main() -> None:
         handler = make_integrated_handler(StudioHandler)
         integrated = True
     server = ThreadingHTTPServer((args.host, args.port), handler)
-    print(f"ForceForge Workspace: http://{args.host}:{args.port}", flush=True)
+    print(f"ForceForge X Engineering Workspace v{WORKSPACE_VERSION}", flush=True)
+    print(f"Open http://{args.host}:{args.port}/workspace/", flush=True)
     if integrated:
         print("Integrated 2D and 3D workspaces on the same port; Real CAD requires optional Gmsh.", flush=True)
     print("Press Ctrl+C to stop. Existing Streamlit UI: python -m streamlit run app.py", flush=True)
