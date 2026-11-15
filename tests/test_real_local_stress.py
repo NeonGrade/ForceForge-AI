@@ -71,6 +71,10 @@ def test_real_two_stage_hotspot_refinement_has_explicit_non_certifying_status(ca
         solve_at=analyze_step_safely,
     )
     assert len(report.steps)==3
+    assert report.refinement_mono, (
+        "Actual STEP mesh counts did not increase by >=10% at each "
+        f"local refinement: {[x.mesh_tetra_count for x in report.steps]}"
+    )
     assert report.source_sha256==sha256(blob).hexdigest()
     assert all(r.reaction_residual<1e-5 for r in report.steps)
     assert report.status in {
