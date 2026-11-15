@@ -11,6 +11,7 @@ from forceforge.cad_solid import CadLoad
 from forceforge.isolated_cad import generate_bracket_safely,analyze_step_safely
 from forceforge.mesh_verification import run_mesh_evidence
 from forceforge.local_refinement import run_hotspot_refinement
+from forceforge.dual_hotspot import run_dual_hotspot_study
 
 def main():
     source=generate_bracket_safely(8.)
@@ -27,12 +28,17 @@ def main():
         source,baseline,source_label="CAD 8mm L bracket",
         unit="mm",solve_at=analyze_step_safely
     )
+    dual_study=run_dual_hotspot_study(
+        source,baseline,local_study,source_label="CAD 8mm L bracket",
+        unit="mm",solve_at=analyze_step_safely,
+    )
     result={
         "scenario":"Actual Gmsh STEP L-bracket 8 mm web, 250 N transverse X, ideal Z-min clamp",
         "source_sha256":baseline.mesh.source_sha256,
         "gauss_sample_count":len(baseline.gauss_points_m),
         "global_mesh_evidence":global_study.as_dict(),
         "targeted_hotspot_evidence":local_study.as_dict(),
+        "synchronized_dual_hotspot_evidence":dual_study.as_dict(),
         "physical_validation":"No matched static experiment or actual fixture qualification"
     }
     Path("forceforge_v11_real_stress_audit.json").write_text(
@@ -63,6 +69,13 @@ def main():
         "maximum_fixed_site_mean_change_percent":local_study.maximum_fixed_site_mean_change_percent,
         "maximum_fixed_site_p90_change_percent":local_study.maximum_fixed_site_p90_change_percent,
         "fixed_two_site_verdict":local_study.status,
+        "dual_tetra_counts":[r.mesh_tetra_count for r in dual_study.steps],
+        "dual_fixed_site_verdict":dual_study.status,
+        "dual_peak_verdict":dual_study.global_peak_status,
+        "dual_peak_movement_mm":dual_study.global_peak_movement_mm,
+        "dual_fixed_site_max_mean_change_percent":dual_study.maximum_site_mean_change_percent,
+        "dual_fixed_site_max_p90_change_percent":dual_study.maximum_site_p90_change_percent,
+        "dual_fixed_site_rows":list(dual_study.site_rows),
     },indent=2))
     # Do not claim targeted refinement when actual tetra counts fail to grow.
     if not local_study.refinement_mono:
