@@ -468,7 +468,98 @@ with st.expander(
             key="download_mesh_evidence",
         )
 
-st.subheader("Step 3 · Independently re-mesh a revised STEP")
+st.subheader("Step 3 · Physically localized stress refinement")
+with st.expander(
+    "Refine around the actual 3D stress hotspot (explicit action)",
+    expanded=False,
+):
+    physical_probe=probe_stress(result)
+    st.write(
+        "Highest sampled Gauss stress occurs at the undeformed CAD "
+        "coordinate (X, Y, Z) = "
+        + str(tuple(round(v,2) for v in physical_probe.global_peak_location_mm))
+        + " mm. The solver will re-import the identical STEP and apply "
+        "two progressively smaller 3D mesh-size fields centered at that "
+        "physical location, while preserving the same force and support."
+    )
+    if physical_probe.global_peak_zone=="NEAR_IDEALIZED_FIXED_FACE":
+        st.warning(
+            "The maximum is near the idealized clamped plane. Its maximum "
+            "may be a mathematically mesh-sensitive support singularity. "
+            "No real bolt/contact solution has been supplied; a realistic "
+            "attachment model is necessary before engineering approval."
+        )
+    if st.button(
+        "Run two local hotspot refinements",
+        key="run_true_local_refinements",
+    ):
+        st.session_state.pop("stable_hotspot_study",None)
+        try:
+            with st.spinner(
+                "Remeshing source STEP locally and running two isolated "
+                "3D tetra10 FE solves..."
+            ):
+                refined=run_hotspot_refinement(
+                    saved["source"],result,
+                    source_label=saved["source_name"],unit=unit,
+                    solve_at=analyze_step_safely,
+                )
+            st.session_state["stable_hotspot_study"]={
+                "signature":signature,
+                "study":refined,
+            }
+        except (CadJobError,RuntimeError,ValueError,OSError) as exc:
+            st.error(
+                "Local stress verification could not be completed: "
+                + str(exc) + ". No stress-convergence claim has been made. "
+                "The original completed 3D FE result is preserved."
+            )
+    targeted=st.session_state.get("stable_hotspot_study")
+    if targeted is not None and targeted["signature"]!=signature:
+        st.warning("Old hotspot verification is stale after input changes.")
+        targeted=None
+    if targeted is not None:
+        details=targeted["study"]
+        if details.status=="PRELIMINARY_LOCAL_STRESS_SCREEN_MET":
+            st.warning(
+                "Numerical local-stress screening only. Physical contact, "
+                "experimental material data and safety approval are not verified."
+            )
+        else:
+            st.error(
+                "LOCAL STRESS UNRESOLVED — " + details.status
+            )
+        st.write(details.explanation)
+        local_rows=pd.DataFrame([r.as_dict() for r in details.steps])
+        local_rows=local_rows.rename(columns={
+            "label":"FE solution",
+            "mesh_tetra_count":"Real tetra elements",
+            "local_factor":"Hotspot mesh factor",
+            "tip_mm":"Tip movement (mm)",
+            "global_peak_mpa":"Global sampled peak (MPa)",
+            "region_mean_mpa":"Fixed-band mean (MPa)",
+            "region_p90_mpa":"Fixed-band P90 (MPa)",
+            "peak_xyz_mm":"Peak XYZ (mm)",
+            "reaction_residual":"Reaction error",
+            "volume_difference_pct":"CAD/mesh volume difference (%)",
+        })
+        st.dataframe(local_rows,hide_index=True,width="stretch")
+        st.caption(
+            f"Finer local meshes: moving maximum changed "
+            f"{details.peak_change_percent:.2f}%, weighted band mean "
+            f"{details.region_mean_change_percent:.2f}%, band P90 "
+            f"{details.region_p90_change_percent:.2f}%, and hotspot "
+            f"location moved {details.hotspot_move_mm:.2f} mm."
+        )
+        st.caption(details.limitations)
+        st.download_button(
+            "Download local stress-verification JSON",
+            json.dumps(details.as_dict(),indent=2),
+            file_name="forceforge_hotspot_stress_audit.json",
+            mime="application/json",key="download_hotspot_stress",
+        )
+
+st.subheader("Step 4 · Independently re-mesh a revised STEP")
 st.write(
     "A second solver job uses a *different STEP file* and recomputes the "
     "complete 3D finite-element system."
