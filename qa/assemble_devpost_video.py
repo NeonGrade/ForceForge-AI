@@ -68,14 +68,16 @@ def exactly_one(paths,description:str)->Path:
 def main():
     fan=exactly_one((ROOT/"qa"/"artifacts_nl_fluid").glob("*.webm"),"real browser CAD")
     fea=exactly_one((ROOT/"qa"/"artifacts").glob("*.webm"),"real browser FEA")
+    wall=exactly_one((ROOT/"qa"/"artifacts_wall_mount").glob("*.webm"),"real browser wall statics")
     cfd=exactly_one((ROOT/"qa"/"real_flow_demo").glob("*.mp4"),"genuine OpenFOAM reference")
-    if min(fan.stat().st_size,fea.stat().st_size,cfd.stat().st_size)<50000:
+    if min(fan.stat().st_size,fea.stat().st_size,wall.stat().st_size,cfd.stat().st_size)<50000:
         raise RuntimeError("One authentic raw browser/CFD video is suspiciously small")
     cards=[
         ("ForceForge X","Hack The Nest 2026 | Engineering AI",4.),
         ("01  Natural Language CAD","Real STEP geometry from an English/Chinese request",3.),
         ("02  Structural FEA","Independent tetra10 solver | genuine stress and deformation",3.),
-        ("03  Rotating CFD","Real OpenFOAM reference flow U/p | true STL rotor",3.),
+        ("03  Mounting Loads","Real 4-anchor equilibrium | illustrative load inputs",3.),
+        ("04  Rotating CFD","Real OpenFOAM reference flow U/p | true STL rotor",3.),
         ("Physics vs Animation","Rigid blade loop | flow snapshot is physically solved",4.),
         ("ForceForge X","4 CAD families | limited fixtures | source-linked evidence",4.),
     ]
@@ -86,15 +88,18 @@ def main():
         title_paths.append(target)
     fan_dst=OUT/"fan_CAD_actual_UI.mp4"
     fea_dst=OUT/"bracket_FEA_actual_UI.mp4"
+    wall_dst=OUT/"four_anchor_static_actual_UI.mp4"
     cfd_dst=OUT/"OpenFOAM_reference_actual_U_p.mp4"
     normalize(fan,fan_dst,34.)
     normalize(fea,fea_dst,45.)
+    normalize(wall,wall_dst,11.)
     normalize(cfd,cfd_dst,30.,from_tail=False)
     playlist=[
         title_paths[0],title_paths[1],fan_dst,
         title_paths[2],fea_dst,
-        title_paths[3],cfd_dst,
-        title_paths[4],title_paths[5],
+        title_paths[3],wall_dst,
+        title_paths[4],cfd_dst,
+        title_paths[5],title_paths[6],
     ]
     manifest=OUT/"concat.txt"
     manifest.write_text(
@@ -113,9 +118,11 @@ def main():
         "sources":{
             "natural_language_CAD":"actual Chromium Gmsh/OpenCASCADE STEP recorded in this run",
             "structural_FEA":"actual Chromium quadratic tetra10 FEA recorded in this run",
+            "wall_mount_statics":"actual Chromium 4-anchor analytical reactions with unverified example input",
             "reference_CFD":"GitHub Actions verified reference run 43722359161",
         },
         "limitations":[
+            "Wall four-anchor reactions use explicitly labeled demonstration loads",
             "No actual wall material FEA, contact or anchor pullout",
             "CFD clip shows official OpenFOAM reference domain",
             "Flow U/p frozen during smooth kinematic STL rotation",

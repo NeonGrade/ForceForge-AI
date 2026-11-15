@@ -7,6 +7,7 @@ on:
       - 'qa/assemble_devpost_video.py'
       - 'qa/nl_fluid_browser_smoke.py'
       - 'qa/real_step_browser_smoke.py'
+      - 'qa/wall_mount_browser_smoke.py'
       - '.github/workflows/devpost-full-demo.yml'
 
 permissions:
@@ -35,6 +36,8 @@ jobs:
         run: python qa/nl_fluid_browser_smoke.py
       - name: Capture actual STEP import and 3D tetra10 FEM in browser
         run: python qa/real_step_browser_smoke.py
+      - name: Record real four-anchor wall mounting equilibrium
+        run: python qa/wall_mount_browser_smoke.py
       - name: Fetch independently verified reference OpenFOAM CFD recording
         env:
           GH_TOKEN: ${{ github.token }}
@@ -54,5 +57,6 @@ jobs:
             qa/final_devpost_video/VIDEO_EVIDENCE.json
             qa/artifacts_nl_fluid/*.png
             qa/artifacts/*.png
+            qa/artifacts_wall_mount/*.png
           retention-days: 7
           if-no-files-found: ignore
