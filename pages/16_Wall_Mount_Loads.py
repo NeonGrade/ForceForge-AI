@@ -70,7 +70,7 @@ if result is not None:
     c4.metric("Moment balance error",f"{result.moment_balance_error_nm:.2e} N·m")
     st.markdown("### Per-anchor reactions")
     table=[asdict(p) for p in result.anchors]
-    st.dataframe(table,use_container_width=True,hide_index=True)
+    st.dataframe(table,width="stretch",hide_index=True)
     fig=go.Figure()
     fig.add_trace(go.Bar(x=[f"A{i+1}" for i in range(4)],
                          y=[x.tension_demand_n for x in result.anchors],
@@ -83,7 +83,7 @@ if result is not None:
         xaxis_title="Four physical anchor coordinates (see table)",
         yaxis_title="Reaction magnitude (N)",
     )
-    st.plotly_chart(fig,use_container_width=True)
+    st.plotly_chart(fig,width="stretch")
     st.caption(result.numerical_scope)
     if provenance=="unverified_example":
         st.warning("Demonstration inputs: DO NOT present these forces as measured or OpenFOAM-derived.")
@@ -94,7 +94,5 @@ if result is not None:
         mime="application/json",
     )
 st.divider()
-st.page_link("pages/14_Natural_Language_Engineering.py",
-             label="Return to mechanical CAD models",icon="🧩")
-st.page_link("pages/15_Transient_Rotating_CFD.py",
-             label="Inspect actual OpenFOAM solved flow fields",icon="🌀")
+st.markdown("[Return to mechanical CAD models](./Natural_Language_Engineering)")
+st.markdown("[Inspect actual OpenFOAM solved flow fields](./Transient_Rotating_CFD)")
