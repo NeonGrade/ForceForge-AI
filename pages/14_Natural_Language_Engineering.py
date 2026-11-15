@@ -139,7 +139,7 @@ for task in plan.tasks:
         "Missing inputs":", ".join(task.missing_inputs) or "—",
         "Reason":task.reason,
     })
-st.dataframe(rows,hide_index=True,use_container_width=True)
+st.dataframe(rows,hide_index=True,width="stretch")
 for warning in plan.warnings:
     st.caption("Engineering limitation: "+warning)
 
@@ -211,7 +211,7 @@ if snapshot is not None:
                        yaxis_title="Y (mm)",zaxis_title="Z (mm)"),
             margin=dict(l=0,r=0,t=50,b=0),height=500,
         )
-        st.plotly_chart(fig,use_container_width=True)
+        st.plotly_chart(fig,width="stretch")
     elif cad.concept_only:
         st.warning(
             "Concept fan STEP is available; surface preview could not be tessellated "
@@ -226,7 +226,7 @@ if snapshot is not None:
         c.metric("Sampled von Mises",f"{fea.peak_von_mises_mpa:.3f} MPa")
         st.plotly_chart(
             surface_figure(fea,deformation_scale=80),
-            use_container_width=True,
+            width="stretch",
         )
         st.caption(
             "Real quadratic tetra10 linear-elastic FEA; ideal support and "
