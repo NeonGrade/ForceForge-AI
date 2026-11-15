@@ -16,7 +16,7 @@ from forceforge.engineering_schema import (
     approve_demo_assumptions, interpret_text,
 )
 from forceforge.engineering_pipeline import (
-    TaskState, plan_engineering, run_engineering,
+    TaskState, plan_engineering, run_engineering, mesh_registered_fluid_domain,
 )
 from forceforge.isolated_cad import CadJobError
 from forceforge.solid3d import surface_figure
@@ -32,8 +32,8 @@ st.caption(
 )
 st.info(
     "Prototype capabilities: real L-bracket STEP + isolated tetra10 FEA; "
-    "conceptual wall-fan STEP only. Multi-body fan contact, CFD and "
-    "thermal results remain blocked until validated solvers are connected. "
+    "conceptual wall-fan STEP + real idealized 3D air-domain Gmsh mesh. "
+    "Fan contact, Navier-Stokes CFD and thermal physics are not solved. "
     "No flow or wall-stress outputs are invented."
 )
 st.markdown(
@@ -157,7 +157,8 @@ st.markdown("### 4 · Execute real, isolated geometry and physics jobs")
 st.caption(
     "A CAD button click runs real Gmsh in a disposable worker; "
     "FEA is executed only if the plan has all required inputs. "
-    "A BLOCKED CFD or fan FEA stage does not produce results."
+    "The 3D air-domain tetra mesh is a separate explicit click. "
+    "BLOCKED CFD or fan structural FEA never produces fabricated results."
 )
 start=st.button(
     "Generate STEP and execute READY engineering stages",
@@ -236,6 +237,104 @@ if snapshot is not None:
             "force loading. This does not prove convergence, contact, "
             "material certification or fatigue safety."
         )
+    if plan.task("fluid_mesh").status == TaskState.READY:
+        st.subheader("Step 5 · Genuine 3D air-volume mesh (CFD preprocessor only)")
+        st.caption(
+            "The virtual actuator zone is a conformal AIR volume, not "
+            "resolved rotor blades. This worker independently imports the "
+            "generated STEP to check provenance, then constructs a freestanding "
+            "open-boundary idealization around the specified fan diameter. "
+            "No Navier–Stokes equations or wall/anchor reactions are solved."
+        )
+        mesh_requested=st.button(
+            "Build real 3D Gmsh fluid mesh + tagged boundary regions",
+            key="nl_fluid_mesh_run",type="secondary",
+        )
+        if mesh_requested:
+            try:
+                with st.spinner(
+                    "Isolated OCC/Gmsh: import fan STEP → create two conforming "
+                    "air zones → tetrahedralize → check true volume and patches..."
+                ):
+                    mesh_registered_fluid_domain(effective,execution)
+                st.success("Tagged 3D fluid mesh generated; CFD solver remains BLOCKED.")
+            except (RuntimeError,ValueError,OSError) as exc:
+                st.error(
+                    "3D fluid mesh could not be produced; the previous CAD "
+                    "model remains intact: " + str(exc)
+                )
+        air=execution.fluid_domain
+        if air is not None:
+            a,b,c=st.columns(3)
+            a.metric("Real fluid tetrahedra",f"{air.tetrahedra:,}")
+            b.metric("Gmsh volume nodes",f"{air.nodes:,}")
+            c.metric(
+                "Volume consistency difference",
+                f"{100*air.relative_volume_error:.2f}%",
+            )
+            st.write("**CFD meshing evidence, without CFD solution**")
+            st.dataframe([
+                {"Physical group":name,
+                 "Mesh group ID":marker,
+                 "Boundary triangles":air.boundary_triangles.get(name,"3D cell zone")}
+                for name,marker in air.patch_ids.items()
+            ],hide_index=True,width="stretch")
+            if air.preview_points_mm is not None and air.preview_faces is not None:
+                pts=air.preview_points_mm
+                triangles=air.preview_faces
+                fig=go.Figure(go.Mesh3d(
+                    x=pts[:,0],y=pts[:,1],z=pts[:,2],
+                    i=triangles[:,0],j=triangles[:,1],k=triangles[:,2],
+                    color="#22a7a5",opacity=.88,flatshading=True,
+                    name="ACTUAL meshed rotor-zone interface",
+                    hovertemplate="X %{x:.1f} mm · Y %{y:.1f} mm · Z %{z:.1f} mm"
+                                  "<extra>Mesh vertices, no velocity field</extra>",
+                ))
+                width=air.outer_width_mm/2
+                lower=-air.upstream_length_mm
+                upper=air.downstream_length_mm
+                coords=[
+                    (-width,-width,lower),(width,-width,lower),
+                    (width,width,lower),(-width,width,lower),
+                    (-width,-width,upper),(width,-width,upper),
+                    (width,width,upper),(-width,width,upper),
+                ]
+                lines=[
+                    (0,1),(1,2),(2,3),(3,0),(4,5),(5,6),
+                    (6,7),(7,4),(0,4),(1,5),(2,6),(3,7),
+                ]
+                px=[];py=[];pz=[]
+                for n,m in lines:
+                    for idx in (n,m):
+                        xx,yy,zz=coords[idx]
+                        px.append(xx);py.append(yy);pz.append(zz)
+                    px.append(None);py.append(None);pz.append(None)
+                fig.add_trace(go.Scatter3d(
+                    x=px,y=py,z=pz,
+                    mode="lines",line=dict(color="#76879f",width=3),
+                    name="Bounded farfield air domain",
+                ))
+                fig.update_layout(
+                    title="Actual tetra-meshed 3D actuator interface + air box outline",
+                    scene=dict(aspectmode="data",xaxis_title="X (mm)",
+                               yaxis_title="Y (mm)",zaxis_title="Z (mm)"),
+                    margin=dict(l=0,r=0,t=50,b=0),height=510,
+                )
+                st.plotly_chart(fig,width="stretch",key="nl_air_mesh_preview")
+            st.download_button(
+                "Download actual tagged 3D Gmsh mesh (.msh)",
+                data=air.mesh_bytes,
+                file_name=f"forceforge_actuator_air_{air.fluid_mesh_sha256[:10]}.msh",
+                mime="application/octet-stream",
+                key="nl_download_real_air_msh",
+            )
+            st.caption(
+                "The Gmsh .msh contains TWO 3D air cell zones and physical "
+                "upstream/downstream/farfield/internal surfaces. It is not "
+                "yet a flow result or a blade-resolved fan geometry. The "
+                "actual source STEP and mesh have independent SHA-256 hashes."
+            )
+
     for task in execution.stage_results:
         if task.status==TaskState.BLOCKED:
             st.warning(f"{task.name} — BLOCKED: {task.reason}")
