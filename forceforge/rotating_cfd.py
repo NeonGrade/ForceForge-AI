@@ -345,18 +345,44 @@ def _run_job(root: Path,controls: ReferenceControls):
     try:
         data["stage"]="COPY_OFFICIAL_TUTORIAL";_manifest(root,data)
         copy_script=r'''
-set -e
+set -ex
+echo "OpenFOAM version environment:"
+echo "$WM_PROJECT_VERSION"
+echo "FOAM_TUTORIALS before shell setup:"
+echo "$FOAM_TUTORIALS"
 if [ -z "$FOAM_TUTORIALS" ]; then
-  for f in /opt/OpenFOAM/OpenFOAM-v2512/etc/bashrc /usr/lib/openfoam/openfoam2512/etc/bashrc; do
-    if [ -f "$f" ]; then . "$f"; break; fi
+  for f in /opt/OpenFOAM/*/etc/bashrc /usr/lib/openfoam/*/etc/bashrc /opt/openfoam*/etc/bashrc; do
+    if [ -f "$f" ]; then
+      echo "Sourcing official environment from $f"
+      . "$f"
+      break
+    fi
   done
 fi
-if [ -z "$FOAM_TUTORIALS" ]; then exit 42; fi
+if [ -z "$FOAM_TUTORIALS" ]; then
+  echo "ERROR: FOAM_TUTORIALS missing after environment setup" >&2
+  find /opt -maxdepth 4 -name rotatingFanInRoom -type d -print || true
+  exit 42
+fi
 src="$(find "$FOAM_TUTORIALS" -type d -name rotatingFanInRoom -print -quit)"
-if [ -z "$src" ]; then exit 43; fi
+if [ -z "$src" ]; then
+  echo "ERROR: rotatingFanInRoom not found in installed OpenFOAM tutorials" >&2
+  ls "$FOAM_TUTORIALS/incompressible/pimpleFoam/RAS" || true
+  exit 43
+fi
+echo "Official rotating-fan case: $src"
 cp -a "$src" /workspace/case
-test -f /workspace/case/constant/dynamicMeshDict
-test -f /workspace/case/system/controlDict
+ls -la /workspace/case
+ls -la /workspace/case/constant || true
+ls -la /workspace/case/system || true
+if [ ! -f /workspace/case/constant/dynamicMeshDict ]; then
+  echo "ERROR: no real motion dictionary in tutorial" >&2
+  exit 44
+fi
+if [ ! -f /workspace/case/system/controlDict ]; then
+  echo "ERROR: no time-stepping control dictionary" >&2
+  exit 45
+fi
 '''
         _docker(root,copy_script,90,"copy_openfoam.log")
         if not data.get("reference_only",True):
