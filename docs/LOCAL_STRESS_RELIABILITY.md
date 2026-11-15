@@ -18,7 +18,7 @@ Step 3 on the existing Real STEP page:
    solves. Do not re-select the centers in hindsight using new results.
 3. Reimport the **identical** STEP bytes twice. Each Gmsh mesh uses a
    `Min` of **two simultaneous 3D Box size fields** at the frozen centers
-   (target factors 0.80 and 0.65; radius fraction 0.18). Neither new mesh
+   (target factors 0.65 and 0.45; radius fraction 0.24). Neither new mesh
    omits the other physical hotspot.
 4. Independently solve both quadratic tetra10 systems in crash-isolated,
    85-second bounded workers under the same load, material and fixture.
