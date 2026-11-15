@@ -384,7 +384,10 @@ def _file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _collect_vtk(root: Path, *, selected_time_names: list[str] | None = None) -> dict:
+def _collect_vtk(
+    root: Path, *, selected_time_names: list[str] | None = None,
+    export_name: str = "VTK",
+) -> dict:
     """Read ONLY actual OpenFOAM foamToVTK outputs. No synthetic fallback."""
     import meshio
 
@@ -397,21 +400,34 @@ def _collect_vtk(root: Path, *, selected_time_names: list[str] | None = None) ->
             float(match.group(1)) if match else float("inf"),
             str(path),
         )
-    paths=sorted(case.rglob("*.vtk"),key=vtk_sort_key)
+    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*",export_name):
+        raise ValueError("Invalid OpenFOAM VTK output directory")
+    # Constrain import to this conversion attempt: legacy case/VTK may
+    # contain an initial unsolved 0/ field or unsupported polyhedral files.
+    paths=sorted((case/export_name).rglob("*.vtk"),key=vtk_sort_key)
     if len(paths)<2:
         raise ValueError("No real time-dependent OpenFOAM VTK snapshots available")
+    if selected_time_names is not None and len(paths)!=len(selected_time_names):
+        raise ValueError(
+            f"Found {len(paths)} VTK files, expected "
+            f"{len(selected_time_names)} authentic solver write times"
+        )
     times=[]
     xyz_frames=[]
     u_frames=[]
     p_frames=[]
     files=[]
+    read_errors=[]
     for path in paths:
         if len(times)>=MAX_FRAMES:
             break
         # Skip boundary-only/patch VTK, require both vector U and scalar p.
         try:
             obj=meshio.read(path)
-        except Exception:
+        except (Exception, SystemExit) as exc:
+            # meshio's legacy reader can call sys.exit on unhandled VTK
+            # POLYHEDRON (type 42); never leave a stale RUNNING manifest.
+            read_errors.append(f"{path.name}: {type(exc).__name__}: {exc}")
             continue
         fields={k.lower():v for k,v in obj.point_data.items()}
         if "u" in fields and "p" in fields:
@@ -459,7 +475,8 @@ def _collect_vtk(root: Path, *, selected_time_names: list[str] | None = None) ->
     if len(times)<2:
         raise ValueError(
             "Unable to validate at least two snapshots with real U/p fields "
-            "and extractable time labels. CFD status remains unverified."
+            "and extractable time labels. CFD status remains unverified. "
+            + " ; ".join(read_errors[:3])
         )
     if selected_time_names is not None and len(times)!=len(selected_time_names):
         raise ValueError(
@@ -481,6 +498,8 @@ def _collect_vtk(root: Path, *, selected_time_names: list[str] | None = None) ->
     np.savez_compressed(root/"actual_cfd_frames.npz",**payload)
     return {
         "frame_count":len(times),
+        "polyhedron_handling":"OpenFOAM-native -poly-decomp (tet/pyramid VTK export)",
+        "export_directory":export_name,
         "sample_points_per_frame":length,
         "source_vtk_files":files,
         "fields":["U [m/s]","p [m2/s2] (kinematic)"],
@@ -491,6 +510,128 @@ def _collect_vtk(root: Path, *, selected_time_names: list[str] | None = None) ->
         ),
         "file_sha256":sha256((root/"actual_cfd_frames.npz").read_bytes()).hexdigest(),
     }
+
+
+
+def _export_verified_fields(root: Path, data: dict) -> dict:
+    """Re-export *existing* computed U and p, never call pimpleFoam.
+
+    Original CFD time directories remain untouched. A unique VTK name
+    prevents an old polyhedron/initial-time file being mistaken for proof.
+    """
+    selected=_select_export_time_names(root/"case")
+    folder_name="FFFields_"+secrets.token_hex(5)
+    data["selected_export_source_times_s"]=[float(t) for t in selected]
+    data["current_vtk_output_name"]=folder_name
+    _manifest(root,data)
+    export_script=(
+        "set -eu\ncd /workspace/case\n"
+        "foamToVTK -legacy -ascii -poly-decomp -no-boundary "
+        "-no-point-data -no-lagrangian -name "+folder_name+" "
+        "-time '"+",".join(selected)+"' "
+        "-fields '(U p)' > /workspace/foamToVTK.log\n"
+    )
+    _docker(root,export_script,180,"export_console.log")
+    # A real successful foamToVTK must name the physical write times it
+    # processed; matching them prevents index/seconds mislabelling.
+    log=(root/"foamToVTK.log").read_text(encoding="utf-8",errors="replace")
+    actual=[float(m) for m in re.findall(
+        r"(?m)^Time:\s*([0-9.eE+-]+)\s*$",log
+    )]
+    expected=[float(t) for t in selected]
+    if (len(actual)!=len(expected) or
+            not all(np.isclose(a,b,rtol=1e-7,atol=1e-9)
+                    for a,b in zip(actual,expected))):
+        raise ValueError(
+            "OpenFOAM VTK export log times did not match the exact "
+            "computed U/p source directories; refuse unverified seconds"
+        )
+    return _collect_vtk(
+        root,selected_time_names=selected,export_name=folder_name
+    )
+
+
+def recover_fields_only(job_id: str) -> dict:
+    """Repair a finished solver's U/p export without remeshing or solving.
+
+    Called manually via --recover-fields after the original worker exits.
+    It validates the original hashed pimpleFoam log and leaves case/time
+    directories intact. It may write a NEW isolated VTK export directory.
+    """
+    root=_valid_job_root(job_id)
+    if not root.is_dir():
+        raise ValueError("Unknown local CFD job")
+    with (root/".recover-fields.lock").open("a+") as lock:
+        try:
+            fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise RuntimeError("Another recovery for this job is active") from exc
+        data=_load_status(root)
+        if data.get("status")=="COMPLETED":
+            return data
+        if data.get("solved") is not True or data.get("status") not in (
+            "SOLVER_FINISHED_UNVERIFIED_FIELDS","FAILED"
+        ):
+            raise ValueError(
+                "This job has no verified completed Navier-Stokes solve; "
+                "field-only recovery is not permitted"
+            )
+        pid=_worker_pid(root,data)
+        if pid is not None and _pid_alive(pid):
+            proc=subprocess.run(
+                ["ps","-p",str(pid),"-o","stat=","-o","command="],
+                capture_output=True,text=True,timeout=8,check=False,
+            )
+            if (proc.returncode==0 and
+                    "forceforge.rotating_cfd --worker "+job_id in proc.stdout and
+                    not proc.stdout.strip().startswith("Z")):
+                raise RuntimeError(
+                    "Original worker is still active. Do not race it: "
+                    "inspect ps and launcher.log before recovery."
+                )
+        solver_file=root/"log.pimpleFoam"
+        if not solver_file.is_file() or not data.get("solver_log_sha256"):
+            raise ValueError("Required original verified solver log is absent")
+        solver_log=solver_file.read_text(errors="replace")
+        if sha256(solver_log.encode()).hexdigest()!=data["solver_log_sha256"]:
+            raise ValueError("Original solver proof SHA-256 has changed")
+        opts=data.get("controls",{})
+        end_time=float(opts["end_time_s"])
+        steps=[float(x) for x in re.findall(
+            r"(?m)^Time =\s*([0-9.eE+-]+)",solver_log
+        )]
+        if (len(steps)<2 or max(steps)<end_time*.90 or
+                "Courant Number" not in solver_log or
+                "End" not in solver_log[-4000:]):
+            raise ValueError("Original OpenFOAM transient completion not verified")
+        ok,why=docker_ready()
+        if not ok:
+            raise RuntimeError(why)
+        data["status"]="SOLVER_FINISHED_UNVERIFIED_FIELDS"
+        data["stage"]="POSTPROCESS_REAL_FIELDS"
+        data["recovery_attempted_epoch_s"]=time.time()
+        _manifest(root,data)
+        try:
+            summary=_export_verified_fields(root,data)
+            data.update({
+                "status":"COMPLETED",
+                "stage":"REAL_TRANSIENT_FIELDS_READY",
+                "source_type":data["geometry_origin"],
+                "result":summary,
+                "completed_epoch_s":time.time(),
+            })
+            _manifest(root,data)
+            return data
+        except Exception as exc:
+            data.update({
+                "status":"FAILED","stage":"POSTPROCESS_RECOVERY_FAILED",
+                "error_type":type(exc).__name__,
+                "message":str(exc)[:1900],
+                "completed_epoch_s":time.time(),
+                "solved":True,
+            })
+            _manifest(root,data)
+            raise
 
 
 def _run_job(root: Path,controls: ReferenceControls):
@@ -652,21 +793,7 @@ pimpleFoam > /workspace/log.pimpleFoam
             "steps":len(times),
             "solver_log_sha256":sha256(log.encode()).hexdigest(),
         });_manifest(root,data)
-        selected_time_names=_select_export_time_names(root/"case")
-        data["selected_export_source_times_s"]=[
-            float(name) for name in selected_time_names
-        ]
-        _manifest(root,data)
-        # Restrict export to at most three *actual* solver writes. Cell
-        # data only avoids costly nodal interpolation of the full mesh.
-        export_script=(
-            "set -eu\ncd /workspace/case\n"
-            "foamToVTK -legacy -ascii -no-boundary -no-point-data "
-            "-no-lagrangian -time '"+",".join(selected_time_names)+"' "
-            "-fields '(U p)' > /workspace/foamToVTK.log\n"
-        )
-        _docker(root,export_script,120,"export_console.log")
-        summary=_collect_vtk(root,selected_time_names=selected_time_names)
+        summary=_export_verified_fields(root,data)
         data.update({
             "status":"COMPLETED","stage":"REAL_TRANSIENT_FIELDS_READY",
             "source_type":data["geometry_origin"],
@@ -704,15 +831,27 @@ def load_actual_frames(job_id: str):
 
 
 if __name__=="__main__":
-    if len(sys.argv)!=3 or sys.argv[1]!="--worker":
-        raise SystemExit("Internal reference OpenFOAM worker")
+    if len(sys.argv)!=3:
+        raise SystemExit(
+            "Usage: python -m forceforge.rotating_cfd "
+            "--worker|--recover-fields JOB_ID"
+        )
     jid=sys.argv[2]
     root=_valid_job_root(jid)
-    raw=job_status(jid)
-    opts=raw.get("controls",{})
-    params=ReferenceControls(
-        rpm=int(opts.get("rpm",1500)),
-        end_time_s=float(opts.get("end_time_s",.04)),
-        write_interval_s=float(opts.get("write_interval_s",.004)),
-    )
-    _run_job(root,params)
+    if sys.argv[1]=="--recover-fields":
+        result=recover_fields_only(jid)
+        print(json.dumps({
+            "job_id":jid,"status":result["status"],"stage":result["stage"],
+            "result":result.get("result")
+        },indent=2),flush=True)
+    elif sys.argv[1]=="--worker":
+        raw=job_status(jid)
+        opts=raw.get("controls",{})
+        params=ReferenceControls(
+            rpm=int(opts.get("rpm",1500)),
+            end_time_s=float(opts.get("end_time_s",.04)),
+            write_interval_s=float(opts.get("write_interval_s",.004)),
+        )
+        _run_job(root,params)
+    else:
+        raise SystemExit("Unknown rotating CFD command")

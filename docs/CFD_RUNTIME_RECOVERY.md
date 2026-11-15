@@ -69,3 +69,32 @@ sliding-AMI acceptance.
 - GitHub Actions uploads `status.json`, `foamToVTK.log`,
   `export_console.log`, and worker/solver logs on polling timeout.
 - Full dynamic CFD still requires successful real OpenFOAM CI acceptance.
+
+## Nov 15: Mac OpenFOAM result recovery without rerunning CFD
+
+Screenshot evidence for job `2e9aefe6c51efd9d`: `pimpleFoam`
+ended after 198 real steps at simulation time 0.04003 seconds and
+`foamToVTK` completed. The Python reader then failed on OpenFOAM's
+VTK polyhedron cell type 42. This is a parser/export issue, not evidence
+of a new need to solve Navier-Stokes.
+
+After updating your local source to the PR #16 branch, **close or wait
+for the original CFD worker to exit** (verify `worker.pid` using `ps`).
+Then run from the repository root with its activated venv:
+
+```bash
+python -m forceforge.rotating_cfd --recover-fields 2e9aefe6c51efd9d
+```
+
+The repair verifies the original solver log's SHA-256 and genuine time
+steps, then runs **only foamToVTK**, using `-poly-decomp` and a new
+unique `FFFields_*` directory. It does not call `pimpleFoam`, does not
+remesh, and does not delete the original case, time directories, or
+previous VTK files. The new export is restricted to real nonzero U/p
+write directories, and the reader rejects missing/mismatched field
+and time data.
+
+Do not run recovery while the original worker still owns the job.
+If the recovery fails, `status.json` becomes `POSTPROCESS_RECOVERY_FAILED`
+with an error; inspect `foamToVTK.log`, `export_console.log`, and
+`launcher.log`. A false `COMPLETED` state is never generated.
