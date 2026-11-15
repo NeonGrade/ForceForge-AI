@@ -44,7 +44,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install minimal VTK reader and numerical runtime
-        run: python -m pip install numpy 'meshio>=5.3,<6' 'vtk>=9.6,<10'
+        run: python -m pip install numpy 'meshio>=5.3,<6' 'vtk>=9.6,<10' 'plotly>=5.22,<7'
       - name: Pull official OpenCFD image WITH real tutorial geometry
         run: docker pull opencfd/openfoam-default:2512
       - name: Execute actual rotating fan Navier-Stokes via docker
@@ -58,6 +58,9 @@ jobs:
           from forceforge.rotating_cfd import (
               ROOT, ReferenceControls, launch_reference_job,
               job_status, load_actual_frames
+          )
+          from forceforge.continuous_rotor import (
+              load_completed_case_rotor,make_loop_html
           )
 
           job_id=launch_reference_job(
@@ -107,6 +110,16 @@ jobs:
           assert real["velocity_m_s"].max() > 0
           shutil.copy2(root/"actual_cfd_frames.npz",
                        target/"actual_cfd_frames.npz")
+          source=load_completed_case_rotor(job_id)
+          assert len(source["triangles"])>=20
+          loop=make_loop_html(source,real)
+          assert "ff-real-rotor" in loop and "Play continuous rotor" in loop
+          (target/"offline_actual_rotor_and_solved_U_p.html").write_text(
+              "<!doctype html><html><head><meta charset='utf-8'></head>"
+              "<body>"+loop+"</body></html>",encoding="utf-8"
+          )
+          print("PASS: actual STL source / RPM / offline kinematic rotor",
+                source["source"],source["sha256"][:16],flush=True)
           print("PASS: genuine OpenFOAM pimpleFoam rotating fan transient U and p",
                 d.get("result"),flush=True)
           PY
