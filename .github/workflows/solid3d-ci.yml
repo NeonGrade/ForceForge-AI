@@ -1,0 +1,58 @@
+name: Solid 3D FEA checks
+
+on:
+  push:
+    branches: [feature/step-solid-fea]
+  pull_request:
+    paths:
+      - 'forceforge/solid3d.py'
+      - 'app_3d.py'
+      - 'tests/**'
+      - 'requirements-3d.txt'
+      - '.github/workflows/solid3d-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-3d-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Gmsh shared library
+        run: sudo apt-get update && sudo apt-get install -y libglu1-mesa
+      - name: Install Python packages
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-3d.txt
+      - name: Run full Python test suite
+        run: python -m pytest -q
+      - name: Native Gmsh twice + pre-initialized session + FEA equilibrium
+        run: |
+          python - <<'PY'
+          import numpy as np
+          import gmsh
+          from forceforge.solid3d import make_box, solve
+          for _ in range(2):
+              m = make_box(length=0.05, width=0.01, height=0.01, mesh_size=0.01)
+              r = solve(m, E=200e9, force_n=1000.0)
+              assert np.isfinite(r.von_mises_tet).all()
+              assert np.allclose(r.reaction_sum + r.force_sum, 0, atol=1e-4)
+          gmsh.initialize()
+          try:
+              gmsh.model.add("host")
+              assert gmsh.model.getCurrent() == "host"
+              m = make_box(length=0.05, width=0.01, height=0.01, mesh_size=0.01)
+              assert len(m.tet) > 0
+              assert gmsh.isInitialized()
+              assert gmsh.model.getCurrent() == "host"
+          finally:
+              gmsh.finalize()
+          print("3D Gmsh mesh/FEA regression passed")
+          PY
