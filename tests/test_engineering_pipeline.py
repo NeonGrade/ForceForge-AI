@@ -31,9 +31,10 @@ def test_fan_plan_blocks_unimplemented_cfd_and_fea_even_with_concept_defaults():
     assert p.task("generate_cad").status==TaskState.READY
     assert p.task("solid_mesh").status==TaskState.BLOCKED
     assert p.task("structural_fea").status==TaskState.BLOCKED
-    assert p.task("fluid_domain").status==TaskState.BLOCKED
+    assert p.task("fluid_domain").status==TaskState.READY
+    assert p.task("fluid_mesh").status==TaskState.READY
     assert p.task("fluid_cfd").status==TaskState.BLOCKED
-    assert "no verified" in p.task("fluid_cfd").reason.lower()
+    assert "Navier-Stokes" in p.task("fluid_cfd").reason
     assert "wall" in p.task("structural_fea").reason.lower()
 
 
@@ -68,6 +69,8 @@ def test_mocked_fan_run_exports_real_cad_metadata_but_no_fake_sim(monkeypatch):
     meta=out.evidence()
     assert meta["cad"]["concept_only"]
     assert meta["fluid_cfd"] is None
+    assert meta["fluid_domain"] is None
+    assert out.plan.task("fluid_mesh").status==TaskState.READY
     assert meta["structural_fea"] is None
     assert any(s["name"]=="fluid_cfd" and s["status"]=="BLOCKED"
                for s in meta["stages"])
@@ -127,3 +130,51 @@ def test_reject_unmatched_step_hash_not_a_fake_pass(monkeypatch):
     )
     with pytest.raises(ValueError,match="SHA mismatch"):
         run_engineering(spec)
+
+
+def test_fluid_domain_requires_explicit_separate_click(monkeypatch):
+    from forceforge.engineering_pipeline import mesh_registered_fluid_domain
+    from forceforge.fluid_domain import FluidDomainEvidence
+    import forceforge.fluid_domain as fluid
+    req=_fan()
+    blob=b"ISO-10303-21;"+b"mesh"*70
+    digest=sha256(blob).hexdigest()
+    cad=CADProduct("wall_fan",blob,digest,"concept multi-body model",True,3)
+    monkeypatch.setattr(pipeline,"generate_product",lambda request:cad)
+    execution=run_engineering(req)
+    called=[]
+    def fake_mesh(request,source):
+        assert request==req and source==blob
+        called.append(1)
+        return FluidDomainEvidence(
+            "CONCEPT_FAN_TWO_ZONE_ACTUATOR_DOMAIN_NOT_CFD",
+            digest,"mesh-hash",b"mesh-data",300.,900.,300.,750.,
+            150.,90.,{"rotor_source_zone":12.,"ambient_air_zone":200.},
+            212.,.002,800,500,
+            {"upstream_open":20,"downstream_open":20,
+             "lateral_farfield":70,"rotor_interface":32},
+            {"upstream_open":101,"downstream_open":102,
+             "lateral_farfield":103,"rotor_interface":104,
+             "rotor_source_zone":201,"ambient_air_zone":202},
+        )
+    monkeypatch.setattr(fluid,"generate_fan_air_domain_safely",fake_mesh)
+    assert len(called)==0
+    mesh_registered_fluid_domain(req,execution)
+    assert len(called)==1
+    report=execution.evidence()
+    assert report["fluid_domain"]["tetrahedra"]==800
+    assert report["fluid_cfd"] is None
+    assert any(t.name=="fluid_mesh" and t.status==TaskState.COMPLETED
+               for t in execution.stage_results)
+    assert any(t.name=="fluid_cfd" and t.status==TaskState.BLOCKED
+               for t in execution.stage_results)
+
+
+def test_air_mesh_cannot_be_created_after_bracket_or_unapproved_assumptions():
+    from forceforge.fluid_domain import _bounded_settings
+    fan_raw=interpret_text(FAN_TEXT).request
+    fake=b"ISO-10303-21;"+b"x"*300
+    with pytest.raises(ValueError,match="Explicit consent"):
+        _bounded_settings(fan_raw,fake)
+    with pytest.raises(ValueError,match="wall_fan"):
+        _bounded_settings(_bracket(),fake)
