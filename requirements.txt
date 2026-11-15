@@ -7,3 +7,5 @@ plotly>=5.22,<7
 pytest>=8,<10
 openai>=1.70,<3
 pydantic>=2,<3
+
+meshio>=5.3,<6  # Read actual OpenFOAM foamToVTK U/p snapshots; no synthetic fields
