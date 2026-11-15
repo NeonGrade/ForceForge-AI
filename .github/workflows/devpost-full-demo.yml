@@ -5,6 +5,8 @@ on:
   push:
     paths:
       - 'qa/assemble_devpost_video.py'
+      - 'qa/nl_fluid_browser_smoke.py'
+      - 'qa/real_step_browser_smoke.py'
       - '.github/workflows/devpost-full-demo.yml'
 
 permissions:

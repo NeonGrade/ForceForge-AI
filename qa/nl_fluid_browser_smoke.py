@@ -96,10 +96,13 @@ def main():
                         "button",name="Download genuine CAD STEP",
                     )
                 ).to_be_visible(timeout=20000)
+                fig=page.locator(".js-plotly-plot").first
+                expect(fig).to_be_visible(timeout=20000)
+                fig.scroll_into_view_if_needed()
+                page.wait_for_timeout(4500)
                 page.screenshot(
                     path=str(OUTPUT/"01_real_fan_step.png"),full_page=True,
                 )
-                page.wait_for_timeout(2500)
 
                 mesher=page.get_by_role(
                     "button",
@@ -122,10 +125,13 @@ def main():
                 expect(page.get_by_text(re.compile(
                     "Actual source-STEP rotor OpenFOAM CFD is supported"
                 ))).to_be_visible()
+                mesh_plot=page.locator(".js-plotly-plot").last
+                expect(mesh_plot).to_be_visible(timeout=25000)
+                mesh_plot.scroll_into_view_if_needed()
+                page.wait_for_timeout(4500)
                 page.screenshot(
                     path=str(OUTPUT/"02_real_fan_air_tetra_mesh.png"),full_page=True,
                 )
-                page.wait_for_timeout(3500)
                 with urlopen(base+"/_stcore/health",timeout=4) as response:
                     assert response.status==200
                 assert not page.get_by_text("Connection error").is_visible()

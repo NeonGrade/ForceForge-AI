@@ -73,6 +73,10 @@ def main():
                 page.get_by_role("button",name="Run CAD import + 3D FEA").click()
                 expect(page.get_by_text(re.compile("FEA complete in"))).to_be_visible(timeout=110000)
                 expect(page.get_by_text("Step 2B · Design Copilot",exact=False)).to_be_visible(timeout=15000)
+                plot=page.locator(".js-plotly-plot").first
+                expect(plot).to_be_visible(timeout=20000)
+                plot.scroll_into_view_if_needed()
+                page.wait_for_timeout(4000)
                 page.screenshot(path=str(OUTPUT/"01_real_step_original.png"),full_page=True)
 
                 page.get_by_role(
@@ -83,6 +87,10 @@ def main():
                 expect(page.get_by_role(
                     "button",name=re.compile("Export auditable AI-to-CAD-to-FEA evidence")
                 )).to_be_visible(timeout=15000)
+                charts=page.locator(".js-plotly-plot")
+                expect(charts.last).to_be_visible(timeout=20000)
+                charts.last.scroll_into_view_if_needed()
+                page.wait_for_timeout(4200)
                 page.screenshot(path=str(OUTPUT/"02_real_cad_optimization.png"),full_page=True)
 
                 # Re-renders/deformation changes cannot kill Streamlit's
