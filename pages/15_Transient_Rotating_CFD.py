@@ -14,6 +14,7 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
 
+from forceforge.rotor_visual import sample_real_stl_triangles, rotating_triangle_frames
 from forceforge.rotating_cfd import (
     IMAGE, SCENE_KIND, ReferenceControls,
     docker_ready, job_status, launch_reference_job, load_actual_frames,
@@ -112,6 +113,84 @@ st.write(
     f"**Revolutions requested:** {controls.end_time_s*controls.rpm/60:.2f} · "
     f"**Angular velocity:** {controls.angular_velocity_rad_s:.2f} rad/s"
 )
+if use_custom:
+    with st.expander("Real STEP blade rotation · GEOMETRY ONLY (not CFD)",expanded=True):
+        st.caption(
+            "Exact source-STEP rotor STL geometry, rigidly rotated about "
+            "the physical shaft axis at the chosen RPM. This is a kinematic "
+            "CAD preview shown at slowed-down playback speed; U and p "
+            "are deliberately absent until a real CFD solve succeeds."
+        )
+        try:
+            sampled=sample_real_stl_triangles(
+                rotor_source["stl_bytes"],max_faces=450,
+            )
+            time_axis,moving=rotating_triangle_frames(
+                sampled,rpm=controls.rpm,
+                duration_s=controls.end_time_s,count=13,
+            )
+            topology=np.arange(moving.shape[1]).reshape(-1,3)
+            def actual_rotor_frame(k):
+                verts=moving[k]
+                return go.Mesh3d(
+                    x=verts[:,0],y=verts[:,1],z=verts[:,2],
+                    i=topology[:,0],j=topology[:,1],k=topology[:,2],
+                    color="#21b5aa",flatshading=True,opacity=1.0,
+                    lighting=dict(ambient=.7,diffuse=.65,roughness=.35),
+                    name="Source STEP rotor geometry ONLY",
+                    hovertemplate="Source rotor geometry · meters<extra>NO CFD field</extra>",
+                )
+            actual_fig=go.Figure(
+                data=[actual_rotor_frame(0)],
+                frames=[
+                    go.Frame(data=[actual_rotor_frame(k)],name=str(k))
+                    for k in range(len(time_axis))
+                ],
+            )
+            actual_fig.update_layout(
+                title="Source-CAD blades · real RPM · slowed kinematic playback",
+                height=480,margin=dict(l=0,r=0,t=65,b=0),
+                scene=dict(aspectmode="data",xaxis_title="X (m)",
+                           yaxis_title="Y (m)",zaxis_title="Z (m)"),
+                updatemenus=[{
+                    "type":"buttons","direction":"left",
+                    "x":.02,"y":1.1,"showactive":False,
+                    "buttons":[
+                        {"label":"▶ Rotate actual STEP blades",
+                         "method":"animate",
+                         "args":[None,{
+                             "frame":{"duration":160,"redraw":True},
+                             "transition":{"duration":0},
+                             "fromcurrent":True,
+                         }]},
+                        {"label":"❚❚ Pause","method":"animate",
+                         "args":[[None],{
+                             "mode":"immediate",
+                             "frame":{"duration":0,"redraw":False},
+                             "transition":{"duration":0},
+                         }]},
+                    ],
+                }],
+                sliders=[{
+                    "active":0,
+                    "steps":[{
+                        "label":f"{t:.3f} s",
+                        "method":"animate",
+                        "args":[[str(k)],{
+                            "mode":"immediate",
+                            "frame":{"duration":0,"redraw":True},
+                            "transition":{"duration":0},
+                        }],
+                    } for k,t in enumerate(time_axis)],
+                }],
+            )
+            st.plotly_chart(
+                actual_fig,width="stretch",
+                key="cad_only_rotating_rotor_preview",
+            )
+        except (ValueError,KeyError,OSError) as exc:
+            st.error("Cannot display original CAD blade kinematics: "+str(exc))
+
 st.caption(
     "This is a real transient flow calculation, not a scripted animation. "
     "The mesh and Navier–Stokes solve may take minutes; live visualization "
