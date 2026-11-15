@@ -18,6 +18,7 @@ from forceforge.rotor_visual import sample_real_stl_triangles, rotating_triangle
 from forceforge.rotating_cfd import (
     IMAGE, SCENE_KIND, ReferenceControls,
     docker_ready, job_status, launch_reference_job, load_actual_frames,
+    active_cfd_job_ids,
 )
 
 st.set_page_config(
@@ -83,6 +84,15 @@ if not ok:
     )
 else:
     st.success("Official container available locally. Image ID: "+environment[:35])
+
+active_jobs=active_cfd_job_ids() if ok else []
+if active_jobs:
+    st.warning(
+        "An OpenFOAM solver is already active: "+
+        ", ".join(active_jobs)+
+        ". Restore and refresh the existing job; launching additional "
+        "parallel solvers is disabled to avoid duplicate Docker containers."
+    )
 
 a,b,c=st.columns(3)
 rpm=a.number_input(
@@ -199,7 +209,7 @@ st.caption(
 
 if st.button(
     "Run genuine OpenFOAM rotating-mesh transient CFD (reference geometry)",
-    disabled=not ok,type="primary",key="reference_cfd_run",
+    disabled=(not ok or bool(active_jobs)),type="primary",key="reference_cfd_run",
 ):
     try:
         if use_custom:
@@ -247,7 +257,16 @@ if job:
             st.stop()
         st.write("**Status:**",status.get("status","UNKNOWN"))
         st.write("**Stage:**",status.get("stage","UNKNOWN"))
+        if status.get("warning"):
+            st.warning(str(status["warning"]))
         st.caption("Reference geometry: "+str(status.get("geometry_origin")))
+        with st.expander("Local CFD job diagnostic files"):
+            st.code(
+                'cat "$HOME/.forceforge_x/transient_cfd/'+job+'/status.json"\n'
+                'tail -n 50 "$HOME/.forceforge_x/transient_cfd/'+job+'/launcher.log"\n'
+                'tail -n 50 "$HOME/.forceforge_x/transient_cfd/'+job+'/solver_console.log"',
+                language="bash",
+            )
         if status.get("status")=="FAILED":
             st.error(
                 str(status.get("error_type","WorkerError")) + ": " +
