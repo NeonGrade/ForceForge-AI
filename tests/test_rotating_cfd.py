@@ -152,7 +152,7 @@ def test_polyhedron_resistance_and_field_only_recovery(tmp_path, monkeypatch):
         assert folder==root
         scripts.append(script)
         assert "pimpleFoam" not in script
-        assert "-poly-decomp" in script
+        assert "-poly-decomp" not in script
         assert "-no-point-data" in script
         assert "-time '0.002,0.004,0.006'" in script
         match=re.search(r"-name (FFFields_[0-9a-f]+)",script)
@@ -175,7 +175,7 @@ def test_polyhedron_resistance_and_field_only_recovery(tmp_path, monkeypatch):
     result=recover_fields_only(jid)
     assert result["status"]=="COMPLETED"
     assert result["result"]["frame_count"]==3
-    assert result["result"]["polyhedron_handling"].startswith("OpenFOAM")
+    assert result["result"]["polyhedron_handling"].startswith("meshio")
     assert len(scripts)==1
     assert len(list((case/"0.002").iterdir()))==2
     with np.load(root/"actual_cfd_frames.npz",allow_pickle=False) as f:

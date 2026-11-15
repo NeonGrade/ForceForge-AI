@@ -27,7 +27,7 @@ jobs:
           python-version: '3.12'
           cache: pip
       - name: Install minimum time-series reader and physics API
-        run: python -m pip install numpy 'meshio>=5.3,<6' 'pytest>=8,<10' 'streamlit>=1.35,<2' 'plotly>=5.22,<7'
+        run: python -m pip install numpy 'meshio>=5.3,<6' 'vtk>=9.6,<10' 'pytest>=8,<10' 'streamlit>=1.35,<2' 'plotly>=5.22,<7'
       - name: Static compile and reference CFD provenance/parse tests
         run: |
           python -m compileall -q forceforge/rotating_cfd.py pages/15_Transient_Rotating_CFD.py
@@ -42,7 +42,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install minimal VTK reader and numerical runtime
-        run: python -m pip install numpy 'meshio>=5.3,<6'
+        run: python -m pip install numpy 'meshio>=5.3,<6' 'vtk>=9.6,<10'
       - name: Pull official OpenCFD image WITH real tutorial geometry
         run: docker pull opencfd/openfoam-default:2512
       - name: Execute actual rotating fan Navier-Stokes via docker
