@@ -18,6 +18,7 @@ from forceforge.engineering_schema import (
 from forceforge.engineering_pipeline import (
     TaskState, plan_engineering, run_engineering, mesh_registered_fluid_domain,
 )
+from forceforge.rotor_surface import extract_rotor_from_step
 from forceforge.isolated_cad import CadJobError
 from forceforge.solid3d import surface_figure
 
@@ -170,6 +171,7 @@ signature=json.dumps(
 )
 if start:
     st.session_state.pop("nl_result",None)
+    st.session_state.pop("forceforge_custom_rotor_input",None)
     try:
         with st.spinner("Running isolated OpenCASCADE CAD generator and permitted real FEA jobs..."):
             execution=run_engineering(effective)
@@ -200,6 +202,55 @@ if snapshot is not None:
         mime="application/step",
         key="nl_download_step",
     )
+    if cad.family=="wall_fan":
+        st.markdown("### Step 4B · Real rotating blade geometry for transient CFD")
+        st.caption(
+            "This stage reimports your exact STEP using OpenCASCADE and "
+            "extracts the ACTUAL hub/rotor blade solid as a water-tight "
+            "OpenFOAM STL in metres. It is then located in OpenFOAM's "
+            "official reference room for sliding AMI simulation. "
+            "The wall, guard, fasteners and supports from your STEP are "
+            "NOT included in the reference-room flow."
+        )
+        if st.button(
+            "Extract actual rotating blades from my STEP (real STL)",
+            key="nl_real_rotor_extract",
+        ):
+            try:
+                with st.spinner(
+                    "Isolated OpenCASCADE: identify rotor solid, tessellate "
+                    "its real STEP faces and verify closed-manifold surface..."
+                ):
+                    rotor=extract_rotor_from_step(effective,cad.step_bytes)
+                if rotor.cad_source_sha256!=cad.sha256:
+                    raise ValueError("Rotating rotor STL is not linked to the current CAD STEP")
+                snapshot["rotor_stl"]=rotor
+                st.session_state["forceforge_custom_rotor_input"]={
+                    "stl_bytes":rotor.stl_bytes,
+                    "cad_source_sha256":cad.sha256,
+                    "diameter_mm":float(effective.geometry.diameter_mm),
+                    "rpm":float(effective.geometry.rpm or 1500),
+                    "rotor_stl_sha256":rotor.stl_sha256,
+                }
+            except (RuntimeError,ValueError,OSError) as exc:
+                st.error("Actual CAD rotor surface preparation failed: "+str(exc))
+        rotor=snapshot.get("rotor_stl")
+        if rotor is not None:
+            st.success(
+                f"Actual CAD rotor STL: {rotor.triangles:,} water-tight "
+                f"triangles; STEP source SHA {rotor.cad_source_sha256[:12]}…"
+            )
+            st.download_button(
+                "Download real STEP-derived rotating blade STL",
+                data=rotor.stl_bytes,
+                file_name="forceforge_rotor_from_actual_STEP.stl",
+                mime="model/stl",key="nl_actual_rotor_stl_export",
+            )
+            st.markdown(
+                "[Open the rotating-mesh OpenFOAM CFD lab with this rotor]"
+                "(./Transient_Rotating_CFD)"
+            )
+
     if cad.preview_nodes_mm is not None and cad.preview_faces is not None:
         nodes=cad.preview_nodes_mm
         faces=cad.preview_faces
