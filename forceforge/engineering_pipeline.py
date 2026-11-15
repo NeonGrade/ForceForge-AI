@@ -44,6 +44,14 @@ FAMILY_REGISTRY: dict[str, RegisteredFamily] = {
         "wall_fan", "Gmsh OpenCASCADE conceptual multi-body STEP",
         "concept assembly only", None, None,
     ),
+    "hollow_shaft": RegisteredFamily(
+        "hollow_shaft", "Gmsh OCC parametric annular solid STEP",
+        "real single solid; no supported mechanics solver", None, None,
+    ),
+    "mounting_plate": RegisteredFamily(
+        "mounting_plate", "Gmsh OCC plate or four-hole through-cut STEP",
+        "real single solid; no supported mechanics solver", None, None,
+    ),
 }
 
 
@@ -152,11 +160,18 @@ def plan_engineering(request: EngineeringRequest) -> EngineeringPlan:
             depends_on=("generate_cad",),
             reason="A concept assembly is not a tied/contact-validated single solid for structural FEM.",
         ))
-    else:
+    elif fam=="l_bracket":
         tasks.append(EngineeringTask(
             "solid_mesh",cad_status,
             depends_on=("generate_cad",),reason=cad_reason,
             missing_inputs=cad_missing,
+        ))
+    else:
+        tasks.append(EngineeringTask(
+            "solid_mesh",TaskState.BLOCKED,
+            depends_on=("generate_cad",),
+            reason="A STEP alone is not a validated 3D tetra meshing/FEA workflow for this product",
+            missing_inputs=("validated_mesh_adapter",),
         ))
     if request.analyses.structural_fea:
         if fam=="wall_fan":
@@ -172,6 +187,20 @@ def plan_engineering(request: EngineeringRequest) -> EngineeringPlan:
                 missing_inputs=(
                     "mass_and_center_of_gravity","mounting_anchor_geometry",
                     "wall_and_contact_materials","structural_load_path",
+                ),
+            ))
+        elif fam!="l_bracket":
+            tasks.append(EngineeringTask(
+                "structural_fea",TaskState.BLOCKED,
+                depends_on=("generate_cad","solid_mesh"),
+                reason=(
+                    "This real STEP has no validated material, loading, "
+                    "fixture and tetra10 finite-element adapter. "
+                    "No stress or safety values are computed."
+                ),
+                missing_inputs=(
+                    "validated_fea_adapter","fixture_load_path",
+                    "material_and_loads",
                 ),
             ))
         else:
@@ -267,10 +296,16 @@ def plan_engineering(request: EngineeringRequest) -> EngineeringPlan:
             "No aerodynamic performance, motor torque, fastener loads, fluid forces or "
             "wall safety is inferred from its diameter and RPM."
         )
-    else:
+    elif fam=="l_bracket":
         warnings.append(
             "Bracket FEA assumes a single linear-elastic body with idealized fixed "
             "support and applied traction. Real joint/bolt/fatigue validation is absent."
+        )
+    else:
+        warnings.append(
+            "Parametric STEP geometry is generated from explicit dimensions. "
+            "This product has no validated FEA, CFD, contact, fatigue or "
+            "certified safety result; requested physics remain BLOCKED."
         )
     if request.assumptions:
         warnings.append(
